@@ -3,6 +3,8 @@ package ad
 import (
 	"strings"
 	"testing"
+
+	"github.com/KKingZero/erebus-exploit-framwork/pkg/ldapcli"
 )
 
 func TestBuildLDAPFilterDomainAdmins(t *testing.T) {
@@ -39,10 +41,10 @@ func TestBuildLDAPFilterInteresting(t *testing.T) {
 
 func TestNormalizeLDAPHash(t *testing.T) {
 	nt := "603fc24ee01a9409f83c9d1d701485c5"
-	if got := normalizeLDAPHash("aad3b435b51404eeaad3b435b51404ee:" + nt); got != nt {
+	if got := ldapcli.NormalizeHash("aad3b435b51404eeaad3b435b51404ee:" + nt); got != nt {
 		t.Fatalf("got %q", got)
 	}
-	if got := normalizeLDAPHash(nt); got != nt {
+	if got := ldapcli.NormalizeHash(nt); got != nt {
 		t.Fatalf("got %q", got)
 	}
 }

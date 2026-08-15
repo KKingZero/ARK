@@ -57,7 +57,7 @@
 | **B.7a** | **RBCD write** (`msDS-AllowedToActOnBehalfOfOtherIdentity`) | module + critical approval | Lab write + read back |
 | **B.7b** | **S4U2Self + S4U2Proxy** with **AES** machine key (RC4 = clear fail) | `pkg/krb` + task → ticket store | Lab cifs/host ST |
 | **B.8a** | Set allowlisted attrs (at least `scriptPath`) | LDAP task / operator | Lab set + verify |
-| **B.8b** | ForceChangePassword (no old password when ACL allows) | LDAP/SAMR; **critical** | Lab |
+| **B.8b** | ForceChangePassword (no old password when ACL allows) | **Host-side shipped** (`erebus ad password`, LDAPS unicodePwd). SAMR fallback still open. | Unit prefix/encoding; lab |
 | **B.8c** | addcomputer / machine account (MAQ-aware); loot password or NT | SAMR/LDAP; high/critical | Lab |
 | **B.9a** | RODC partial TGT forge (AES krbtgt_XXXX, correct kvno/flags/realm) | `pkg/krb` | Unit vs known vectors |
 | **B.9b** | KERB-KEY-LIST → one user NT hash | task + CLI; **critical** | Lab or fixture |

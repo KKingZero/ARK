@@ -3,10 +3,122 @@ package operatorcli
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/KKingZero/erebus-exploit-framwork/pkg/krb"
 	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	"github.com/KKingZero/erebus-exploit-framwork/pkg/preimplant"
 	"google.golang.org/protobuf/proto"
 )
+
+// cmdMQTT runs operator-local MQTT helpers (no implant session required).
+func (c *Commands) cmdMQTT(args []string) error {
+	return preimplant.RunMQTT(args)
+}
+
+func (c *Commands) cmdHostLDAP(args []string) error {
+	return preimplant.RunLDAP(args)
+}
+
+func (c *Commands) cmdHostSMB(args []string) error {
+	return preimplant.RunSMB(args)
+}
+
+func (c *Commands) cmdHostAD(args []string) error {
+	return preimplant.RunAD(args)
+}
+
+// cmdRelay runs operator-local HTTP NTLM relay helpers (no implant session required).
+func (c *Commands) cmdRelay(args []string) error {
+	return preimplant.RunRelay(args)
+}
+
+// cmdKerberos is operator-local Kerberos helpers (no implant session required for skew).
+// Subcommands: skew (more: asktgt/s4u/keylist land in Sprint B.1/B.7/B.9).
+func (c *Commands) cmdKerberos(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: kerberos <skew|with-skew> --dc <host> ...")
+	}
+	switch strings.ToLower(args[0]) {
+	case "skew":
+		return c.cmdKerberosSkew(args[1:])
+	case "with-skew":
+		return c.cmdKerberosWithSkew(args[1:])
+	default:
+		return fmt.Errorf("unknown kerberos subcommand %q (supported: skew, with-skew)", args[0])
+	}
+}
+
+func (c *Commands) cmdKerberosSkew(args []string) error {
+	var dc, user, pass string
+	maxSkew := krb.DefaultMaxSkew
+	if err := parseKVFlags(args, map[string]func(string){
+		"--dc":   func(v string) { dc = v },
+		"--user": func(v string) { user = v },
+		"--pass": func(v string) { pass = v },
+		"--max-skew": func(v string) {
+			d, err := time.ParseDuration(v)
+			if err != nil {
+				// leave default; report after parse
+				return
+			}
+			maxSkew = d
+		},
+	}); err != nil {
+		return err
+	}
+	if dc == "" {
+		return fmt.Errorf("usage: kerberos skew --dc <host|host:389> [--user DN_or_user] [--pass p] [--max-skew 5m]")
+	}
+	// Optional simple bind: if user looks like DOMAIN\\user, leave as-is for LDAP (may need UPN/DN on some DCs).
+	res, err := krb.CheckSkewVsDC(dc, user, pass, maxSkew)
+	if err != nil {
+		return err
+	}
+	fmt.Println(res.Summary())
+	if !res.OK() {
+		return fmt.Errorf("clock skew too large for Kerberos (fix time, use 'kerberos with-skew', or raise --max-skew only for diagnostics)")
+	}
+	return nil
+}
+
+func (c *Commands) cmdKerberosWithSkew(args []string) error {
+	var dc, user, pass string
+	var cmd []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--" {
+			cmd = args[i+1:]
+			break
+		}
+		if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+			switch a {
+			case "--dc":
+				dc = args[i+1]
+				i++
+			case "--user":
+				user = args[i+1]
+				i++
+			case "--pass":
+				pass = args[i+1]
+				i++
+			default:
+				return fmt.Errorf("unknown flag %s (usage: kerberos with-skew --dc H -- <cmd...>)", a)
+			}
+			continue
+		}
+		return fmt.Errorf("usage: kerberos with-skew --dc <host> [--user u] [--pass p] -- <command...>")
+	}
+	if dc == "" || len(cmd) == 0 {
+		return fmt.Errorf("usage: kerberos with-skew --dc <host> -- <command...>")
+	}
+	res, err := krb.CheckSkewVsDC(dc, user, pass, 24*time.Hour)
+	if err != nil {
+		return err
+	}
+	fmt.Println(res.Summary())
+	return krb.RunWithSkew(res.Delta, cmd)
+}
 
 func (c *Commands) cmdLDAPEnum(args []string) error {
 	if len(args) < 1 {

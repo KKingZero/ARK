@@ -3,10 +3,10 @@
 | Field | Value |
 | --- | --- |
 | **Audience** | Operator + Erebus developer |
-| **Labs covered so far** | Support (solved), Logging (solved 2026-07-30) |
-| **Erebus P0 shipped** | WinRM PTH, LDAP hash/`interesting`, remote SMB client |
-| **Related** | `docs/AD_ENGAGEMENT.md`, `reports/htb-support/`, `reports/htb-logging/` (see `EREBUS_AFTER_ACTION.md`) |
-| **Last updated** | 2026-07-30 |
+| **Labs covered so far** | Support, Logging, Ghostlink, **DanglingTree** (solved 2026-08-15) |
+| **Erebus P0 shipped** | WinRM PTH, LDAP hash/`interesting`, remote SMB client; **Sprint D** MQTT + HTTP NTLM relay |
+| **Related** | `docs/AD_ENGAGEMENT.md`, `docs/OPERATOR_PRE_IMPLANT.md`, `docs/OPERATOR_INBOUND.md`, `reports/htb-*/` |
+| **Last updated** | 2026-08-07 |
 
 Authorized HTB / lab use only. Do not use against systems without permission.
 
@@ -29,7 +29,11 @@ Authorized HTB / lab use only. Do not use against systems without permission.
 | --- | --- | --- | --- | --- |
 | **Support** | Easy (Win/AD) | Solved | user + root | Mostly external tools; good first implant-drop target |
 | **Logging** | Medium (Win/AD) | **Solved** | user + root | C2 local implant OK; AD chain mostly external — see `reports/htb-logging/EREBUS_AFTER_ACTION.md` |
+| **Ghostlink** | Hard (Win/AD) | **Solved** | user + root | Drove Sprint D pre-implant toolkit; report `reports/htb-ghostlink/` |
+| **DanglingTree** | Medium (Win/AD) | **Solved** | user + root | Host-side LDAP/SMB/AD password + dangling ADCS gap; report `reports/htb-danglingtree/` |
 | Lab-perf (Juice/Meta) | N/A | Passed | N/A | Implant recon only |
+
+**Pre-implant (MQTT / NTLM relay):** `docs/OPERATOR_PRE_IMPLANT.md` · `erebus mqtt` · `erebus relay`
 
 ---
 
@@ -84,13 +88,16 @@ Examples of HTB themes (names rotate; pick current retired/active equivalents wi
 - Medium “Logging-like”: log secret → gMSA/shadow → DLL/hijack → DNS/WSUS  
 - Medium Kerberos-heavy: AS-REP/Kerberoast → ticket abuse (good for roast modules already in tree)
 
-### Priority 3 — After AD core is solid
+### Priority 3 — Linux C primary (Sprint L) + after AD core
 
 | Track | Purpose |
 | --- | --- |
-| Linux Easy/Medium (web → shell) | Implant HTTPS callback, shell, portscan, SOCKS on non-Windows |
+| Linux Easy/Medium (web → shell) | **C** implant HTTPS callback, shell, file, process, portscan (`make implant-c-linux`) |
+| Linux pivot | **C reverse SOCKS** (`socks start`); reverse tunnel if no session yet; Go only as fallback |
 | Cloud / hybrid (if on path) | `cloud_harvest` validation |
 | Hard AD / forest | Only after P1 RBCD/shadow/tickets land |
+
+**Linux habit (every eng):** drop C first; fill checklist §6; if Go used, log why. Plan: `docs/plans/SPRINT_L_C_LINUX.md`.
 
 ---
 
@@ -100,13 +107,18 @@ Use this every time so reports stay comparable and Erebus gaps get logged.
 
 ### 4.1 Pre-flight
 
+Full inbound / auth / firewall / tunnel checklist: **`docs/OPERATOR_INBOUND.md`**.
+
 ```text
 [ ] HTB VPN connected (machines_us-5 or current)
 [ ] Target IP reachable (nmap -Pn -n -p 445,389,88,5985,5986 --open <IP>)
 [ ] Workdir: ~/htb-<machine>/  (secrets as files only — never bash $$)
 [ ] Clock: note skew vs DC if Kerberos will be used
+[ ] Firewall: open implant/relay ports on tun0 (or reverse tunnel)
 [ ] Erebus: make erebus && erebus serve  (if testing C2 this session)
-[ ] Windows implant built if callback path planned
+[ ] Windows implant built if callback path planned (**prefer C**)
+[ ] Linux implant: **prefer C** (`make implant-c-linux` + CA pin; tunnel if firewalled)
+[ ] If 404 beacons: check teamserver logs for reason=hmac|skew|replay|unknown_implant|parse
 ```
 
 ### 4.2 Attack phases (record in report)
@@ -305,11 +317,11 @@ bash scripts/smoke_test.sh
 
 | Session | Focus |
 | --- | --- |
-| 1 | Logging root finish + report closeout |
-| 2 | Support-style re-run / Easy AD with full Erebus soft path QA |
-| 3 | Sprint B1–B2 coding (ACL enum + Kerberos AES/ticket) |
-| 4 | Medium ACL/RBCD box — exercise B modules; file gaps |
-| 5 | Sprint C shadow + deploy-via-WinRM; Logging-class techniques in-framework |
+| 1 | A.1 live WinRM PTH QA (GOAD) + inbound checklist hygiene |
+| 2 | Sprint 0C Golden Demo 5/5 Auto on **C** implant |
+| 3 | Sprint B coding — see `docs/plans/SPRINT_B_AD.md` (AES/ticket/shadow/ACL) |
+| 4 | Medium ACL/Kerberos box — exercise B; gap log |
+| 5 | Sprint 1 C lateral — see `docs/plans/SPRINT_1_C_LATERAL.md` |
 
 Adjust to your HTB rank path; keep the **finish open → QA P0 → code P1 → Medium that needs P1** loop.
 

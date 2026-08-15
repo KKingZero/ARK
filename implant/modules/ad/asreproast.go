@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	ldaplib "github.com/go-ldap/ldap/v3"
-	"github.com/jcmturner/gokrb5/v8/client"
-	"github.com/jcmturner/gokrb5/v8/config"
-	"github.com/jcmturner/gokrb5/v8/messages"
+	"github.com/KKingZero/erebus-exploit-framwork/pkg/ldapcli"
 	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
 	"github.com/KKingZero/erebus-exploit-framwork/pkg/plugin"
 	"github.com/KKingZero/erebus-exploit-framwork/pkg/suggestions"
+	"github.com/jcmturner/gokrb5/v8/client"
+	"github.com/jcmturner/gokrb5/v8/config"
+	"github.com/jcmturner/gokrb5/v8/messages"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -26,8 +26,10 @@ func init() {
 
 type ASREPRoastModule struct{}
 
-func (m *ASREPRoastModule) Name() string        { return "asreproast" }
-func (m *ASREPRoastModule) Description() string { return "AS-REP Roasting - extract AS-REP hashes for accounts without pre-auth" }
+func (m *ASREPRoastModule) Name() string { return "asreproast" }
+func (m *ASREPRoastModule) Description() string {
+	return "AS-REP Roasting - extract AS-REP hashes for accounts without pre-auth"
+}
 
 func (m *ASREPRoastModule) Execute(ctx context.Context, cfgData []byte) ([]byte, error) {
 	cfg := &pb.ASREPRoastConfig{}
@@ -57,11 +59,10 @@ func runASREPRoast(_ context.Context, cfg *pb.ASREPRoastConfig) (*pb.ASREPRoastR
 
 	// If no users provided, enumerate via LDAP
 	if len(users) == 0 {
-		ldapAddr := dc
-		if !strings.Contains(ldapAddr, ":") {
-			ldapAddr = ldapAddr + ":389"
-		}
-		conn, err := ldaplib.Dial("tcp", ldapAddr)
+		opts := ldapcli.DefaultOptions()
+		opts.Host = dc
+		opts.Domain = cfg.Domain
+		conn, err := ldapcli.Bind(opts)
 		if err != nil {
 			return nil, fmt.Errorf("LDAP connect: %w", err)
 		}

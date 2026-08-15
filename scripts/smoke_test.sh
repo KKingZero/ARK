@@ -8,7 +8,7 @@ export GOCACHE="${ROOT}/.gocache"
 mkdir -p "$TMPDIR" "$GOCACHE"
 
 echo "==> Go tests"
-go test ./pkg/suggestions/... ./pkg/agent/... ./pkg/dnstransport/... ./server/approval/... ./server/listeners/... ./server/builder/... ./pkg/crypto/... -count=1
+go test ./pkg/suggestions/... ./pkg/agent/... ./pkg/dnstransport/... ./pkg/ldapcli/... ./pkg/smbcli/... ./pkg/preimplant/... ./pkg/krb/... ./server/approval/... ./server/listeners/... ./server/builder/... ./pkg/crypto/... -count=1
 
 echo "==> Build erebus + teamserver + agent"
 make erebus teamserver agent
