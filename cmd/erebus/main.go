@@ -21,8 +21,8 @@ func main() {
 
 	switch os.Args[1] {
 	case "serve":
-		// `serve` starts teamserver + operator REPL. Closing stdin stops C2.
-		// Use `erebus teamserver` (or serve --teamserver) to keep the listener up.
+		// `serve` starts teamserver + operator REPL. Stdin/REPL EOF does not stop C2.
+		// Use `erebus teamserver` (or serve --teamserver) for daemon-only (no REPL).
 		if hasFlag(os.Args[2:], "--teamserver", "-d") {
 			runTeamserver(stripFlags(os.Args[2:], "--teamserver", "-d"))
 			return
@@ -254,9 +254,9 @@ func printUsage() {
 Usage:
   erebus              Interactive console (startup UI)
   erebus -json         JSON console mode
-  erebus serve         Start teamserver + operator REPL (stdin close stops C2)
+  erebus serve         Start teamserver + operator REPL (stdin/EOF does not stop C2)
   erebus serve --teamserver   Teamserver only (same as erebus teamserver)
-  erebus teamserver    Run teamserver only (use this for HTB C2)
+  erebus teamserver    Run teamserver only (preferred daemon / HTB C2)
   erebus operator      Connect to teamserver REPL
   erebus op            One-shot operator commands (sessions/shell/generate/...)
   erebus ldap          Host-side LDAP (LDAPS, enum, dangling templates)

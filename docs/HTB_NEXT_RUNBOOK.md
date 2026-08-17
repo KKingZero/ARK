@@ -115,7 +115,7 @@ Full inbound / auth / firewall / tunnel checklist: **`docs/OPERATOR_INBOUND.md`*
 [ ] Workdir: ~/htb-<machine>/  (secrets as files only — never bash $$)
 [ ] Clock: note skew vs DC if Kerberos will be used
 [ ] Firewall: open implant/relay ports on tun0 (or reverse tunnel)
-[ ] Erebus: make erebus && erebus serve  (if testing C2 this session)
+[ ] Erebus: make erebus && erebus teamserver  (if testing C2 this session; not `serve`)
 [ ] Windows implant built if callback path planned (**prefer C**)
 [ ] Linux implant: **prefer C** (`make implant-c-linux` + CA pin; tunnel if firewalled)
 [ ] If 404 beacons: check teamserver logs for reason=hmac|skew|replay|unknown_implant|parse
@@ -290,8 +290,8 @@ python3 -c 'open("svc_pass.txt","w").write("Em3rg3ncyPa$$2026")'
 ### Erebus operator (post-implant)
 
 ```text
-erebus serve          # teamserver
-erebus operator       # or unified CLI
+erebus teamserver     # C2 daemon
+erebus operator       # REPL in another terminal
 sessions
 use <session-id>
 smb list_shares --host <IP> --anon

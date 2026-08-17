@@ -47,6 +47,7 @@ endif
 COMMON_SRCS = \
 	src/core/buffer.c \
 	src/core/beacon.c \
+	src/platform/unique_ms.c \
 	src/pb/wire.c \
 	src/pb/c2.c \
 	src/pb/c2_tasks.c \
@@ -117,7 +118,7 @@ SRCS = $(COMMON_SRCS) \
 	windows/main.c
 endif
 
-.PHONY: all config clean test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-host linux windows
+.PHONY: all config clean test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-unique-ms test-host linux windows
 
 all: config $(OUT)
 
@@ -154,7 +155,14 @@ test-ntlm-parse:
 		-o $(BUILD_DIR)/ntlm_parse_host_test
 	$(BUILD_DIR)/ntlm_parse_host_test
 
-test-host: test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse
+test-unique-ms:
+	@mkdir -p $(BUILD_DIR)
+	cc -std=c11 -Wall -Wextra -Iinclude \
+		tests/unique_ms_host_test.c src/platform/unique_ms.c \
+		-o $(BUILD_DIR)/unique_ms_host_test
+	$(BUILD_DIR)/unique_ms_host_test
+
+test-host: test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-unique-ms
 
 config:
 	@chmod +x scripts/gen_config.sh

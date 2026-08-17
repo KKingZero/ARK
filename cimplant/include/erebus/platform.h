@@ -10,6 +10,11 @@ void erebus_sleep_ms(uint32_t ms);
 /* Unix time in milliseconds (for HMAC timestamps; avoids same-second replay). */
 int64_t erebus_unix_ms(void);
 
+/* Monotonic-per-implant HMAC timestamp. If wall ms did not advance since *last,
+ * returns *last+1 so ReplayCache does not treat SLEEP_MS=500 bursts as replays.
+ * *last may be 0 on first use. */
+int64_t erebus_unique_unix_ms(int64_t *last);
+
 /* Host identity for Register messages. */
 void erebus_get_identity(char *hostname, size_t hcap, char *username, size_t ucap,
     uint32_t *pid, char *integrity, size_t icap);

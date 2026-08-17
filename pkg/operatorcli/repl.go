@@ -2,7 +2,6 @@ package operatorcli
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -15,7 +14,7 @@ type REPL struct {
 	rl   *readline.Instance
 }
 
-func NewREPL(client pb.ErebusC2Client, approverClient pb.ErebusC2Client) *REPL {
+func NewREPL(client pb.ErebusC2Client, approverClient pb.ErebusC2Client) (*REPL, error) {
 	cmds := NewCommands(client, approverClient)
 
 	// Build completer from command names
@@ -38,14 +37,13 @@ func NewREPL(client pb.ErebusC2Client, approverClient pb.ErebusC2Client) *REPL {
 		EOFPrompt:       "exit",
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "readline init: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("readline init: %w", err)
 	}
 
 	return &REPL{
 		cmds: cmds,
 		rl:   rl,
-	}
+	}, nil
 }
 
 func (r *REPL) Run() {

