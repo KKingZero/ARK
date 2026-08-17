@@ -32,21 +32,21 @@ var policy = approval.DefaultPolicy()
 func Catalog() []ToolDef {
 	return []ToolDef{
 		{
-			Name:        "list_sessions",
-			Description: "List all active implant sessions",
-			Risk:        RiskNone,
+			Name:         "list_sessions",
+			Description:  "List all active implant sessions",
+			Risk:         RiskNone,
 			NeedsSession: false,
 		},
 		{
-			Name:        "get_session",
-			Description: "Get details for a session by session_id",
-			Risk:        RiskNone,
+			Name:         "get_session",
+			Description:  "Get details for a session by session_id",
+			Risk:         RiskNone,
 			NeedsSession: false,
 		},
 		{
-			Name:        "list_loot",
-			Description: "List captured loot, optionally filtered by session_id",
-			Risk:        RiskNone,
+			Name:         "list_loot",
+			Description:  "List captured loot, optionally filtered by session_id",
+			Risk:         RiskNone,
 			NeedsSession: false,
 		},
 		{
@@ -226,7 +226,7 @@ func Catalog() []ToolDef {
 		},
 		{
 			Name:         "ldap_enum",
-			Description:  "LDAP/AD enumeration (query_type e.g. kerberoastable|interesting|users|dcs|rbcd, domain, target_dc, optional username/password/ntlm_hash/attributes/custom_filter)",
+			Description:  "LDAP/AD enumeration (query_type e.g. kerberoastable|asrep|interesting|users|dcs|rbcd|shadow|maq, domain, target_dc, optional username/password/ntlm_hash/attributes/custom_filter)",
 			Risk:         policy.RiskLevel(pb.TaskType_TASK_LDAP_ENUM),
 			TaskType:     pb.TaskType_TASK_LDAP_ENUM,
 			NeedsSession: true,

@@ -2,6 +2,7 @@ package ldapcli
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -21,6 +22,20 @@ var QueryFilters = map[string]string{
 	"groups":                   "(objectCategory=group)",
 	"admins":                   "(&(objectCategory=person)(adminCount=1))",
 	"rbcd":                     "(msDS-AllowedToActOnBehalfOfOtherIdentity=*)",
+	"shadow":                   "(msDS-KeyCredentialLink=*)",
+}
+
+// QueryAliases are operator shorthands → canonical QueryFilters keys.
+var QueryAliases = map[string]string{
+	"asrep":         "asrep_roastable",
+	"as-rep":        "asrep_roastable",
+	"as_rep":        "asrep_roastable",
+	"spn":           "kerberoastable",
+	"roast":         "kerberoastable",
+	"keycred":       "shadow",
+	"keycredential": "shadow",
+	"shadowcreds":   "shadow",
+	"shadow_creds":  "shadow",
 }
 
 // DefaultAttrs for each query type.
@@ -40,12 +55,26 @@ var DefaultAttrs = map[string][]string{
 	"admins":                   {"sAMAccountName", "distinguishedName", "memberOf", "adminCount"},
 	"domain_admins":            {"sAMAccountName", "distinguishedName", "memberOf", "adminCount"},
 	"rbcd":                     {"sAMAccountName", "dNSHostName", "distinguishedName", "msDS-AllowedToActOnBehalfOfOtherIdentity"},
+	"shadow":                   {"sAMAccountName", "dNSHostName", "distinguishedName", "msDS-KeyCredentialLink"},
+}
+
+// CanonicalQuery maps aliases (asrep, keycred, …) onto filter keys.
+func CanonicalQuery(queryType string) string {
+	q := strings.ToLower(strings.TrimSpace(queryType))
+	if a, ok := QueryAliases[q]; ok {
+		return a
+	}
+	return q
 }
 
 // FilterFor returns the LDAP filter for a named query type.
 func FilterFor(queryType, baseDN string) (string, error) {
+	queryType = CanonicalQuery(queryType)
 	if queryType == "domain_admins" {
 		return "(&(objectCategory=person)(objectClass=user)(memberOf=CN=Domain Admins,CN=Users," + baseDN + "))", nil
+	}
+	if queryType == "maq" || queryType == "dangling" {
+		return "", fmt.Errorf("query type %q is not a subtree filter (use erebus ldap enum --type %s)", queryType, queryType)
 	}
 	f, ok := QueryFilters[queryType]
 	if !ok {
@@ -54,11 +83,17 @@ func FilterFor(queryType, baseDN string) (string, error) {
 	return f, nil
 }
 
-func fmtUnknownQuery(q string) error {
-	keys := make([]string, 0, len(QueryFilters)+1)
-	keys = append(keys, "domain_admins", "dangling")
+// AvailableTypes is the sorted list for usage / error strings.
+func AvailableTypes() []string {
+	keys := make([]string, 0, len(QueryFilters)+3)
+	keys = append(keys, "domain_admins", "dangling", "maq")
 	for k := range QueryFilters {
 		keys = append(keys, k)
 	}
-	return fmt.Errorf("unknown query type %q (available: %s)", q, strings.Join(keys, ", "))
+	sort.Strings(keys)
+	return keys
+}
+
+func fmtUnknownQuery(q string) error {
+	return fmt.Errorf("unknown query type %q (available: %s)", q, strings.Join(AvailableTypes(), ", "))
 }

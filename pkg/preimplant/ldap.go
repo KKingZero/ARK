@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/KKingZero/erebus-exploit-framwork/pkg/ldapcli"
+	"github.com/go-ldap/ldap/v3"
 )
 
 // RunLDAP dispatches host-side LDAP (no teamserver / implant).
@@ -33,9 +34,12 @@ const ldapUsage = `erebus ldap — operator-host LDAP (no implant)
   erebus ldap bind --dc H --domain D --user U (--pass-file P | --pass P | --hash H) [--tls-verify]
   erebus ldap enum --dc H --domain D --user U --pass-file P --type interesting
   erebus ldap dangling --dc H --domain D --user U --pass-file P
+  erebus ldap enum --type maq --dc H --domain D --user U --pass-file P
 
-Uses LDAPS first (lab self-signed OK). Types: interesting, users, groups, admins,
-kerberoastable, asrep_roastable, computers, dcs, rbcd, dangling.
+Uses LDAPS first (lab self-signed OK). Honors EREBUS_PROXY / ALL_PROXY (SOCKS5).
+Types: asrep_roastable (alias asrep), computers, constrained_delegation, dangling,
+dcs, domain_admins, gpos, groups, interesting, kerberoastable (alias spn), maq,
+rbcd, secrets, shadow (alias keycred), trusts, unconstrained_delegation, users, admins.
 
 Lab-only. See docs/OPERATOR_PRE_IMPLANT.md
 `
@@ -71,6 +75,7 @@ func ldapBind(args []string) error {
 		return err
 	}
 	defer conn.Close()
+	printProxyHint()
 	who := opts.Username
 	if who == "" {
 		who = "(unbound/anonymous)"
@@ -92,6 +97,7 @@ func ldapEnum(args []string) error {
 	if q == "" {
 		q = "interesting"
 	}
+	q = ldapcli.CanonicalQuery(q)
 	if q == "dangling" {
 		return ldapDangling(args)
 	}
@@ -100,9 +106,13 @@ func ldapEnum(args []string) error {
 		return err
 	}
 	defer conn.Close()
+	printProxyHint()
 	base := ldapcli.BaseDN(opts.Domain)
 	if base == "" {
 		return fmt.Errorf("--domain required")
+	}
+	if q == "maq" {
+		return printMAQ(conn, base)
 	}
 	filter, err := ldapcli.FilterFor(q, base)
 	if err != nil {
@@ -147,6 +157,7 @@ func ldapDangling(args []string) error {
 		return err
 	}
 	defer conn.Close()
+	printProxyHint()
 	res, err := ldapcli.DanglingTemplates(conn)
 	if err != nil {
 		return err
@@ -160,6 +171,22 @@ func ldapDangling(args []string) error {
 	fmt.Println("dangling (CA lists these names; no AD object):")
 	for _, n := range res.Missing {
 		fmt.Println(" ", n)
+	}
+	return nil
+}
+
+func printMAQ(conn *ldap.Conn, base string) error {
+	n, ok, err := ldapcli.ReadMAQ(conn, base)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Printf("maq unset at %s (AD default is 10)\n", base)
+		return nil
+	}
+	fmt.Printf("maq=%d base=%s\n", n, base)
+	if n == 0 {
+		fmt.Println("MAQ is 0 — addcomputer will refuse")
 	}
 	return nil
 }

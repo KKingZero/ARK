@@ -3,6 +3,8 @@
 # localhost so a Linux C implant can CALLBACK_URL=https://127.0.0.1:<remote_port>
 # when the target has no route to the operator VPN (FireFlow, DarkZeroReturns).
 #
+# Preferred: erebus inbound tunnel user@TARGET  (same ssh -R, plus inbound status/env).
+#
 # Usage:
 #   ./scripts/htb_reverse_tunnel.sh user@10.129.x.x
 #   LOCAL_PORT=8443 REMOTE_PORT=8443 ./scripts/htb_reverse_tunnel.sh nightfall@10.129.1.2

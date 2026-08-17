@@ -2,6 +2,23 @@
 
 Focused **internal AD post-ex** path. Not an MSF replacement.
 
+**Fill-the-skeleton plan:** `docs/plans/FILL_AD_SKELETON.md` (inbound first, then host AD brain, lean C).
+
+## 0. Inbound first (every eng)
+
+If the box cannot reach your VPN, or you cannot reach the DC from the operator host, **do this before LDAP/SMB/Kerberos**.
+
+```bash
+erebus inbound status                         # tun0, :8443, ALL_PROXY, firewalld
+erebus inbound tunnel user@TARGET             # box cannot reach tun0 → C2 on 127.0.0.1:8443
+# after C Linux session:
+erebus op socks start --port 1080
+eval "$(erebus inbound env --port 1080)"      # ALL_PROXY for host ldap/smb/ad/kerberos
+erebus ldap bind --dc DC --domain DOM --user u --pass-file p
+```
+
+Host tools honor `EREBUS_PROXY` / `ALL_PROXY` (SOCKS5). Full checklist: `docs/OPERATOR_INBOUND.md`.
+
 ## Sprint 1 path (golden)
 
 ```

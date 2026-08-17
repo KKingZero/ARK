@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/KKingZero/erebus-exploit-framwork/pkg/netproxy"
 	"github.com/hirochachacha/go-smb2"
 )
 
@@ -40,7 +41,7 @@ func Dial(opts Options) (*Session, error) {
 		return nil, fmt.Errorf("host required")
 	}
 	addr := joinSMBAddr(opts.Host)
-	conn, err := net.DialTimeout("tcp", addr, dialTimeout)
+	conn, err := netproxy.DialTimeout("tcp", addr, dialTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("smb connect %s: %w", addr, err)
 	}

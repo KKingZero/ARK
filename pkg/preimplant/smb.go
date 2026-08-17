@@ -32,7 +32,8 @@ const smbUsage = `erebus smb — operator-host SMB (no implant)
   erebus smb ls --host H --share IT [--path .]
   erebus smb get --host H --share C$ --path Users\\a\\Desktop\\user.txt --out user.txt
 
-Hash: --hash 32hex-NT. Lab-only. See docs/OPERATOR_PRE_IMPLANT.md
+Hash: --hash 32hex-NT. Honors EREBUS_PROXY / ALL_PROXY (SOCKS5).
+Lab-only. See docs/OPERATOR_PRE_IMPLANT.md
 `
 
 func smbOpts(f map[string]string) (smbcli.Options, error) {
@@ -65,6 +66,7 @@ func smbShares(args []string) error {
 		return err
 	}
 	defer s.Close()
+	printProxyHint()
 	names, err := s.ListShares()
 	if err != nil {
 		return err
@@ -90,6 +92,7 @@ func smbLs(args []string) error {
 		return err
 	}
 	defer s.Close()
+	printProxyHint()
 	names, err := s.ListDir(share, f["path"])
 	if err != nil {
 		return err
@@ -111,5 +114,6 @@ func smbGet(args []string) error {
 	if share == "" || p == "" {
 		return fmt.Errorf("--share and --path required")
 	}
+	printProxyHint()
 	return smbcli.DownloadTo(opts, share, p, first(f, "out", "output"))
 }

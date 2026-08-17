@@ -89,3 +89,53 @@ func TestFilterFor(t *testing.T) {
 		t.Fatal("want error")
 	}
 }
+
+func TestCanonicalQueryAliases(t *testing.T) {
+	if CanonicalQuery("asrep") != "asrep_roastable" {
+		t.Fatal(CanonicalQuery("asrep"))
+	}
+	if CanonicalQuery("keycred") != "shadow" {
+		t.Fatal(CanonicalQuery("keycred"))
+	}
+	f, err := FilterFor("spn", "")
+	if err != nil || !strings.Contains(f, "servicePrincipalName") {
+		t.Fatalf("spn alias: %s %v", f, err)
+	}
+	f, err = FilterFor("shadow", "")
+	if err != nil || !strings.Contains(f, "KeyCredentialLink") {
+		t.Fatalf("shadow: %s %v", f, err)
+	}
+	if _, err := FilterFor("maq", "DC=a,DC=b"); err == nil {
+		t.Fatal("maq is not a subtree filter")
+	}
+}
+
+func TestAvailableTypesSorted(t *testing.T) {
+	got := AvailableTypes()
+	if len(got) < 10 {
+		t.Fatalf("too few: %v", got)
+	}
+	for i := 1; i < len(got); i++ {
+		if got[i] < got[i-1] {
+			t.Fatalf("unsorted: %q then %q", got[i-1], got[i])
+		}
+	}
+	joined := strings.Join(got, ",")
+	if !strings.Contains(joined, "shadow") || !strings.Contains(joined, "maq") {
+		t.Fatal(joined)
+	}
+}
+
+func TestParseMAQ(t *testing.T) {
+	n, err := ParseMAQ("10")
+	if err != nil || n != 10 {
+		t.Fatalf("%d %v", n, err)
+	}
+	if _, err := ParseMAQ("x"); err == nil {
+		t.Fatal("want error")
+	}
+	_, ok, err := ReadMAQ(nil, "DC=a,DC=b")
+	if err == nil || ok {
+		t.Fatal("nil conn")
+	}
+}

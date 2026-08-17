@@ -61,6 +61,7 @@ func adPassword(args []string) error {
 		return err
 	}
 	defer conn.Close()
+	printProxyHint()
 	base := ldapcli.BaseDN(opts.Domain)
 	if base == "" {
 		return fmt.Errorf("--domain required")

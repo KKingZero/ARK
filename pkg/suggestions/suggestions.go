@@ -32,7 +32,7 @@ func ForLDAPEnum(r *pb.LDAPEnumResult) []string {
 		case "asrep_roastable":
 			out = append(out, "ldap_enum query_type=users")
 		default:
-			out = append(out, "ldap_enum query_type=kerberoastable", "ldap_enum query_type=computers")
+			out = append(out, "ldap_enum query_type=kerberoastable", "ldap_enum query_type=shadow", "ldap_enum query_type=rbcd")
 		}
 		return Cap(out)
 	}
@@ -103,7 +103,25 @@ func ForLDAPEnum(r *pb.LDAPEnumResult) []string {
 		}
 		out = append(out, fmt.Sprintf("ldap_enum query_type=kerberoastable domain=%s target_dc=%s", r.Domain, r.Dc))
 	case "rbcd":
-		out = append(out, "msDS-AllowedToActOnBehalfOfOtherIdentity set — review RBCD abuse path")
+		out = append(out, "rbcd write --to <HOST$> --from ATTACK$ (critical; addcomputer first)")
+		for i, e := range r.Entries {
+			if i >= 2 {
+				break
+			}
+			if sam := ldapAttr(e, "sAMAccountName"); sam != "" {
+				out = append(out, fmt.Sprintf("rbcd write --to %s --from ATTACK$ (critical)", sam))
+			}
+		}
+	case "shadow":
+		out = append(out, "ad shadow write (critical; KeyCredentialLink already populated — review)")
+		for i, e := range r.Entries {
+			if i >= 2 {
+				break
+			}
+			if sam := ldapAttr(e, "sAMAccountName"); sam != "" {
+				out = append(out, fmt.Sprintf("ad shadow write --target %s (critical)", sam))
+			}
+		}
 	case "computers":
 		for i, e := range r.Entries {
 			if i >= 2 {

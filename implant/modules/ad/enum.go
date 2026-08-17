@@ -56,16 +56,20 @@ func runLDAPEnum(_ context.Context, cfg *pb.LDAPEnumConfig) (*pb.LDAPEnumResult,
 	defer conn.Close()
 
 	baseDN := ldapcli.BaseDN(cfg.Domain)
+	qt := ldapcli.CanonicalQuery(cfg.QueryType)
+	if qt == "" {
+		qt = "interesting"
+	}
 	filter := cfg.CustomFilter
 	if filter == "" {
-		filter, err = ldapcli.FilterFor(cfg.QueryType, baseDN)
+		filter, err = ldapcli.FilterFor(qt, baseDN)
 		if err != nil {
 			return nil, err
 		}
 	}
 	attrs := cfg.Attributes
 	if len(attrs) == 0 {
-		attrs = ldapcli.DefaultAttrs[cfg.QueryType]
+		attrs = ldapcli.DefaultAttrs[qt]
 	}
 	entries, err := ldapcli.Search(conn, baseDN, filter, attrs)
 	if err != nil {
@@ -75,7 +79,7 @@ func runLDAPEnum(_ context.Context, cfg *pb.LDAPEnumConfig) (*pb.LDAPEnumResult,
 	result := &pb.LDAPEnumResult{
 		Domain:       cfg.Domain,
 		Dc:           cfg.TargetDc,
-		QueryType:    cfg.QueryType,
+		QueryType:    qt,
 		TotalResults: int32(len(entries)),
 	}
 	for _, entry := range entries {

@@ -28,6 +28,10 @@ func (c *Commands) cmdHostAD(args []string) error {
 	return preimplant.RunAD(args)
 }
 
+func (c *Commands) cmdInbound(args []string) error {
+	return preimplant.RunInbound(args)
+}
+
 // cmdRelay runs operator-local HTTP NTLM relay helpers (no implant session required).
 func (c *Commands) cmdRelay(args []string) error {
 	return preimplant.RunRelay(args)

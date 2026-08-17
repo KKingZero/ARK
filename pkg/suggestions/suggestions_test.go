@@ -15,8 +15,8 @@ func TestForLDAPEnumKerberoastable(t *testing.T) {
 		TotalResults: 2,
 		Entries: []*pb.LDAPEntry{{
 			Attributes: map[string]*pb.LDAPValues{
-				"sAMAccountName":         {Values: []string{"svc_sql"}},
-				"servicePrincipalName":   {Values: []string{"MSSQLSvc/dc01.corp.local"}},
+				"sAMAccountName":       {Values: []string{"svc_sql"}},
+				"servicePrincipalName": {Values: []string{"MSSQLSvc/dc01.corp.local"}},
 			},
 		}},
 	})
@@ -68,6 +68,35 @@ func TestForSMBListShares(t *testing.T) {
 	joined := strings.Join(actions, " ")
 	if !strings.Contains(joined, "support-tools") {
 		t.Fatalf("expected support-tools list_dir: %v", actions)
+	}
+}
+
+func TestForLDAPEnumRBCDAndShadow(t *testing.T) {
+	rbcd := ForLDAPEnum(&pb.LDAPEnumResult{
+		QueryType:    "rbcd",
+		TotalResults: 1,
+		Entries: []*pb.LDAPEntry{{
+			Attributes: map[string]*pb.LDAPValues{
+				"sAMAccountName": {Values: []string{"DC$"}},
+			},
+		}},
+	})
+	joined := strings.Join(rbcd, " ")
+	if !strings.Contains(joined, "rbcd write") || !strings.Contains(joined, "DC$") {
+		t.Fatalf("rbcd: %v", rbcd)
+	}
+	sh := ForLDAPEnum(&pb.LDAPEnumResult{
+		QueryType:    "shadow",
+		TotalResults: 1,
+		Entries: []*pb.LDAPEntry{{
+			Attributes: map[string]*pb.LDAPValues{
+				"sAMAccountName": {Values: []string{"admin"}},
+			},
+		}},
+	})
+	joined = strings.Join(sh, " ")
+	if !strings.Contains(joined, "shadow") || !strings.Contains(joined, "admin") {
+		t.Fatalf("shadow: %v", sh)
 	}
 }
 

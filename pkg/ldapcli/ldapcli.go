@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/KKingZero/erebus-exploit-framwork/pkg/netproxy"
 	"github.com/go-ldap/ldap/v3"
 )
 
@@ -160,8 +161,7 @@ func dialLDAPS(opts Options) (*ldap.Conn, error) {
 		MinVersion:         tls.VersionTLS12,
 		ServerName:         host,
 	}
-	d := &net.Dialer{Timeout: dialTimeout}
-	raw, err := d.Dial("tcp", addr)
+	raw, err := netproxy.DialTimeout("tcp", addr, dialTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("ldaps %s: %w", addr, err)
 	}
@@ -181,8 +181,7 @@ func dialLDAP(opts Options) (*ldap.Conn, error) {
 		port = opts.Port
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	d := &net.Dialer{Timeout: dialTimeout}
-	raw, err := d.Dial("tcp", addr)
+	raw, err := netproxy.DialTimeout("tcp", addr, dialTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("ldap %s: %w", addr, err)
 	}

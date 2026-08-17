@@ -2,10 +2,11 @@
 
 Authorized **HTB / owned lab** helpers that run **without** a C2 session or teamserver.
 
-**Inbound C2 / firewall / auth logs / reverse tunnel:** see `docs/OPERATOR_INBOUND.md`.
+**Inbound C2 / firewall / auth logs / reverse tunnel:** `erebus inbound` · `docs/OPERATOR_INBOUND.md`.
 
 | Command | Purpose |
 | --- | --- |
+| `erebus inbound …` | tun0 / listeners / SOCKS env / SSH reverse tunnel |
 | `erebus ldap …` | Host-side LDAPS bind / enum / dangling ADCS template names |
 | `erebus smb …` | Host-side SMB shares / ls / get (no implant) |
 | `erebus ad password …` | ForceChangePassword via LDAPS `unicodePwd` |
@@ -114,7 +115,7 @@ Prefer soft compromise; skip LSASS unless the objective requires it.
 After a Linux foothold (e.g. Gogs RCE / web RCE):
 
 1. **Prefer C Linux implant** (`make implant-c-linux` + CA pin).
-2. If the host cannot reach operator VPN: `./scripts/htb_reverse_tunnel.sh user@TARGET` and `CALLBACK_URL=https://127.0.0.1:8443`.
+2. If the host cannot reach operator VPN: `erebus inbound tunnel user@TARGET` and `CALLBACK_URL=https://127.0.0.1:8443`.
 3. Exercise shell / file / process from the C session (product QA).
 4. **Pivot:** C reverse SOCKS (`socks start`) is implemented — lab-prove on session (M4c live). Fallback: reverse tunnel / Ligolo / Go with justification.
 5. External chisel is fine for speed; document intended path as **C implant** for framework QA.

@@ -77,7 +77,7 @@ Beacon, HMAC-SHA256 identity, AES-256-GCM sessions. **C** (`cimplant/`) is prima
 
 **Host tools** (no session)
 
-`erebus ldap` · `smb` · `ad` · `kerberos` · `mqtt` · `relay`
+`erebus inbound` · `ldap` · `smb` · `ad` · `kerberos` · `mqtt` · `relay`
 
 Same idea as a pre-implant kit. See [OPERATOR_PRE_IMPLANT.md](docs/OPERATOR_PRE_IMPLANT.md).
 
@@ -213,6 +213,7 @@ Or one-shots: `erebus op sessions`. Dual certs (`operator` + `approver`) are how
 No implant yet. Secrets go in files (`--pass-file`), never bash `"…$…"`.
 
 ```bash
+erebus inbound status
 erebus smb shares --host <DC> --anon
 erebus ldap enum --dc <DC> --domain DOM \
   --user u --pass-file ./p --type interesting

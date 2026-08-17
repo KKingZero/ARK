@@ -34,6 +34,15 @@ func TestCompareFail(t *testing.T) {
 	}
 }
 
+func TestLDAPDialAddr(t *testing.T) {
+	if got := ldapDialAddr("10.129.1.2"); got != "10.129.1.2:389" {
+		t.Fatalf("got %q", got)
+	}
+	if got := ldapDialAddr("ldap://dc.lab.htb:3268"); got != "dc.lab.htb:3268" {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestParseLDAPGeneralizedTime(t *testing.T) {
 	cases := []string{
 		"20260808104210.0Z",

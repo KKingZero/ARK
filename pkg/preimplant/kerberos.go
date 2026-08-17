@@ -40,6 +40,7 @@ func kerberosSkew(args []string) error {
 	if dc == "" {
 		return fmt.Errorf("--dc required")
 	}
+	printProxyHint()
 	res, err := krb.CheckSkewVsDC(dc, first(f, "user"), first(f, "pass"), krb.DefaultMaxSkew)
 	if err != nil {
 		return err

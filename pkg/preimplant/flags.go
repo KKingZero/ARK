@@ -1,8 +1,11 @@
 package preimplant
 
 import (
+	"fmt"
 	"os"
 	"strings"
+
+	"github.com/KKingZero/erebus-exploit-framwork/pkg/netproxy"
 )
 
 // ParseFlags splits --key value / --bool flags. Bare args returned separately.
@@ -48,4 +51,11 @@ func readSecret(f map[string]string, inlineKey, fileKey string) (string, error) 
 		return strings.TrimRight(string(b), "\r\n"), nil
 	}
 	return f[inlineKey], nil
+}
+
+// printProxyHint names the SOCKS hop so a failed bind is not "wrong DC".
+func printProxyHint() {
+	if p := netproxy.ProxyEnv(); p != "" {
+		fmt.Printf("via %s\n", p)
+	}
 }
