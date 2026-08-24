@@ -62,23 +62,32 @@ func FaketimeOffset(delta time.Duration) string {
 	}
 }
 
+// FaketimeEnv is LD_PRELOAD/FAKETIME for a subprocess that must match ClockOffset.
+func FaketimeEnv(delta time.Duration) ([]string, error) {
+	so := FaketimeSO()
+	if so == "" {
+		return nil, fmt.Errorf("libfaketime not found (set EREBUS_FAKETIME_SO or install libfaketime)")
+	}
+	return []string{
+		"LD_PRELOAD=" + so,
+		"FAKETIME=" + FaketimeOffset(delta),
+		"FAKETIME_DONT_FAKE_MONOTONIC=1",
+	}, nil
+}
+
 // RunWithSkew execs argv with libfaketime set so local clock matches remote.
 func RunWithSkew(delta time.Duration, argv []string) error {
 	if len(argv) == 0 {
 		return fmt.Errorf("command required after --")
 	}
-	so := FaketimeSO()
-	if so == "" {
-		return fmt.Errorf("libfaketime not found (set EREBUS_FAKETIME_SO or install libfaketime)")
+	extra, err := FaketimeEnv(delta)
+	if err != nil {
+		return err
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = append(os.Environ(),
-		"LD_PRELOAD="+so,
-		"FAKETIME="+FaketimeOffset(delta),
-		"FAKETIME_DONT_FAKE_MONOTONIC=1",
-	)
+	cmd.Env = append(os.Environ(), extra...)
 	return cmd.Run()
 }

@@ -37,6 +37,13 @@ func TestJoinSMBAddr(t *testing.T) {
 	}
 }
 
+func TestInitiatorTicketWithoutHash(t *testing.T) {
+	_, err := initiator(Options{Username: "u", Ticket: "abc"})
+	if err == nil {
+		t.Fatal("ticket without hash must fail closed")
+	}
+}
+
 func TestInitiatorAnon(t *testing.T) {
 	init, err := initiator(Options{Anonymous: true})
 	if err != nil || init == nil {

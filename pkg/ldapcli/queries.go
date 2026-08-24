@@ -73,8 +73,8 @@ func FilterFor(queryType, baseDN string) (string, error) {
 	if queryType == "domain_admins" {
 		return "(&(objectCategory=person)(objectClass=user)(memberOf=CN=Domain Admins,CN=Users," + baseDN + "))", nil
 	}
-	if queryType == "maq" || queryType == "dangling" {
-		return "", fmt.Errorf("query type %q is not a subtree filter (use erebus ldap enum --type %s)", queryType, queryType)
+	if queryType == "maq" || queryType == "dangling" || queryType == "acl" {
+		return "", fmt.Errorf("query type %q is host-only (erebus ldap enum --type %s); not implant ldap_enum", queryType, queryType)
 	}
 	f, ok := QueryFilters[queryType]
 	if !ok {
@@ -85,8 +85,8 @@ func FilterFor(queryType, baseDN string) (string, error) {
 
 // AvailableTypes is the sorted list for usage / error strings.
 func AvailableTypes() []string {
-	keys := make([]string, 0, len(QueryFilters)+3)
-	keys = append(keys, "domain_admins", "dangling", "maq")
+	keys := make([]string, 0, len(QueryFilters)+4)
+	keys = append(keys, "domain_admins", "dangling", "maq", "acl")
 	for k := range QueryFilters {
 		keys = append(keys, k)
 	}

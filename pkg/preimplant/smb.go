@@ -32,7 +32,9 @@ const smbUsage = `erebus smb — operator-host SMB (no implant)
   erebus smb ls --host H --share IT [--path .]
   erebus smb get --host H --share C$ --path Users\\a\\Desktop\\user.txt --out user.txt
 
-Hash: --hash 32hex-NT. Honors EREBUS_PROXY / ALL_PROXY (SOCKS5).
+Hash: --hash 32hex-NT. Ticket: --ticket ID|path (store via erebus kerberos ticket import / s4u).
+Kerberos SMB is a temporary Impacket wrap (smbclient.py -k). Native initiator later.
+Honors EREBUS_PROXY / ALL_PROXY (SOCKS5).
 Lab-only. See docs/OPERATOR_PRE_IMPLANT.md
 `
 
@@ -49,6 +51,7 @@ func smbOpts(f map[string]string) (smbcli.Options, error) {
 	}
 	o.Password = pass
 	o.Hash = first(f, "hash", "ntlm-hash")
+	o.Ticket = first(f, "ticket", "ccache")
 	if o.Host == "" {
 		return o, fmt.Errorf("--host is required")
 	}
@@ -61,12 +64,22 @@ func smbShares(args []string) error {
 	if err != nil {
 		return err
 	}
+	printProxyHint()
+	if smbcli.UseTicket(opts) {
+		names, err := smbcli.TicketListShares(opts)
+		if err != nil {
+			return err
+		}
+		for _, n := range names {
+			fmt.Println(n)
+		}
+		return nil
+	}
 	s, err := smbcli.Dial(opts)
 	if err != nil {
 		return err
 	}
 	defer s.Close()
-	printProxyHint()
 	names, err := s.ListShares()
 	if err != nil {
 		return err
@@ -87,12 +100,22 @@ func smbLs(args []string) error {
 	if share == "" {
 		return fmt.Errorf("--share required")
 	}
+	printProxyHint()
+	if smbcli.UseTicket(opts) {
+		names, err := smbcli.TicketListDir(opts, share, f["path"])
+		if err != nil {
+			return err
+		}
+		for _, n := range names {
+			fmt.Println(n)
+		}
+		return nil
+	}
 	s, err := smbcli.Dial(opts)
 	if err != nil {
 		return err
 	}
 	defer s.Close()
-	printProxyHint()
 	names, err := s.ListDir(share, f["path"])
 	if err != nil {
 		return err

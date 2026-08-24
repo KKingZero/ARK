@@ -53,9 +53,20 @@ func readSecret(f map[string]string, inlineKey, fileKey string) (string, error) 
 	return f[inlineKey], nil
 }
 
-// printProxyHint names the SOCKS hop so a failed bind is not "wrong DC".
+func writeSecretFile(path, secret string) error {
+	if path == "" {
+		return fmt.Errorf("path required")
+	}
+	return os.WriteFile(path, []byte(secret), 0o600)
+}
+
+// printProxyHint names the SOCKS hop before dial so a failed bind is not "wrong DC".
 func printProxyHint() {
-	if p := netproxy.ProxyEnv(); p != "" {
+	if p := netproxy.SOCKSProxy(); p != "" {
 		fmt.Printf("via %s\n", p)
+		return
+	}
+	if raw := netproxy.ProxyEnv(); raw != "" {
+		fmt.Printf("proxy %s ignored (only socks5)\n", raw)
 	}
 }

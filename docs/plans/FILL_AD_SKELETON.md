@@ -1,6 +1,8 @@
 # Fill the AD skeleton — beat BloodHound + Impacket on the HTB corpus
 
-**Duration:** 4–6 weeks solo  
+**Active cut (2026-08-20):** inbound wrapper → internal Kerberos skew → Garfield `rbcd write` + `s4u` usable ticket → writeup. Parked until that writeup: ADCS, golden/DCSync, ESC8/11, KeyList, 443 redirector. See session plan.
+
+**Duration:** 4–6 weeks solo (superseded by the cut above; do not reopen parked items)  
 **Bar:** same 9 HTB boxes + `c-linux-peer`. A primitive that only demos on GOAD does not count.  
 **Consumer:** agent executes, human sees and approves. Dual-seat stays.  
 **Authorized labs only.**  
@@ -102,10 +104,10 @@ Every write is **critical** approval. Do not let Plan/Auto chain two critical wr
 ## Definition of done
 
 - [ ] Inbound: host `ldap` works through SOCKS or reverse tunnel
-- [ ] ACL enum + suggestions name a real next verb
-- [ ] Ticket import used by at least one of SMB / LDAP / WinRM
-- [ ] AskTGT AES + S4U AES + RBCD write lab-green or HTB-green
-- [ ] Soft set: scriptPath + addcomputer; password already shipped
+- [x] ACL enum + suggestions name a real next verb (`erebus ldap enum --type acl`)
+- [x] Ticket import used by at least one of SMB / LDAP / WinRM (LDAP GSSAPI `--ticket` uses `krb.Now()`; SMB `--ticket` is Impacket `smbclient.py -k` until a native initiator)
+- [ ] AskTGT AES + S4U AES + RBCD write lab-green or HTB-green (Pirate asktgt AES green; `s4u` PAC-OPTIONS + `--altservice` coded, not live-reproved; `rbcd write` coded)
+- [x] Soft set: scriptPath + addcomputer; password already shipped (host verbs; live DC still required)
 - [ ] At least two of: shadow, KeyList, dangling ESC1, DCSync — live on corpus or recorded fixture + one live
 - [ ] Golden **or** silver from a key obtained in-Erebus
 - [ ] Agent can propose each write; human must approve

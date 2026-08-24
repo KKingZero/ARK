@@ -27,6 +27,8 @@ type Options struct {
 	Username string
 	Password string
 	Hash     string // NT hash hex (32) or LM:NT
+	// CCache is a MIT ccache path (GSSAPI / Kerberos bind).
+	CCache string
 	// Port overrides the default (636 if PreferLDAPS, else 389).
 	Port int
 	// PreferLDAPS is true by default for host-side binds.
@@ -113,6 +115,9 @@ func NormalizeHash(hash string) string {
 func Bind(opts Options) (*ldap.Conn, error) {
 	if opts.Host == "" {
 		return nil, fmt.Errorf("host required")
+	}
+	if opts.CCache != "" {
+		return bindGSSAPI(opts)
 	}
 	preferTLS := opts.PreferLDAPS || opts.RequireTLS || opts.Port == 636
 	var tlsErr error

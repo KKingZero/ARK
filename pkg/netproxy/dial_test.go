@@ -70,13 +70,40 @@ func TestDialTimeoutDirect(t *testing.T) {
 	<-done
 }
 
-func TestDialTimeoutBadScheme(t *testing.T) {
+func TestSOCKSProxyIgnoresHTTP(t *testing.T) {
 	t.Setenv("EREBUS_PROXY", "http://127.0.0.1:8080")
-	t.Setenv("EREBUS_PROXY_LOCAL", "1")
-	_, err := DialTimeout("tcp", "127.0.0.1:9", time.Second)
-	if err == nil || !strings.Contains(err.Error(), "socks5") {
-		t.Fatalf("want socks5-only error, got %v", err)
+	if SOCKSProxy() != "" {
+		t.Fatal("http proxy must not be used")
 	}
+	t.Setenv("EREBUS_PROXY", "socks5://127.0.0.1:1080")
+	if SOCKSProxy() != "socks5://127.0.0.1:1080" {
+		t.Fatalf("got %q", SOCKSProxy())
+	}
+}
+
+func TestDialTimeoutIgnoresHTTPProxy(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		c.Close()
+	}()
+	t.Setenv("EREBUS_PROXY", "http://127.0.0.1:1")
+	t.Setenv("EREBUS_PROXY_LOCAL", "1")
+	c, err := DialTimeout("tcp", ln.Addr().String(), 2*time.Second)
+	if err != nil {
+		t.Fatalf("http ALL_PROXY must dial direct: %v", err)
+	}
+	c.Close()
+	<-done
 }
 
 func TestDialTimeoutDeadSOCKS(t *testing.T) {

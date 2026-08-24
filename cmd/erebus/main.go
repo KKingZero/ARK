@@ -69,6 +69,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "erebus kerberos: %v\n", err)
 			os.Exit(1)
 		}
+	case "rbcd":
+		if err := preimplant.RunRBCD(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "erebus rbcd: %v\n", err)
+			os.Exit(1)
+		}
 	case "inbound":
 		if err := preimplant.RunInbound(os.Args[2:]); err != nil {
 			fmt.Fprintf(os.Stderr, "erebus inbound: %v\n", err)
@@ -266,9 +271,10 @@ Usage:
   erebus op            One-shot operator commands (sessions/shell/generate/...)
   erebus ldap          Host-side LDAP (LDAPS, enum, dangling templates)
   erebus smb           Host-side SMB list/get (no implant)
-  erebus ad            Host-side AD writes (password reset)
-  erebus kerberos      Clock skew check / libfaketime wrap
-  erebus inbound       tun0 / listeners / SOCKS env / reverse tunnel
+  erebus ad            Host-side AD writes (password reset, add-computer)
+  erebus rbcd          Host-side RBCD write/clear/show
+  erebus kerberos      Skew, AES asktgt, ticket import/list
+  erebus inbound       tun0 / drop (tunnel+generate) / through (SOCKS+env)
   erebus mqtt          Pre-implant MQTT sub/pub/healthcheck-hijack (no teamserver)
   erebus relay         Pre-implant HTTP NTLM relay + held session GET (no teamserver)
   erebus certs seats   Ensure operator + approver mTLS certs
@@ -280,6 +286,7 @@ Pre-implant lab helpers (authorized labs only):
   erebus ldap help
   erebus smb help
   erebus ad help
+  erebus rbcd help
   erebus kerberos help
   erebus inbound help
   erebus mqtt help

@@ -27,6 +27,10 @@ type Options struct {
 	Password  string
 	Hash      string
 	Anonymous bool
+	// Ticket is a ticket-store id or ccache/kirbi path.
+	// Kerberos SMB is an Impacket wrap (smbclient.py -k) until a native
+	// initiator exists (go-smb2 methods are unexported).
+	Ticket string
 }
 
 // Session is a logged-on SMB2 session.
@@ -128,6 +132,9 @@ func (s *Session) Download(share, p string) ([]byte, error) {
 
 // DownloadTo writes a remote file to destPath (or stdout if destPath is "-"/empty after print).
 func DownloadTo(opts Options, share, remote, destPath string) error {
+	if UseTicket(opts) {
+		return TicketDownload(opts, share, remote, destPath)
+	}
 	s, err := Dial(opts)
 	if err != nil {
 		return err
@@ -145,6 +152,9 @@ func DownloadTo(opts Options, share, remote, destPath string) error {
 }
 
 func initiator(opts Options) (*smb2.NTLMInitiator, error) {
+	if opts.Ticket != "" && opts.Hash == "" {
+		return nil, fmt.Errorf("smb Dial is NTLM-only; Kerberos is erebus smb --ticket (Impacket wrap)")
+	}
 	if opts.Anonymous || (opts.Username == "" && opts.Password == "" && opts.Hash == "") {
 		return &smb2.NTLMInitiator{}, nil
 	}

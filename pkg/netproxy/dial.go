@@ -17,7 +17,7 @@ import (
 
 const defaultTimeout = 15 * time.Second
 
-// ProxyEnv returns the configured SOCKS/HTTP proxy URL, or empty.
+// ProxyEnv returns the configured proxy URL, or empty.
 // Precedence: EREBUS_PROXY, ALL_PROXY, all_proxy.
 func ProxyEnv() string {
 	for _, k := range []string{"EREBUS_PROXY", "ALL_PROXY", "all_proxy"} {
@@ -26,6 +26,25 @@ func ProxyEnv() string {
 		}
 	}
 	return ""
+}
+
+// SOCKSProxy is ProxyEnv only when the scheme is SOCKS5.
+// HTTP/HTTPS ALL_PROXY (Burp, corp) is ignored so ldap/smb keep direct dial.
+func SOCKSProxy() string {
+	raw := ProxyEnv()
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "socks5", "socks5h", "socks":
+		return raw
+	default:
+		return ""
+	}
 }
 
 // SkipProxy reports whether address should bypass the proxy (loopback).
@@ -54,7 +73,7 @@ func DialTimeout(network, address string, timeout time.Duration) (net.Conn, erro
 	if timeout <= 0 {
 		timeout = defaultTimeout
 	}
-	raw := ProxyEnv()
+	raw := SOCKSProxy()
 	if raw == "" || SkipProxy(address) {
 		return net.DialTimeout(network, address, timeout)
 	}

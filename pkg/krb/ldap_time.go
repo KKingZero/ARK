@@ -1,6 +1,7 @@
 package krb
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"strings"
@@ -11,18 +12,32 @@ import (
 )
 
 // FetchDCTime queries the DC root DSE for currentTime (LDAP GeneralizedTime).
-// host is host:port or host (defaults to 389). Anonymous bind is tried first;
-// if bindDN/password are set, simple bind is used. Honors ALL_PROXY / EREBUS_PROXY.
+// host is host:port, host, ldap://, or ldaps:// (TLS + 636). Anonymous bind
+// is tried first; if bindDN/password are set, simple bind is used.
 func FetchDCTime(host string, bindDN, password string) (time.Time, error) {
 	if host == "" {
 		return time.Time{}, fmt.Errorf("dc host required")
 	}
-	addr := ldapDialAddr(host)
+	addr, useTLS, serverName := ldapDialTarget(host)
 	raw, err := netproxy.DialTimeout("tcp", addr, 15*time.Second)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("ldap dial %s: %w", addr, err)
 	}
-	conn := ldap.NewConn(raw, false)
+	var conn *ldap.Conn
+	if useTLS {
+		tlsConn := tls.Client(raw, &tls.Config{
+			InsecureSkipVerify: true, // lab DC certs
+			MinVersion:         tls.VersionTLS12,
+			ServerName:         serverName,
+		})
+		if err := tlsConn.Handshake(); err != nil {
+			raw.Close()
+			return time.Time{}, fmt.Errorf("ldaps handshake %s: %w", addr, err)
+		}
+		conn = ldap.NewConn(tlsConn, true)
+	} else {
+		conn = ldap.NewConn(raw, false)
+	}
 	conn.Start()
 	defer conn.Close()
 
@@ -57,16 +72,29 @@ func FetchDCTime(host string, bindDN, password string) (time.Time, error) {
 }
 
 func ldapDialAddr(host string) string {
+	addr, _, _ := ldapDialTarget(host)
+	return addr
+}
+
+func ldapDialTarget(host string) (addr string, useTLS bool, serverName string) {
 	host = strings.TrimSpace(host)
-	host = strings.TrimPrefix(host, "ldaps://")
-	host = strings.TrimPrefix(host, "ldap://")
+	if strings.HasPrefix(strings.ToLower(host), "ldaps://") {
+		useTLS = true
+		host = host[8:]
+	} else if strings.HasPrefix(strings.ToLower(host), "ldap://") {
+		host = host[7:]
+	}
+	def := "389"
+	if useTLS {
+		def = "636"
+	}
 	if h, p, err := net.SplitHostPort(host); err == nil {
 		if p == "" {
-			p = "389"
+			p = def
 		}
-		return net.JoinHostPort(h, p)
+		return net.JoinHostPort(h, p), useTLS, h
 	}
-	return net.JoinHostPort(host, "389")
+	return net.JoinHostPort(host, def), useTLS, host
 }
 
 // CheckSkewVsDC fetches DC time and compares to local clock.

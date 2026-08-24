@@ -45,8 +45,8 @@
 | **B.0 / A.1** | WinRM **hash** path + seal vs pypsrp | `implant/modules/lateral/winrm*.go` (hash seal implemented unit-tested) | Live eng-verify |
 | **B.1** | Clock skew helper + AES TGT (`pkg/krb` or implant task) | `pkg/`, `implant/modules/`, operator thin wrapper | Unit skew math; GOAD if available |
 | **B.2** | Shadow Creds module (minimal) | `implant/modules/` + approval gate | Unit parse; critical approval mock |
-| **B.3** | Ticket store + wire `LateralMoveConfig.ticket` / SMB-LDAP ticket | Proto ticket field — end-to-end | Unit + lab |
-| **B.4** | LDAP query types for dangerous ACLs + RBCD presence / AllowedToAct | Extend `ldap-enum` | Unit filter fixtures |
+| **B.3** | Ticket store + wire `LateralMoveConfig.ticket` / SMB-LDAP ticket | Host `erebus kerberos ticket import/list`; LDAP `--ticket` GSSAPI. SMB Kerberos still blocked (go-smb2). | Unit ccache round-trip |
+| **B.4** | LDAP query types for dangerous ACLs + RBCD presence / AllowedToAct | Host `erebus ldap enum --type acl` (`pkg/ldapcli/acl.go`) shipped; implant parse still open | Unit SD fixtures + ForACL |
 | **B.5** | Regression suite soft path | e2e / smoke | `smoke_test.sh` + checklist |
 | **B.6** | CLI commands + AI catalog / suggestions | `pkg/operatorcli`, `pkg/suggestions` | unit |
 
@@ -54,11 +54,11 @@
 
 | ID | Work | Primary paths | Tests |
 | --- | --- | --- | --- |
-| **B.7a** | **RBCD write** (`msDS-AllowedToActOnBehalfOfOtherIdentity`) | module + critical approval | Lab write + read back |
-| **B.7b** | **S4U2Self + S4U2Proxy** with **AES** machine key (RC4 = clear fail) | `pkg/krb` + task → ticket store | Lab cifs/host ST |
-| **B.8a** | Set allowlisted attrs (at least `scriptPath`) | LDAP task / operator | Lab set + verify |
+| **B.7a** | **RBCD write** (`msDS-AllowedToActOnBehalfOfOtherIdentity`) | Host `erebus rbcd write/clear/show` (`pkg/ldapcli/rbcd.go`). Live DC read-back still required. | Unit SD + SID round-trip |
+| **B.7b** | **S4U2Self + S4U2Proxy** with **AES** machine password (RC4 = clear fail) | Host `erebus kerberos s4u` (`pkg/krb/s4u.go`). Live ST still required. | Unit PA-FOR-USER + option checks |
+| **B.8a** | Set allowlisted attrs (at least `scriptPath`) | `erebus ldap set` (host) | Unit allowlist; lab verify |
 | **B.8b** | ForceChangePassword (no old password when ACL allows) | **Host-side shipped** (`erebus ad password`, LDAPS unicodePwd). SAMR fallback still open. | Unit prefix/encoding; lab |
-| **B.8c** | addcomputer / machine account (MAQ-aware); loot password or NT | SAMR/LDAP; high/critical | Lab |
+| **B.8c** | addcomputer / machine account (MAQ-aware); loot password or NT | `erebus ad add-computer` (MAQ refuse at 0) | Unit name/password; lab |
 | **B.9a** | RODC partial TGT forge (AES krbtgt_XXXX, correct kvno/flags/realm) | `pkg/krb` | Unit vs known vectors |
 | **B.9b** | KERB-KEY-LIST → one user NT hash | task + CLI; **critical** | Lab or fixture |
 | **B.9c** | PRP helpers: NeverReveal clear / RevealOnDemand add when ACL allows | LDAP set; **critical** | Lab or mock |

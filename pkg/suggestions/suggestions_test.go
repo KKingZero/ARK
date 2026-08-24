@@ -82,8 +82,27 @@ func TestForLDAPEnumRBCDAndShadow(t *testing.T) {
 		}},
 	})
 	joined := strings.Join(rbcd, " ")
-	if !strings.Contains(joined, "rbcd write") || !strings.Contains(joined, "DC$") {
+	if !strings.Contains(joined, "DC$") || strings.Contains(joined, "rbcd write") {
 		t.Fatalf("rbcd: %v", rbcd)
+	}
+	if strings.Contains(joined, "cifs/DC$") {
+		t.Fatalf("dead SPN: %v", rbcd)
+	}
+	if !strings.Contains(joined, "cifs/<fqdn>") {
+		t.Fatalf("want fqdn placeholder: %v", rbcd)
+	}
+	named := ForLDAPEnum(&pb.LDAPEnumResult{
+		QueryType:    "rbcd",
+		TotalResults: 1,
+		Entries: []*pb.LDAPEntry{{
+			Attributes: map[string]*pb.LDAPValues{
+				"sAMAccountName": {Values: []string{"DC$"}},
+				"dNSHostName":    {Values: []string{"dc.corp.local"}},
+			},
+		}},
+	})
+	if !strings.Contains(strings.Join(named, " "), "cifs/dc.corp.local") {
+		t.Fatalf("want fqdn spn: %v", named)
 	}
 	sh := ForLDAPEnum(&pb.LDAPEnumResult{
 		QueryType:    "shadow",
@@ -95,8 +114,63 @@ func TestForLDAPEnumRBCDAndShadow(t *testing.T) {
 		}},
 	})
 	joined = strings.Join(sh, " ")
-	if !strings.Contains(joined, "shadow") || !strings.Contains(joined, "admin") {
+	if !strings.Contains(joined, "admin") || strings.Contains(joined, "ad shadow write") {
 		t.Fatalf("shadow: %v", sh)
+	}
+}
+
+func TestForACLVerbs(t *testing.T) {
+	actions := ForACL(&pb.LDAPEnumResult{
+		QueryType:    "acl",
+		TotalResults: 2,
+		Entries: []*pb.LDAPEntry{
+			{
+				Attributes: map[string]*pb.LDAPValues{
+					"sAMAccountName": {Values: []string{"jake.h"}},
+					"objectCategory": {Values: []string{"user"}},
+					"rights":         {Values: []string{"ForceChangePassword"}},
+				},
+			},
+			{
+				Attributes: map[string]*pb.LDAPValues{
+					"sAMAccountName": {Values: []string{"DC$"}},
+					"objectCategory": {Values: []string{"computer"}},
+					"rights":         {Values: []string{"GenericAll"}},
+				},
+			},
+		},
+	})
+	joined := strings.Join(actions, "\n")
+	if !strings.Contains(joined, "ad password --target jake.h") {
+		t.Fatalf("want password verb: %v", actions)
+	}
+	if !strings.Contains(joined, "rbcd write --to DC$") {
+		t.Fatalf("want rbcd verb: %v", actions)
+	}
+	if strings.Contains(joined, "BloodHound") || strings.Contains(joined, "review ") {
+		t.Fatalf("must name a verb: %v", actions)
+	}
+	spn := ForACL(&pb.LDAPEnumResult{
+		QueryType:    "acl",
+		TotalResults: 1,
+		Entries: []*pb.LDAPEntry{{
+			Attributes: map[string]*pb.LDAPValues{
+				"sAMAccountName": {Values: []string{"DC01$"}},
+				"objectCategory": {Values: []string{"computer"}},
+				"rights":         {Values: []string{"WriteSPN"}},
+			},
+		}},
+	})
+	if !strings.Contains(strings.Join(spn, "\n"), "servicePrincipalName") {
+		t.Fatalf("want SPN set: %v", spn)
+	}
+}
+
+func TestForACLEmpty(t *testing.T) {
+	actions := ForACL(&pb.LDAPEnumResult{QueryType: "acl"})
+	joined := strings.Join(actions, " ")
+	if !strings.Contains(joined, "interesting") {
+		t.Fatalf("%v", actions)
 	}
 }
 

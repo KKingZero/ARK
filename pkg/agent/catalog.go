@@ -226,7 +226,7 @@ func Catalog() []ToolDef {
 		},
 		{
 			Name:         "ldap_enum",
-			Description:  "LDAP/AD enumeration (query_type e.g. kerberoastable|asrep|interesting|users|dcs|rbcd|shadow|maq, domain, target_dc, optional username/password/ntlm_hash/attributes/custom_filter)",
+			Description:  "LDAP/AD enumeration (query_type e.g. kerberoastable|asrep|interesting|users|dcs|rbcd|shadow; maq/acl/dangling are host-only via erebus ldap enum --type …)",
 			Risk:         policy.RiskLevel(pb.TaskType_TASK_LDAP_ENUM),
 			TaskType:     pb.TaskType_TASK_LDAP_ENUM,
 			NeedsSession: true,
