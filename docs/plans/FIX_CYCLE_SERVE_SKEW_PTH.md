@@ -1,8 +1,8 @@
-# Erebus Fix Cycle — 2–3 Week Plan
+# ARK Fix Cycle — 2–3 Week Plan
 
-**Scope:** `erebus serve` stdin close → clock skew handling → WinRM PTH parity vs pypsrp  
+**Scope:** `ark serve` stdin close → clock skew handling → WinRM PTH parity vs pypsrp  
 **Solo. Re-test gate: same 9-box HTB corpus + c-linux-peer.**  
-**Baseline:** `reports/EREBUS_HTB_CORPUS_SCORECARD.md`  
+**Baseline:** `reports/ARK_HTB_CORPUS_SCORECARD.md`  
 **Rule:** no new modules, no ADCS/Kerberos, no RBCD/DCSync, no inbound-C2-by-default, no “while I’m in here.”
 
 Sequencing is the original cycle. Adjustments are OPSEC/speed and acceptance tests only. Inbound C2 stays the **next** sprint.
@@ -13,18 +13,18 @@ Sequencing is the original cycle. Adjustments are OPSEC/speed and acceptance tes
 
 ---
 
-## Week 1, Days 1–2 — `erebus serve` dies on stdin close
+## Week 1, Days 1–2 — `ark serve` dies on stdin close — **shipped**
 
 **Why first:** DarkZero + DanglingTree. Reliability under the 8/10 teamserver score.
 
 **Network path:** this fix stays **entirely off** the implant/operator wire. No beacon, HMAC, or listener-shape change. systemd/nohup docs are host-local only.
 
-**What it is in tree:** `erebus serve` = teamserver + REPL (`pkg/erebuscli.Start`). REPL/stdin EOF no longer calls `ts.Stop()`; process waits for SIGINT/SIGTERM. `erebus teamserver` and `serve --teamserver` remain the daemon-only path.
+**What it is in tree:** `ark serve` = teamserver + REPL (`pkg/arkcli.Start`). REPL/stdin EOF no longer calls `ts.Stop()`; process waits for SIGINT/SIGTERM. `ark teamserver` and `serve --teamserver` remain the daemon-only path.
 
 **Tasks:**
 1. Reproduce: pipe EOF, `/dev/null`, simulated SSH/nohup detach, interactive EOF. Confirm listeners die (REPL return + `Stop()`).
 2. Detach teamserver from stdin. REPL closure logs + no-op. Listeners die only on SIGINT/SIGTERM.
-3. Point `OPERATOR_INBOUND`, `GOLDEN_DEMO`, `HTB_NEXT_RUNBOOK`, `GOAD_LAB` at `erebus teamserver` / surviving `serve`. systemd unit optional; do not spend Day 2 inventing a service manager.
+3. Point `OPERATOR_INBOUND`, `GOLDEN_DEMO`, `HTB_NEXT_RUNBOOK`, `GOAD_LAB` at `ark teamserver` / surviving `serve`. systemd unit optional; do not spend Day 2 inventing a service manager.
 
 **Acceptance:**
 - Survives SSH-drop / detached session. Soak 30+ min (no silent later death after EOF).

@@ -7,7 +7,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "erebus/ntlm_pth.h"
+#include "ark/ntlm_pth.h"
 
 /* ---- HMAC-MD5 via BCrypt ---- */
 
@@ -48,9 +48,9 @@ static int utf8_to_utf16le(const char *s, uint8_t **out, size_t *out_len) {
     return 1;
 }
 
-/* erebus_ntlm_parse_hash / erebus_ntlm_split_user: ntlm_parse.c */
+/* ark_ntlm_parse_hash / ark_ntlm_split_user: ntlm_parse.c */
 
-int erebus_ntlm_type1(const char *domain, uint8_t **out, size_t *out_len) {
+int ark_ntlm_type1(const char *domain, uint8_t **out, size_t *out_len) {
     /* Minimal Negotiate: NTLMSSP\0 + type1 + flags (Unicode|NTLM|AlwaysSign|NegOEM|RequestTarget|128|56) */
     uint8_t msg[64];
     memset(msg, 0, sizeof(msg));
@@ -86,7 +86,7 @@ static const uint8_t *extract_av_timestamp(const uint8_t *ti, size_t ti_len) {
     return NULL;
 }
 
-int erebus_ntlm_type3_hash(const uint8_t *type2, size_t type2_len,
+int ark_ntlm_type3_hash(const uint8_t *type2, size_t type2_len,
     const char *user, const char *domain, const uint8_t nt[16],
     uint8_t **out, size_t *out_len) {
     if (!type2 || type2_len < 32 || !user || !nt || !out) return 0;

@@ -104,5 +104,5 @@ func RandomMachinePassword() (string, error) {
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", err
 	}
-	return "Erebus." + hex.EncodeToString(b[:]), nil
+	return "ARK." + hex.EncodeToString(b[:]), nil
 }

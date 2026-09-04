@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/approval"
-	"github.com/KKingZero/erebus-exploit-framwork/server/builder"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/approval"
+	"github.com/KKingZero/ARK/server/builder"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
@@ -26,9 +26,9 @@ var (
 	validLanguage  = map[string]bool{"go": true, "c": true, "": true}
 )
 
-// resolveProjectRoot finds the Erebus repo root (directory containing go.mod).
+// resolveProjectRoot finds the ARK repo root (directory containing go.mod).
 func resolveProjectRoot() string {
-	if v := os.Getenv("EREBUS_ROOT"); v != "" {
+	if v := os.Getenv("ARK_ROOT"); v != "" {
 		if _, err := os.Stat(filepath.Join(v, "go.mod")); err == nil {
 			return v
 		}
@@ -47,7 +47,7 @@ func resolveProjectRoot() string {
 		}
 		for i := 0; i < 8; i++ {
 			if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-				// Prefer roots that look like Erebus (cmd/implant exists).
+				// Prefer roots that look like ARK (cmd/implant exists).
 				if _, err := os.Stat(filepath.Join(dir, "cmd", "implant")); err == nil {
 					return dir
 				}
@@ -362,7 +362,7 @@ func (s *GRPCService) GenerateImplant(ctx context.Context, req *pb.GenerateImpla
 		}, nil
 	}
 
-	// Resolve ProjectRoot: EREBUS_ROOT, then walk up from cwd / executable for go.mod.
+	// Resolve ProjectRoot: ARK_ROOT, then walk up from cwd / executable for go.mod.
 	projectRoot := resolveProjectRoot()
 
 	// H11: Extract operator identity from mTLS context
@@ -479,6 +479,20 @@ func (s *GRPCService) RegisterImplantSecret(ctx context.Context, req *pb.Registe
 		return &pb.RegisterImplantSecretResponse{Success: false, Error: err.Error()}, nil
 	}
 	return &pb.RegisterImplantSecretResponse{Success: true}, nil
+}
+
+// ClearReplay drops HMAC replay-cache entries so a surviving implant copy can beacon.
+func (s *GRPCService) ClearReplay(ctx context.Context, req *pb.ClearReplayRequest) (*pb.ClearReplayResponse, error) {
+	id := req.GetImplantId()
+	if id == "" {
+		return &pb.ClearReplayResponse{Success: false, Error: "implant_id required"}, nil
+	}
+	n := 0
+	if s.ts != nil && s.ts.replayCache != nil {
+		n = s.ts.replayCache.Clear(id)
+	}
+	log.Printf("[audit] op=ClearReplay implant_id=%q cleared=%d", id, n)
+	return &pb.ClearReplayResponse{Success: true, Cleared: int32(n)}, nil
 }
 
 // --- Loot ---

@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/netproxy"
+	"github.com/KKingZero/ARK/pkg/netproxy"
 )
 
 const kdcTimeout = 15 * time.Second
 
 // SendKDC sends a Kerberos message to host:88 over TCP (4-byte length prefix).
-// Honors EREBUS_PROXY / ALL_PROXY via netproxy.
+// Honors ARK_PROXY / ALL_PROXY via netproxy.
 func SendKDC(kdc string, msg []byte) ([]byte, error) {
 	kdc = trimKDCHost(kdc)
 	if kdc == "" || len(msg) == 0 {

@@ -39,3 +39,25 @@ func TestReplayCacheAllowsSubSecondMillis(t *testing.T) {
 		t.Fatal("expected replay on same ms")
 	}
 }
+
+func TestReplayCacheClear(t *testing.T) {
+	c := NewReplayCache(60 * time.Second)
+	if err := c.CheckAndRecord("a", 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.CheckAndRecord("b", 1); err != nil {
+		t.Fatal(err)
+	}
+	if n := c.Clear("a"); n != 1 {
+		t.Fatalf("cleared %d", n)
+	}
+	if err := c.CheckAndRecord("a", 1); err != nil {
+		t.Fatal("survivor should beacon after clear")
+	}
+	if err := c.CheckAndRecord("b", 1); err == nil {
+		t.Fatal("other implant still replay-blocked")
+	}
+	if n := c.Clear(""); n != 0 {
+		t.Fatalf("empty id cleared %d", n)
+	}
+}

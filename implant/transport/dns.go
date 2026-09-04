@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/dnstransport"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/dnstransport"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"github.com/miekg/dns"
 	"google.golang.org/protobuf/proto"
 )

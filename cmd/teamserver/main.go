@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	"github.com/KKingZero/erebus-exploit-framwork/server"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	"github.com/KKingZero/ARK/server"
 )
 
 func main() {
@@ -21,7 +21,7 @@ func main() {
 	secret := flag.String("secret", "", "implant pre-shared secret (hex, overrides config)")
 	debug := flag.Bool("debug", false, "enable debug mode (gRPC reflection)")
 	genOperatorCert := flag.String("gen-operator-cert", "", "generate operator mTLS cert and exit")
-	passphrase := flag.String("passphrase", "", "passphrase for encrypted config (overrides EREBUS_PASSPHRASE)")
+	passphrase := flag.String("passphrase", "", "passphrase for encrypted config (overrides ARK_PASSPHRASE)")
 	flag.Parse()
 
 	// Handle operator cert generation
@@ -33,7 +33,7 @@ func main() {
 	// Determine passphrase for encrypted config
 	pp := *passphrase
 	if pp == "" {
-		pp = os.Getenv("EREBUS_PASSPHRASE")
+		pp = os.Getenv("ARK_PASSPHRASE")
 	}
 
 	// Load or create config
@@ -95,7 +95,7 @@ func main() {
 		log.Fatalf("start teamserver: %v", err)
 	}
 
-	log.Println("[main] Erebus teamserver running. Press Ctrl+C to stop.")
+	log.Println("[main] ARK teamserver running. Press Ctrl+C to stop.")
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
@@ -107,7 +107,7 @@ func main() {
 
 func generateOperatorCert(operatorName string) {
 	home, _ := os.UserHomeDir()
-	dataDir := filepath.Join(home, ".erebus")
+	dataDir := filepath.Join(home, ".ark")
 
 	certPath := filepath.Join(dataDir, "ca-cert.pem")
 	keyPath := filepath.Join(dataDir, "ca-key.pem")

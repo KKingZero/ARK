@@ -1,5 +1,5 @@
-# LLM config for `erebus` console `ai` command and autonomous agent.
-# Copy to ~/.erebus/llm.yaml or configure via console:
+# LLM config for `ark` console `ai` command and autonomous agent.
+# Copy to ~/.ark/llm.yaml or configure via console:
 #   ai setup
 #   ai provider anthropic
 
@@ -17,12 +17,12 @@ providers:
     # api_key: "${OLLAMA_API_KEY}"
 
   openai:
-    api_key: ""          # or: ai setup  /  OPENAI_API_KEY env
+    api_key: ""          # platform.openai.com API credits — ChatGPT Plus/Codex does not apply
     model: "gpt-4o"
     base_url: "https://api.openai.com/v1"
 
   anthropic:
-    api_key: ""          # ANTHROPIC_API_KEY
+    api_key: ""          # console.anthropic.com API credits — Claude Pro/Claude Code does not apply
     model: "claude-sonnet-4-6"
     base_url: "https://api.anthropic.com/v1"
 

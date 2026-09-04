@@ -24,6 +24,8 @@ const (
 	GUIDForceChangePassword = "00299570-246d-11d0-a768-00aa006e0529"
 	// GUIDAllowedToAct is msDS-AllowedToActOnBehalfOfOtherIdentity.
 	GUIDAllowedToAct = "3f78c3e5-f79a-46bd-a0b8-9d18116ddc79"
+	// GUIDKeyCredentialLink is msDS-KeyCredentialLink (AddKeyCredentialLink).
+	GUIDKeyCredentialLink = "5b47d60f-6090-40b2-9f37-2a4de88f3063"
 )
 
 const (
@@ -221,6 +223,15 @@ func ClassifyMask(mask uint32, objectGUID string) []string {
 	}
 	if g == GUIDAllowedToAct && mask&(RightWriteProperty|RightGenericWrite|RightGenericAll) != 0 {
 		out = append(out, "AllowedToAct")
+	}
+	if g == GUIDKeyCredentialLink && mask&(RightWriteProperty|RightGenericWrite|RightGenericAll|RightControlAccess) != 0 {
+		out = append(out, "AddKeyCredentialLink")
+	}
+	if g == GUIDCertificateEnrollment && mask&(RightControlAccess|RightGenericAll) != 0 {
+		out = append(out, "Enroll")
+	}
+	if g == GUIDCertificateAutoEnroll && mask&(RightControlAccess|RightGenericAll) != 0 {
+		out = append(out, "AutoEnroll")
 	}
 	if g == "" && mask&RightWriteProperty != 0 && mask&RightGenericAll == 0 && mask&RightGenericWrite == 0 {
 		out = append(out, "WriteProperty")

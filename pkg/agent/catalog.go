@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/approval"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/approval"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -226,7 +226,7 @@ func Catalog() []ToolDef {
 		},
 		{
 			Name:         "ldap_enum",
-			Description:  "LDAP/AD enumeration (query_type e.g. kerberoastable|asrep|interesting|users|dcs|rbcd|shadow; maq/acl/dangling are host-only via erebus ldap enum --type …)",
+			Description:  "LDAP/AD enumeration (query_type e.g. kerberoastable|asrep|interesting|users|dcs|rbcd|shadow; maq/acl/dangling are host-only via ark ldap enum --type …)",
 			Risk:         policy.RiskLevel(pb.TaskType_TASK_LDAP_ENUM),
 			TaskType:     pb.TaskType_TASK_LDAP_ENUM,
 			NeedsSession: true,

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/agent"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/llm"
+	"github.com/KKingZero/ARK/pkg/agent"
+	"github.com/KKingZero/ARK/pkg/llm"
 )
 
 func (c *Console) runAI(objective string) {
@@ -31,7 +31,7 @@ func (c *Console) runAI(objective string) {
 
 	// Advisory mode: chat with Ollama / configured LLM.
 	client := llm.NewClient(llmCfg)
-	reply, err := client.Chat(ctx, llm.ErebusSystemPrompt, objective)
+	reply, err := client.Chat(ctx, llm.ArkSystemPrompt, objective)
 	if err != nil {
 		hint := providerHint(llmCfg, err)
 		msg := err.Error()
@@ -63,13 +63,13 @@ func (c *Console) tryAgentLoop(ctx context.Context, objective string, llmCfg llm
 		return false, nil
 	}
 
-	fmt.Fprintf(os.Stderr, "[erebus] teamserver detected — running autonomous agent (%s / %s)\n",
+	fmt.Fprintf(os.Stderr, "[ark] teamserver detected — running autonomous agent (%s / %s)\n",
 		llmCfg.Provider, llmCfg.Model)
 
 	emit(c.mode, Response{
 		Status:  "info",
 		Command: "ai",
-		Message: fmt.Sprintf("> Starting autonomous agent (%s / %s) for: %s\n> High-risk actions require `erebus serve` + approve in another terminal",
+		Message: fmt.Sprintf("> Starting autonomous agent (%s / %s) for: %s\n> High-risk actions require `ark serve` + approve in another terminal",
 			llmCfg.Provider, llmCfg.Model, objective),
 		Data: map[string]string{
 			"objective": objective,
@@ -111,6 +111,9 @@ func fileExists(path string) bool {
 }
 
 func providerHint(cfg llm.Config, err error) string {
+	if h := llm.APIErrorHint(cfg.Provider, err); h != "" {
+		return "Hint: " + h
+	}
 	switch cfg.Provider {
 	case "ollama":
 		if llm.IsOllamaCloudURL(cfg.BaseURL) {

@@ -324,6 +324,11 @@ func ownerSIDFromSD(sd []byte) []byte {
 	return append([]byte(nil), sd[int(off):int(off)+n]...)
 }
 
+// LookupSAM finds a user/computer by sAMAccountName (tries SAM$ for machines).
+func LookupSAM(conn *ldap.Conn, baseDN, sam string) (*ldap.Entry, error) {
+	return lookupSAM(conn, baseDN, sam)
+}
+
 func lookupSAM(conn *ldap.Conn, baseDN, sam string) (*ldap.Entry, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("ldap conn required")

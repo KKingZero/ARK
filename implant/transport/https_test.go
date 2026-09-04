@@ -16,6 +16,13 @@ func TestNewHTTPSTransport_RejectsBadPEM(t *testing.T) {
 	}
 }
 
+func TestNewHTTPSTransport_RejectsCDNDomain(t *testing.T) {
+	_, err := NewHTTPSTransport("https://127.0.0.1:8443", "not-a-pem", "cdn.example.com")
+	if err == nil {
+		t.Fatal("expected error when cdnDomain is set")
+	}
+}
+
 func TestNewHTTPSTransport_AcceptsPEM(t *testing.T) {
 	// Minimal self-signed-looking PEM structure is hard without generating certs;
 	// empty AppendCertsFromPEM already covered. Use a deliberately invalid block

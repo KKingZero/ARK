@@ -10,7 +10,7 @@
 #include <windows.h>
 #include <bcrypt.h>
 
-#include "erebus/krb5_internal.h"
+#include "ark/krb5_internal.h"
 
 /* ---- HMAC-SHA1 ---- */
 
@@ -268,11 +268,11 @@ static int aes_cts_decrypt(const uint8_t *key, size_t key_len,
     return 1;
 }
 
-int erebus_aes_string_to_key(int etype, const char *password, const char *realm, const char *user,
+int ark_aes_string_to_key(int etype, const char *password, const char *realm, const char *user,
     uint8_t *key_out, size_t *key_len_out) {
     if (!password || !realm || !user || !key_out || !key_len_out) return 0;
-    size_t klen = (etype == EREBUS_KRB_ETYPE_AES128) ? 16 :
-                  (etype == EREBUS_KRB_ETYPE_AES256) ? 32 : 0;
+    size_t klen = (etype == ARK_KRB_ETYPE_AES128) ? 16 :
+                  (etype == ARK_KRB_ETYPE_AES256) ? 32 : 0;
     if (!klen) return 0;
 
     char salt[512];
@@ -300,7 +300,7 @@ int erebus_aes_string_to_key(int etype, const char *password, const char *realm,
     return 1;
 }
 
-int erebus_aes_cts_hmac_encrypt(const uint8_t *key, size_t key_len, int32_t usage,
+int ark_aes_cts_hmac_encrypt(const uint8_t *key, size_t key_len, int32_t usage,
     const uint8_t *plain, size_t plain_len, uint8_t **out, size_t *out_len) {
     uint8_t ke[32], ki[32];
     uint8_t c_ke[5], c_ki[5];
@@ -313,7 +313,7 @@ int erebus_aes_cts_hmac_encrypt(const uint8_t *key, size_t key_len, int32_t usag
     size_t data_len = 16 + plain_len;
     uint8_t *data = (uint8_t *)malloc(data_len);
     if (!data) return 0;
-    if (!erebus_krb_random(data, 16)) { free(data); return 0; }
+    if (!ark_krb_random(data, 16)) { free(data); return 0; }
     memcpy(data + 16, plain, plain_len);
 
     uint8_t hmac[20];
@@ -335,7 +335,7 @@ int erebus_aes_cts_hmac_encrypt(const uint8_t *key, size_t key_len, int32_t usag
     return 1;
 }
 
-int erebus_aes_cts_hmac_decrypt(const uint8_t *key, size_t key_len, int32_t usage,
+int ark_aes_cts_hmac_decrypt(const uint8_t *key, size_t key_len, int32_t usage,
     const uint8_t *cipher, size_t cipher_len, uint8_t **out, size_t *out_len) {
     if (cipher_len < 16 + 12) return 0;
     size_t edata_len = cipher_len - 12;

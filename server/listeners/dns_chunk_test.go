@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/dnstransport"
+	"github.com/KKingZero/ARK/pkg/dnstransport"
 )
 
 func TestIngestChunkEnforcesLabelCap(t *testing.T) {

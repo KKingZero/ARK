@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/netproxy"
+	"github.com/KKingZero/ARK/pkg/netproxy"
 )
 
 // ParseFlags splits --key value / --bool flags. Bare args returned separately.

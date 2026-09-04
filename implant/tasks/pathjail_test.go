@@ -53,3 +53,29 @@ func TestResolveJailedPathNestedRelative(t *testing.T) {
 		t.Fatalf("unexpected resolved path: %s", got)
 	}
 }
+
+func TestResolveJailedPathRejectsSymlinkEscape(t *testing.T) {
+	dir := t.TempDir()
+	outside := t.TempDir()
+	t.Chdir(dir)
+
+	if err := os.Symlink(filepath.Join(outside, "secret.txt"), filepath.Join(dir, "link")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if _, err := resolveJailedPath("link"); err == nil {
+		t.Fatal("expected symlink escape to be rejected")
+	}
+}
+
+func TestResolveJailedPathRejectsSymlinkParentEscape(t *testing.T) {
+	dir := t.TempDir()
+	outside := t.TempDir()
+	t.Chdir(dir)
+
+	if err := os.Symlink(outside, filepath.Join(dir, "out")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if _, err := resolveJailedPath(filepath.Join("out", "new.txt")); err == nil {
+		t.Fatal("expected symlink parent escape to be rejected")
+	}
+}

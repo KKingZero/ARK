@@ -118,7 +118,7 @@ func (ca *CertificateAuthority) GenerateClientCert(operatorName string) (tls.Cer
 		SerialNumber: serial,
 		Subject: pkix.Name{
 			CommonName:   operatorName,
-			Organization: []string{"Erebus Operator"},
+			Organization: []string{"ARK Operator"},
 		},
 		NotBefore:   time.Now().Add(-1 * time.Hour),
 		NotAfter:    time.Now().Add(365 * 24 * time.Hour),

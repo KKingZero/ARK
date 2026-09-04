@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"github.com/masterzen/winrm"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
 )
 
 func moveWinRM(ctx context.Context, cfg *pb.LateralMoveConfig) (*pb.LateralMoveResult, error) {
@@ -92,7 +92,7 @@ func runPTHCommand(ctx context.Context, target, user, hashHex string, endpoint *
 	return slot.client.RunWithContext(ctx, command, stdout, stderr)
 }
 
-// classifyWinRMError names a PTH layer (Day-3 gate) and keeps a short hint.
+// classifyWinRMError tags hash failures with pth_layer= if not already tagged.
 func classifyWinRMError(err error, usedHash bool, domainUser string) error {
 	if err == nil {
 		return nil

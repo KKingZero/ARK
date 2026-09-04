@@ -5,7 +5,7 @@ import "github.com/charmbracelet/lipgloss"
 // Crimson is used for UI accents only (borders, chrome, active states).
 const Crimson = "#DC143C"
 
-// ANSICrimson accents the erebus prompt in the plain REPL.
+// ANSICrimson accents the ark prompt in the plain REPL.
 const (
 	ANSIReset   = "\033[0m"
 	ANSICrimson = "\033[1;38;5;196m"

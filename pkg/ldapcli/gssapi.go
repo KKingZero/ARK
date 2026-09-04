@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/krb"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/netproxy"
+	"github.com/KKingZero/ARK/pkg/krb"
+	"github.com/KKingZero/ARK/pkg/netproxy"
 	"github.com/go-ldap/ldap/v3"
 	"github.com/jcmturner/gokrb5/v8/crypto"
 	"github.com/jcmturner/gokrb5/v8/gssapi"

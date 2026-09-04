@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	_ "modernc.org/sqlite"
 )
 

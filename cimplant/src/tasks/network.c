@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/pb_c2.h"
-#include "erebus/task_handlers.h"
+#include "ark/pb_c2.h"
+#include "ark/task_handlers.h"
 
 #pragma comment(lib, "iphlpapi.lib")
 
@@ -20,7 +20,7 @@ static void format_mac(const BYTE *phys, ULONG len, char *out, size_t cap) {
     }
 }
 
-int erebus_task_net_ifconfig(uint8_t **out, size_t *out_len) {
+int ark_task_net_ifconfig(uint8_t **out, size_t *out_len) {
     ULONG buf_len = 15000;
     PIP_ADAPTER_ADDRESSES addrs = NULL;
     for (int i = 0; i < 3; i++) {
@@ -35,17 +35,17 @@ int erebus_task_net_ifconfig(uint8_t **out, size_t *out_len) {
     if (!addrs) return 0;
 
     size_t cap = 8, count = 0;
-    erebus_net_interface *ifaces = (erebus_net_interface *)calloc(cap, sizeof(*ifaces));
+    ark_net_interface *ifaces = (ark_net_interface *)calloc(cap, sizeof(*ifaces));
     if (!ifaces) { free(addrs); return 0; }
 
     for (PIP_ADAPTER_ADDRESSES cur = addrs; cur; cur = cur->Next) {
         if (count >= cap) {
             cap *= 2;
-            erebus_net_interface *n = (erebus_net_interface *)realloc(ifaces, cap * sizeof(*ifaces));
+            ark_net_interface *n = (ark_net_interface *)realloc(ifaces, cap * sizeof(*ifaces));
             if (!n) goto fail;
             ifaces = n;
         }
-        erebus_net_interface *iface = &ifaces[count];
+        ark_net_interface *iface = &ifaces[count];
         memset(iface, 0, sizeof(*iface));
         WideCharToMultiByte(CP_UTF8, 0, cur->FriendlyName, -1, iface->name, sizeof(iface->name), NULL, NULL);
         format_mac(cur->PhysicalAddress, cur->PhysicalAddressLength, iface->mac, sizeof(iface->mac));
@@ -72,13 +72,13 @@ int erebus_task_net_ifconfig(uint8_t **out, size_t *out_len) {
         count++;
     }
 
-    int ok = erebus_pb_encode_net_ifconfig_result(ifaces, count, out, out_len);
-    erebus_pb_free_net_ifconfig_result(ifaces, count);
+    int ok = ark_pb_encode_net_ifconfig_result(ifaces, count, out, out_len);
+    ark_pb_free_net_ifconfig_result(ifaces, count);
     free(addrs);
     return ok;
 
 fail:
-    erebus_pb_free_net_ifconfig_result(ifaces, count);
+    ark_pb_free_net_ifconfig_result(ifaces, count);
     free(addrs);
     return 0;
 }
@@ -129,7 +129,7 @@ static int try_connect(const char *host, uint16_t port, uint32_t timeout_ms, cha
     return open;
 }
 
-int erebus_task_net_portscan(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+int ark_task_net_portscan(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
     static int wsa_done = 0;
     if (!wsa_done) {
         WSADATA wsa;
@@ -137,12 +137,12 @@ int erebus_task_net_portscan(const uint8_t *data, size_t data_len, uint8_t **out
         wsa_done = 1;
     }
 
-    erebus_portscan_task task;
-    if (!erebus_pb_decode_portscan_task(data, data_len, &task) || !task.target[0] || !task.port_count)
+    ark_portscan_task task;
+    if (!ark_pb_decode_portscan_task(data, data_len, &task) || !task.target[0] || !task.port_count)
         return 0;
 
     uint32_t timeout = task.timeout_ms ? task.timeout_ms : 2000;
-    erebus_port_result *results = (erebus_port_result *)calloc(task.port_count, sizeof(*results));
+    ark_port_result *results = (ark_port_result *)calloc(task.port_count, sizeof(*results));
     if (!results) return 0;
 
     for (size_t i = 0; i < task.port_count; i++) {
@@ -152,7 +152,7 @@ int erebus_task_net_portscan(const uint8_t *data, size_t data_len, uint8_t **out
             results[i].service, sizeof(results[i].service));
     }
 
-    int ok = erebus_pb_encode_portscan_result(results, task.port_count, out, out_len);
+    int ok = ark_pb_encode_portscan_result(results, task.port_count, out, out_len);
     free(results);
     return ok;
 }

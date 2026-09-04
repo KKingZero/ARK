@@ -10,32 +10,30 @@ import (
 	"strings"
 	"time"
 
+	"github.com/KKingZero/ARK/pkg/arkhome"
 	"github.com/jcmturner/gokrb5/v8/credentials"
 	"github.com/jcmturner/gokrb5/v8/messages"
 )
 
 // TicketMeta is the on-disk loot record (no key material in the JSON).
 type TicketMeta struct {
-	ID        string    `json:"id"`
-	Principal string    `json:"principal"`
-	Realm     string    `json:"realm"`
-	Server    string    `json:"server"`
-	EType     int32     `json:"etype"`
-	End       time.Time `json:"end,omitempty"`
-	Source    string    `json:"source"` // ccache | kirbi | asktgt
-	CCache    string    `json:"ccache"`
+	ID        string          `json:"id"`
+	Principal string          `json:"principal"`
+	Realm     string          `json:"realm"`
+	Server    string          `json:"server"`
+	EType     int32           `json:"etype"`
+	End       time.Time       `json:"end,omitempty"`
+	Source    string          `json:"source"` // ccache | kirbi | asktgt | s4u | s4u-dmsa
+	CCache    string          `json:"ccache"`
+	DMSAKeys  *DMSAKeyPackage `json:"-"`
 }
 
-// DefaultTicketDir is ~/.erebus/tickets (override with EREBUS_TICKET_DIR).
+// DefaultTicketDir is <data-dir>/tickets (override with ARK_TICKET_DIR).
 func DefaultTicketDir() string {
-	if d := os.Getenv("EREBUS_TICKET_DIR"); d != "" {
+	if d := os.Getenv("ARK_TICKET_DIR"); d != "" {
 		return d
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(os.TempDir(), "erebus-tickets")
-	}
-	return filepath.Join(home, ".erebus", "tickets")
+	return filepath.Join(arkhome.Dir(), "tickets")
 }
 
 // DetectTicketFormat returns "ccache", "kirbi", or "".

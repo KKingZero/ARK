@@ -1,4 +1,4 @@
-// Package netproxy dials TCP through ALL_PROXY / EREBUS_PROXY (SOCKS5).
+// Package netproxy dials TCP through ALL_PROXY / ARK_PROXY (SOCKS5).
 // Host-side ldap/smb/kerberos use this so they can reach a DC via C implant SOCKS.
 package netproxy
 
@@ -18,9 +18,9 @@ import (
 const defaultTimeout = 15 * time.Second
 
 // ProxyEnv returns the configured proxy URL, or empty.
-// Precedence: EREBUS_PROXY, ALL_PROXY, all_proxy.
+// Precedence: ARK_PROXY, ALL_PROXY, all_proxy.
 func ProxyEnv() string {
-	for _, k := range []string{"EREBUS_PROXY", "ALL_PROXY", "all_proxy"} {
+	for _, k := range []string{"ARK_PROXY", "ALL_PROXY", "all_proxy"} {
 		if v := strings.TrimSpace(os.Getenv(k)); v != "" {
 			return v
 		}
@@ -48,9 +48,9 @@ func SOCKSProxy() string {
 }
 
 // SkipProxy reports whether address should bypass the proxy (loopback).
-// Set EREBUS_PROXY_LOCAL=1 to force proxying localhost (tests).
+// Set ARK_PROXY_LOCAL=1 to force proxying localhost (tests).
 func SkipProxy(address string) bool {
-	if os.Getenv("EREBUS_PROXY_LOCAL") == "1" {
+	if os.Getenv("ARK_PROXY_LOCAL") == "1" {
 		return false
 	}
 	host, _, err := net.SplitHostPort(address)

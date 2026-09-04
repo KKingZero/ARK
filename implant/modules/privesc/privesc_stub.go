@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 func privescToken(_ context.Context, _ *pb.PrivescConfig) (*pb.PrivescResult, error) {

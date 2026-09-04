@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/ldapcli"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/plugin"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/suggestions"
+	"github.com/KKingZero/ARK/pkg/ldapcli"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/plugin"
+	"github.com/KKingZero/ARK/pkg/suggestions"
 	ldaplib "github.com/go-ldap/ldap/v3"
 	"google.golang.org/protobuf/proto"
 )

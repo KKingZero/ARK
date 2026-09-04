@@ -18,13 +18,13 @@ import (
 
 const defaultAPIPort = 18765
 
-// ControlStatePath returns ~/.erebus/relay/control.json
+// ControlStatePath returns ~/.ark/relay/control.json
 func ControlStatePath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(".", ".erebus", "relay", "control.json")
+		return filepath.Join(".", ".ark", "relay", "control.json")
 	}
-	return filepath.Join(home, ".erebus", "relay", "control.json")
+	return filepath.Join(home, ".ark", "relay", "control.json")
 }
 
 // ControlState is written by `relay http start` for get/sessions clients.
@@ -150,7 +150,7 @@ func StartControlAPI(store *SessionStore, addr string, allowRemote bool) (net.Li
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		w.Header().Set("X-Erebus-Status", strconv.Itoa(status))
+		w.Header().Set("X-ARK-Status", strconv.Itoa(status))
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 		w.WriteHeader(http.StatusOK)
@@ -191,7 +191,7 @@ func ClientGet(apiBase string, sessionID int, path string, doubleEncode bool, ba
 	if resp.StatusCode != http.StatusOK {
 		return resp.StatusCode, b, fmt.Errorf("control API: %s: %s", resp.Status, string(b))
 	}
-	st, _ := strconv.Atoi(resp.Header.Get("X-Erebus-Status"))
+	st, _ := strconv.Atoi(resp.Header.Get("X-ARK-Status"))
 	return st, b, nil
 }
 

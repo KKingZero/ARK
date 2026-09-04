@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | **Status** | Active (extended after Garfield HTB eng) |
-| **Goal** | Medium path to **user** ≥70% in-Erebus **and** Hard identity primitives (RBCD/S4U/KeyList MVP) lab-green |
+| **Goal** | Medium path to **user** ≥70% in-ARK **and** Hard identity primitives (RBCD/S4U/KeyList MVP) lab-green |
 | **Duration** | ~4–6 weeks (both Go + C tracks); ~6–8 weeks single-threaded |
 | **Sources** | `SPRINTS_ABC.md` §B, `HTB_NEXT_RUNBOOK.md` §5, Logging + **Garfield** after-action |
 | **Depends on** | A.1 live WinRM PTH QA; soft path SMB/LDAP regression green; inbound slice in `FILL_AD_SKELETON.md` |
@@ -31,7 +31,7 @@
 | B7 | **RBCD write** + **S4U AES** (machine key) → service ticket for impersonated user; critical approval |
 | B8 | Soft AD set ops: **scriptPath** (or allowlisted set-attr), **ForceChangePassword**, **addcomputer** (MAQ-aware) |
 | B9 | **KeyList MVP**: RODC partial TGT (`kvno = rodcNo << 16`) + KERB-KEY-LIST → one NT hash; critical approval |
-| B10 | Logon-script staging **recipe** in docs + erebus-htb skill (no bot automation) |
+| B10 | Logon-script staging **recipe** in docs + ark-htb skill (no bot automation) |
 | C1 | C implant: ≥1 real **WinRM** lateral in lab (password; hash if seal path green) |
 
 ---
@@ -45,8 +45,8 @@
 | **B.0 / A.1** | WinRM **hash** path + seal vs pypsrp | `implant/modules/lateral/winrm*.go` (hash seal implemented unit-tested) | Live eng-verify |
 | **B.1** | Clock skew helper + AES TGT (`pkg/krb` or implant task) | `pkg/`, `implant/modules/`, operator thin wrapper | Unit skew math; GOAD if available |
 | **B.2** | Shadow Creds module (minimal) | `implant/modules/` + approval gate | Unit parse; critical approval mock |
-| **B.3** | Ticket store + wire `LateralMoveConfig.ticket` / SMB-LDAP ticket | Host `erebus kerberos ticket import/list`; LDAP `--ticket` GSSAPI. SMB Kerberos still blocked (go-smb2). | Unit ccache round-trip |
-| **B.4** | LDAP query types for dangerous ACLs + RBCD presence / AllowedToAct | Host `erebus ldap enum --type acl` (`pkg/ldapcli/acl.go`) shipped; implant parse still open | Unit SD fixtures + ForACL |
+| **B.3** | Ticket store + wire `LateralMoveConfig.ticket` / SMB-LDAP ticket | Host `ark kerberos ticket import/list`; LDAP `--ticket` GSSAPI. SMB Kerberos still blocked (go-smb2). | Unit ccache round-trip |
+| **B.4** | LDAP query types for dangerous ACLs + RBCD presence / AllowedToAct | Host `ark ldap enum --type acl` (`pkg/ldapcli/acl.go`) shipped; implant parse still open | Unit SD fixtures + ForACL |
 | **B.5** | Regression suite soft path | e2e / smoke | `smoke_test.sh` + checklist |
 | **B.6** | CLI commands + AI catalog / suggestions | `pkg/operatorcli`, `pkg/suggestions` | unit |
 
@@ -54,11 +54,11 @@
 
 | ID | Work | Primary paths | Tests |
 | --- | --- | --- | --- |
-| **B.7a** | **RBCD write** (`msDS-AllowedToActOnBehalfOfOtherIdentity`) | Host `erebus rbcd write/clear/show` (`pkg/ldapcli/rbcd.go`). Live DC read-back still required. | Unit SD + SID round-trip |
-| **B.7b** | **S4U2Self + S4U2Proxy** with **AES** machine password (RC4 = clear fail) | Host `erebus kerberos s4u` (`pkg/krb/s4u.go`). Live ST still required. | Unit PA-FOR-USER + option checks |
-| **B.8a** | Set allowlisted attrs (at least `scriptPath`) | `erebus ldap set` (host) | Unit allowlist; lab verify |
-| **B.8b** | ForceChangePassword (no old password when ACL allows) | **Host-side shipped** (`erebus ad password`, LDAPS unicodePwd). SAMR fallback still open. | Unit prefix/encoding; lab |
-| **B.8c** | addcomputer / machine account (MAQ-aware); loot password or NT | `erebus ad add-computer` (MAQ refuse at 0) | Unit name/password; lab |
+| **B.7a** | **RBCD write** (`msDS-AllowedToActOnBehalfOfOtherIdentity`) | Host `ark rbcd write/clear/show` (`pkg/ldapcli/rbcd.go`). Live DC read-back still required. | Unit SD + SID round-trip |
+| **B.7b** | **S4U2Self + S4U2Proxy** with **AES** machine password (RC4 = clear fail) | Host `ark kerberos s4u` (`pkg/krb/s4u.go`). Live ST still required. | Unit PA-FOR-USER + option checks |
+| **B.8a** | Set allowlisted attrs (at least `scriptPath`) | `ark ldap set` (host) | Unit allowlist; lab verify |
+| **B.8b** | ForceChangePassword (no old password when ACL allows) | **Host-side shipped** (`ark ad password`, LDAPS unicodePwd). SAMR fallback still open. | Unit prefix/encoding; lab |
+| **B.8c** | addcomputer / machine account (MAQ-aware); loot password or NT | `ark ad add-computer` (MAQ refuse at 0) | Unit name/password; lab |
 | **B.9a** | RODC partial TGT forge (AES krbtgt_XXXX, correct kvno/flags/realm) | `pkg/krb` | Unit vs known vectors |
 | **B.9b** | KERB-KEY-LIST → one user NT hash | task + CLI; **critical** | Lab or fixture |
 | **B.9c** | PRP helpers: NeverReveal clear / RevealOnDemand add when ACL allows | LDAP set; **critical** | Lab or mock |
@@ -209,8 +209,8 @@ Fail closed; no fake success stubs.
 - [ ] A.1 WinRM PTH live green  
 - [ ] B1–B6 + B7–B10 exit criteria green on lab  
 - [ ] Track C: ≥1 real WinRM lateral on C implant  
-- [ ] Logon-script recipe in `AD_ENGAGEMENT` + erebus-htb skill  
-- [ ] Dry-run writeup: Garfield-class in-Erebus vs external step table  
+- [ ] Logon-script recipe in `AD_ENGAGEMENT` + ark-htb skill  
+- [ ] Dry-run writeup: Garfield-class in-ARK vs external step table  
 - [ ] No secrets committed; dual-control preserved  
 
 ---

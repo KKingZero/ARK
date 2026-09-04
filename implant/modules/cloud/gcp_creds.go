@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // harvestGCP reads GCP credential files, service account keys, and application

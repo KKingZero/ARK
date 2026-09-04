@@ -5,7 +5,7 @@ package cloud
 import (
 	"context"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 func harvestEntraToken(_ context.Context) *pb.CloudHarvestResult {

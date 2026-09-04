@@ -17,4 +17,8 @@ protoc \
   "$SCRIPT_DIR"/listener.proto \
   "$SCRIPT_DIR"/api.proto
 
+python3 "$SCRIPT_DIR/gen_c_task_types.py" \
+  "$SCRIPT_DIR/c2.proto" \
+  "$PROJECT_ROOT/cimplant/include/ark/pb_task_types.h"
+
 echo "Protobuf generation complete: $OUT_DIR"

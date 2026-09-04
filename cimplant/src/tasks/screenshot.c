@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/pb_c2.h"
-#include "erebus/task_handlers.h"
+#include "ark/pb_c2.h"
+#include "ark/task_handlers.h"
 
 #pragma pack(push, 1)
 typedef struct bmp_file_header {
@@ -28,7 +28,7 @@ typedef struct bmp_info_header {
 } bmp_info_header;
 #pragma pack(pop)
 
-int erebus_task_screenshot(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+int ark_task_screenshot(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
     (void)data;
     (void)data_len;
     int ok = 0;
@@ -71,7 +71,7 @@ int erebus_task_screenshot(const uint8_t *data, size_t data_len, uint8_t **out, 
     memcpy(img + sizeof(fh) + sizeof(ih), px, pixels);
     free(px);
 
-    ok = erebus_pb_encode_screenshot_result(img, total, (uint32_t)sw, (uint32_t)sh, out, out_len);
+    ok = ark_pb_encode_screenshot_result(img, total, (uint32_t)sw, (uint32_t)sh, out, out_len);
     free(img);
 
 cleanup:

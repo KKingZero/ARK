@@ -1,17 +1,17 @@
-# Erebus Sprints A / B / C — Implementation Plan
+# ARK Sprints A / B / C — Implementation Plan
 
 | Field | Value |
 | --- | --- |
 | **Source** | Logging after-action + operator Q&A (2026-07-30) |
 | **Scope style** | Tight / shippable |
 | **Capability home** | **Implant modules** (native Go preferred) |
-| **Success metrics** | (1) Easy AD soft path fully in-Erebus (2) Logging-class path to **user** in-Erebus |
+| **Success metrics** | (1) Easy AD soft path fully in-ARK (2) Logging-class path to **user** in-ARK |
 | **Test lab** | GOAD + existing `server/e2e` / lab-perf |
 | **Approvals** | Keep dual-control; oneshot auto-approve via operator+approver seats |
 | **Execution** | Implement in this repo with operator |
 | **Sprint C** | Docs / skill / ESC17–WSUS recipe only (no new modules) |
 
-Related: `reports/htb-logging/EREBUS_AFTER_ACTION.md`, `docs/HTB_NEXT_RUNBOOK.md`, `docs/AD_ENGAGEMENT.md`.
+Related: `reports/htb-logging/ARK_AFTER_ACTION.md`, `docs/HTB_NEXT_RUNBOOK.md`, `docs/AD_ENGAGEMENT.md`.
 
 ---
 
@@ -34,9 +34,9 @@ Related: `reports/htb-logging/EREBUS_AFTER_ACTION.md`, `docs/HTB_NEXT_RUNBOOK.md
 | # | Criterion |
 | --- | --- |
 | A1 | `lateral winrm <host> "whoami" --user X --hash <NT> --domain D` succeeds via implant (matches pypsrp) on GOAD or lab Windows |
-| A2 | `make implant-win` / `make implant` never produces empty `implantID` or empty secret (no `xxd` dependency) |
+| A2 | `make implant-win` never produces empty `implantID` or empty secret (no `xxd` dependency). `make implant` (Go Linux) is now **archived** and fails closed. |
 | A3 | Sleep ≤ 1s does not cause sustained `/beacon` 404 (replay fix or documented min sleep + clamp) |
-| A4 | `erebus op` (or equivalent) oneshot: sessions, shell, lateral, pending approve-all — dual-seat auto-approve |
+| A4 | `ark op` (or equivalent) oneshot: sessions, shell, lateral, pending approve-all — dual-seat auto-approve |
 | A5 | Documented **deploy via WinRM** sequence (script or command) that uploads + starts Windows implant |
 
 ### A work packages
@@ -46,9 +46,9 @@ Related: `reports/htb-logging/EREBUS_AFTER_ACTION.md`, `docs/HTB_NEXT_RUNBOOK.md
 | **A.1** | **WinRM PTH fix** — debug hash transport vs pypsrp; domain\user formatting; encryption; timeouts | `implant/modules/lateral/winrm.go`, `winrm_ntlm_hash.go`, auth helpers | Unit tests + e2e if GOAD reachable; otherwise regression test with mock + manual GOAD checklist |
 | **A.2** | **Implant build hygiene** — generate ID/secret in Makefile/Go without `xxd`; refuse empty ID at `LoadConfig` (already errors) + build-time check | `Makefile`, `implant/config.go`, builder if used | `go test` + smoke build windows/linux |
 | **A.3** | **Beacon replay / sleep** — use ms (or unique nonce) in HMAC/replay identity, **or** clamp min sleep with loud warning | `pkg/crypto` replay, `server/listeners/beacon.go`, implant sleep | unit tests for sub-second beacons |
-| **A.4** | **Operator oneshot CLI** — promote/fix `scripts/htb_oneshot.go` / `htb_lateral.go` into `cmd/erebus` or `erebus op` subcommand; dual-seat auto-approve | `cmd/erebus`, `pkg/erebuscli`, `pkg/operatorcli` | unit + short e2e against local teamserver + local implant |
-| **A.5** | **Deploy recipe** — `scripts/deploy_winrm.py` or `erebus op deploy-winrm` wrapping upload+exec (may call pypsrp **only** if implant lateral cannot upload yet; prefer file_upload task once session exists) | `scripts/`, docs | manual GOAD checklist |
-| **A.6** | **Seat cert helper** — `erebus certs seats` (EnsureSeatCerts) so lab dual-control is one command | `pkg/erebuscli/certs.go` | smoke |
+| **A.4** | **Operator oneshot CLI** — promote/fix `scripts/htb_oneshot.go` / `htb_lateral.go` into `cmd/ark` or `ark op` subcommand; dual-seat auto-approve | `cmd/ark`, `pkg/arkcli`, `pkg/operatorcli` | unit + short e2e against local teamserver + local implant |
+| **A.5** | **Deploy recipe** — `scripts/deploy_winrm.py` or `ark op deploy-winrm` wrapping upload+exec (may call pypsrp **only** if implant lateral cannot upload yet; prefer file_upload task once session exists) | `scripts/`, docs | manual GOAD checklist |
+| **A.6** | **Seat cert helper** — `ark certs seats` (EnsureSeatCerts) so lab dual-control is one command | `pkg/arkcli/certs.go` | smoke |
 
 ### A explicitly deferred
 
@@ -59,11 +59,11 @@ Related: `reports/htb-logging/EREBUS_AFTER_ACTION.md`, `docs/HTB_NEXT_RUNBOOK.md
 ### A acceptance demo script
 
 ```text
-1. erebus teamserver (HTTPS high port)
-2. erebus certs seats
+1. ark teamserver (HTTPS high port)
+2. ark certs seats
 3. build + run local Linux implant → sessions
-4. erebus op shell -- 'id'
-5. erebus op lateral winrm <GOAD-IP> 'whoami' --user … --hash … --domain …
+4. ark op shell -- 'id'
+5. ark op lateral winrm <GOAD-IP> 'whoami' --user … --hash … --domain …
 6. (optional) deploy Windows implant via WinRM recipe → second session
 ```
 
@@ -74,7 +74,7 @@ Related: `reports/htb-logging/EREBUS_AFTER_ACTION.md`, `docs/HTB_NEXT_RUNBOOK.md
 **Canonical detail:** `docs/plans/SPRINT_B_AD.md` (extended after Garfield HTB eng).
 
 **Goal:**  
-1. Logging-class path to **user** ≥70% in-Erebus (AES/shadow/tickets/ACL).  
+1. Logging-class path to **user** ≥70% in-ARK (AES/shadow/tickets/ACL).  
 2. Garfield-class identity primitives lab-green: soft set ops → RBCD/S4U AES → KeyList MVP; C WinRM lateral in parallel.
 
 **Duration target:** ~4–6 weeks (Go + C); see SPRINT_B_AD.md for packages B.0–B.12.
@@ -147,7 +147,7 @@ Related: `reports/htb-logging/EREBUS_AFTER_ACTION.md`, `docs/HTB_NEXT_RUNBOOK.md
 | --- | --- |
 | C1 | `docs/HTB_NEXT_RUNBOOK.md` updated: Logging **solved**, Sprint A/B status, preflight firewall/VPN |
 | C2 | `docs/AD_ENGAGEMENT.md` (or new `docs/ESC17_WSUS.md`): UpdateSrv + DNS + wsuks HTTPS + firewalld `tun0` |
-| C3 | `/erebus-htb` skill references A oneshots + C recipe; secrets/`$$` rules |
+| C3 | `/ark-htb` skill references A oneshots + C recipe; secrets/`$$` rules |
 | C4 | After-action gaps table marked done/partial for A/B items |
 
 ### C work packages
@@ -156,12 +156,12 @@ Related: `reports/htb-logging/EREBUS_AFTER_ACTION.md`, `docs/HTB_NEXT_RUNBOOK.md
 | --- | --- |
 | **C.1** | Runbook + AD engagement updates |
 | **C.2** | ESC17 / WSUS operator recipe (commands, certipy one-liners, wsuks, quoting for Domain Admins) |
-| **C.3** | Skill `erebus-htb` + `references/commands.md` |
-| **C.4** | Close the loop in `EREBUS_AFTER_ACTION.md` status section |
+| **C.3** | Skill `ark-htb` + `references/commands.md` |
+| **C.4** | Close the loop in `ARK_AFTER_ACTION.md` status section |
 
 ### C out of scope
 
-- New modules, CLI features, wsuks packaging into erebus binary  
+- New modules, CLI features, wsuks packaging into ark binary  
 
 ---
 
@@ -229,8 +229,8 @@ A.1 WinRM PTH ──────┘         │
 | **A.2** | **Done** | Makefile: openssl/python ID+secret; fail closed if empty/not 64 hex; default callback `:8443` |
 | **A.3** | **Done** | Implant uses Unix **ms** timestamps; VerifyHMAC accepts s or ms; replay allows sub-second |
 | **A.1** | **Partial → improved** | Domain-aware NTLMv2 TYPE3 for PTH; **both** password (`winrm.NewEncryption("ntlm")`) and **hash path** seal SOAP (MS-NLMP Sign/Seal + SPNEGO multipart). Unit tests for wrap/unwrap + MIME. **Live GOAD/pypsrp parity eng-verify still open** |
-| **A.4** | **Done** | `erebus op sessions\|shell\|lateral\|pending\|approve-all` dual-seat |
-| **A.6** | **Done** | `erebus certs seats` |
+| **A.4** | **Done** | `ark op sessions\|shell\|lateral\|pending\|approve-all` dual-seat |
+| **A.6** | **Done** | `ark certs seats` |
 | **A.5** | **Done** | `scripts/deploy_winrm.py` (pypsrp temporary bridge) |
 | **Auth logs** | **Done** | reason=`unknown_implant\|hmac\|skew\|replay\|parse\|io\|internal`; wire still 404 — see `docs/OPERATOR_INBOUND.md` |
 | **Inbound checklist** | **Done** | `docs/OPERATOR_INBOUND.md` |

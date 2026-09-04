@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/plugin"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/plugin"
 )
 
 type stubModule struct {

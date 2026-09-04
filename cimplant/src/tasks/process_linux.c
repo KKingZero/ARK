@@ -7,10 +7,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "erebus/pb_c2.h"
-#include "erebus/task_handlers.h"
+#include "ark/pb_c2.h"
+#include "ark/task_handlers.h"
 
-static void parse_stat(const char *stat, erebus_process_info *info) {
+static void parse_stat(const char *stat, ark_process_info *info) {
     /* pid (name) state ppid ... */
     const char *start = strchr(stat, '(');
     const char *end = strrchr(stat, ')');
@@ -28,12 +28,12 @@ static void parse_stat(const char *stat, erebus_process_info *info) {
     info->ppid = (uint32_t)strtoul(rest, NULL, 10);
 }
 
-int erebus_task_process_list(uint8_t **out, size_t *out_len) {
+int ark_task_process_list(uint8_t **out, size_t *out_len) {
     DIR *d = opendir("/proc");
     if (!d) return 0;
 
     size_t cap = 64, count = 0;
-    erebus_process_info *procs = (erebus_process_info *)calloc(cap, sizeof(*procs));
+    ark_process_info *procs = (ark_process_info *)calloc(cap, sizeof(*procs));
     if (!procs) { closedir(d); return 0; }
 
     struct dirent *ent;
@@ -52,7 +52,7 @@ int erebus_task_process_list(uint8_t **out, size_t *out_len) {
 
         if (count >= cap) {
             cap *= 2;
-            erebus_process_info *n = (erebus_process_info *)realloc(procs, cap * sizeof(*procs));
+            ark_process_info *n = (ark_process_info *)realloc(procs, cap * sizeof(*procs));
             if (!n) { free(procs); closedir(d); return 0; }
             procs = n;
         }
@@ -63,15 +63,15 @@ int erebus_task_process_list(uint8_t **out, size_t *out_len) {
     }
     closedir(d);
 
-    int ok = erebus_pb_encode_process_list_result(procs, count, out, out_len);
+    int ok = ark_pb_encode_process_list_result(procs, count, out, out_len);
     free(procs);
     return ok;
 }
 
-int erebus_task_process_kill(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
-    erebus_process_kill_task task;
-    if (!erebus_pb_decode_process_kill_task(data, data_len, &task) || !task.pid)
+int ark_task_process_kill(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+    ark_process_kill_task task;
+    if (!ark_pb_decode_process_kill_task(data, data_len, &task) || !task.pid)
         return 0;
     int ok = (kill((pid_t)task.pid, SIGKILL) == 0) ? 1 : 0;
-    return erebus_pb_encode_process_kill_result(ok, out, out_len);
+    return ark_pb_encode_process_kill_result(ok, out, out_len);
 }

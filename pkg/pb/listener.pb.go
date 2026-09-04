@@ -316,7 +316,7 @@ const file_listener_proto_rawDesc = "" +
 	"\x10LISTENER_UNKNOWN\x10\x00\x12\x12\n" +
 	"\x0eLISTENER_HTTPS\x10\x01\x12\x11\n" +
 	"\rLISTENER_MTLS\x10\x02\x12\x10\n" +
-	"\fLISTENER_DNS\x10\x03B5Z3github.com/KKingZero/erebus-exploit-framwork/pkg/pbb\x06proto3"
+	"\fLISTENER_DNS\x10\x03B!Z\x1fgithub.com/KKingZero/ARK/pkg/pbb\x06proto3"
 
 var (
 	file_listener_proto_rawDescOnce sync.Once

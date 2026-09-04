@@ -21,6 +21,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// C implant constants are generated from this enum
+// (proto/gen_c_task_types.py → cimplant/include/ark/pb_task_types.h).
 type TaskType int32
 
 const (
@@ -4888,7 +4890,7 @@ const file_c2_proto_rawDesc = "" +
 	"\x11SOCKS_OPEN_RESULT\x10\x02\x12\x0e\n" +
 	"\n" +
 	"SOCKS_DATA\x10\x03\x12\x0f\n" +
-	"\vSOCKS_CLOSE\x10\x04B5Z3github.com/KKingZero/erebus-exploit-framwork/pkg/pbb\x06proto3"
+	"\vSOCKS_CLOSE\x10\x04B!Z\x1fgithub.com/KKingZero/ARK/pkg/pbb\x06proto3"
 
 var (
 	file_c2_proto_rawDescOnce sync.Once

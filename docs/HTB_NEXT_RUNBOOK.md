@@ -2,77 +2,68 @@
 
 | Field | Value |
 | --- | --- |
-| **Audience** | Operator + Erebus developer |
-| **Labs covered so far** | Support, Logging, Ghostlink, **DanglingTree** (solved 2026-08-15) |
-| **Erebus P0 shipped** | WinRM PTH, LDAP hash/`interesting`, remote SMB client; **Sprint D** MQTT + HTTP NTLM relay |
+| **Audience** | Operator + ARK developer |
+| **Labs covered so far** | Support, Logging, Ghostlink, DanglingTree, FireFlow, DarkZero, Garfield, plus later reports under `reports/htb-*/` |
+| **ARK P0 shipped** | WinRM PTH, LDAP hash/`interesting`, remote SMB client; **Sprint D** MQTT + HTTP NTLM relay; host `adcs` / `rbcd` / shadow / AES tickets |
 | **Related** | `docs/AD_ENGAGEMENT.md`, `docs/plans/FILL_AD_SKELETON.md`, `docs/OPERATOR_PRE_IMPLANT.md`, `docs/OPERATOR_INBOUND.md`, `reports/htb-*/` |
-| **Last updated** | 2026-08-07 |
+| **Last updated** | 2026-09-04 |
 
 Authorized HTB / lab use only. Do not use against systems without permission.
 
-**Agent skills:** `/erebus-htb` (C2 + HTB) · `/htb-pentest` (general HTB). Installed for Grok and Claude under project `.grok/skills/`, `.claude/skills/`, and user `~/.grok/skills/`, `~/.claude/skills/`.
+**Agent skills:** `/ark-htb` (C2 + HTB) · `/htb-pentest` (general HTB). Installed for Grok and Claude under project `.grok/skills/`, `.claude/skills/`, and user `~/.grok/skills/`, `~/.claude/skills/`.
 
 ---
 
 ## 1. Goals for the next few boxes
 
-1. **Finish unfinished work** (Logging root) with a clean procedure.
-2. **Exercise new Erebus P0 features** on a real Windows/AD target (SMB → LDAP interesting → WinRM PTH).
-3. **Drive P1 product gaps** with machines that need ACL abuse, Kerberos tickets, or shadow-style paths.
+1. **Exercise ARK on the critical path** (host AD tools + C implant), not as a victory-lap shell after Impacket.
+2. **QA P0 features** on a real Windows/AD target (SMB → LDAP interesting → WinRM PTH, host `adcs` / `rbcd` / shadow where the box needs them).
+3. **Drive remaining gaps** with machines that need native PKINIT UnPAC, DNS write, ATSVC deploy, or Windows C SOCKS.
 4. **Keep OPSEC and lab hygiene** consistent so reports and framework QA stay trustworthy.
 
 ---
 
 ## 2. Status snapshot
 
-| Machine | Difficulty | Status | Flags | Erebus use so far |
+| Machine | Difficulty | Status | Flags | ARK use so far |
 | --- | --- | --- | --- | --- |
 | **Support** | Easy (Win/AD) | Solved | user + root | Mostly external tools; good first implant-drop target |
-| **Logging** | Medium (Win/AD) | **Solved** | user + root | C2 local implant OK; AD chain mostly external — see `reports/htb-logging/EREBUS_AFTER_ACTION.md` |
+| **Logging** | Medium (Win/AD) | **Solved** | user + root | C2 local implant OK; AD chain mostly external — see `reports/htb-logging/ARK_AFTER_ACTION.md` |
 | **Ghostlink** | Hard (Win/AD) | **Solved** | user + root | Drove Sprint D pre-implant toolkit; report `reports/htb-ghostlink/` |
-| **DanglingTree** | Medium (Win/AD) | **Solved** | user + root | Host-side LDAP/SMB/AD password + dangling ADCS gap; report `reports/htb-danglingtree/` |
+| **DanglingTree** | Medium (Win/AD) | **Solved** | user + root | Host LDAP/SMB/AD password; dangling ESC1 now `ark adcs` (PKINIT still Certipy) |
 | Lab-perf (Juice/Meta) | N/A | Passed | N/A | Implant recon only |
 
-**Pre-implant (MQTT / NTLM relay):** `docs/OPERATOR_PRE_IMPLANT.md` · `erebus mqtt` · `erebus relay`
+**Pre-implant (MQTT / NTLM relay):** `docs/OPERATOR_PRE_IMPLANT.md` · `ark mqtt` · `ark relay`
 
 ---
 
 ## 3. Recommended next HTB queue
 
-Order is intentional: finish open work → validate P0 on Easy AD → push Medium techniques that map to P1 Erebus modules.
+Order is intentional: in-framework critical path → validate P0 on Easy AD → push Medium techniques that map to remaining gaps.
 
-### Priority 0 — Finish what is open
+### Priority 0 — In-framework critical path
 
-| # | Machine | Why | Success criteria |
-| --- | --- | --- | --- |
-| 0 | **Logging** (resume) | Root stalled on WSUS MITM; best medium AD chain for framework notes | DA + `root.txt`; short addendum to `reports/htb-logging/` |
+Logging is **solved** (notes in `reports/htb-logging/`). Do not treat it as open work.
 
-**Resume checklist (Logging root)** — full detail in `reports/htb-logging/PROGRESS_AND_FIXES.md`:
+Next session: pick a current Easy/Medium AD box and run the **host tools + C implant** path from `docs/AD_ENGAGEMENT.md` before falling back to Impacket/Certipy. Scorecard: `reports/ARK_HTB_CORPUS_SCORECARD.md`.
 
-1. VPN up; re-spawn if IP changed; re-establish `msa_health$` / jaylee path if box reset.
-2. Dump WU registry (`WUServer` / `WUStatusServer` / `UseWUServer`).
-3. Match `wsuks` to HTTP:8530 vs HTTPS:8531 + cert SAN `wsus.logging.htb`.
-4. Re-point DNS A → current `tun0`; confirm client hits in log.
-5. DA confirmation → read `C:\Users\toby.brynleigh\Desktop\root.txt`.
-6. Write root section into `reports/htb-logging/PROGRESS_AND_FIXES.md`.
+### Priority 1 — Validate ARK soft-compromise path (Easy AD)
 
-### Priority 1 — Validate Erebus soft-compromise path (Easy AD)
-
-| # | Machine | Techniques to exercise | Erebus tools to prefer |
+| # | Machine | Techniques to exercise | ARK tools to prefer |
 | --- | --- | --- | --- |
 | 1 | **Support** (re-run as QA, if available / retired clone / similar Easy AD) | Anon SMB, LDAP free-text secret, WinRM, optional RBCD | `smb`, `ldap-enum interesting`, `lateral winrm` (+ `--hash` if available) |
 | 2 | Next **Easy Windows/AD** from your HTB path (e.g. classic “soft AD” boxes: share → cred → WinRM/RDP → ACL) | Same soft chain without needing C2 mid-path | Drop implant after first shell; run soft path from `docs/AD_ENGAGEMENT.md` |
 
 **QA acceptance (P0 features):**
 
-- [ ] `smb list_shares` / `list_dir` / `download` without leaving Erebus  
+- [ ] `smb list_shares` / `list_dir` / `download` without leaving ARK  
 - [ ] `ldap-enum interesting` recovers free-text secret class attrs  
 - [ ] `lateral winrm … --pass` **and** at least one `--hash` shell if hash exists  
 - [ ] Agent Plan mode lists `smb` + soft path; Auto does not DA-abuse without objective  
 
-### Priority 2 — Medium AD that force P1 Erebus work
+### Priority 2 — Medium AD that force P1 ARK work
 
-Pick **one** primary Medium at a time. Prefer machines that stress gaps still missing in Erebus.
+Pick **one** primary Medium at a time. Prefer machines that stress gaps still missing in ARK.
 
 | Theme | What the box should force | Product work it unlocks |
 | --- | --- | --- |
@@ -103,7 +94,7 @@ Examples of HTB themes (names rotate; pick current retired/active equivalents wi
 
 ## 4. Per-machine engagement procedure
 
-Use this every time so reports stay comparable and Erebus gaps get logged.
+Use this every time so reports stay comparable and ARK gaps get logged.
 
 ### 4.1 Pre-flight
 
@@ -115,7 +106,7 @@ Full inbound / auth / firewall / tunnel checklist: **`docs/OPERATOR_INBOUND.md`*
 [ ] Workdir: ~/htb-<machine>/  (secrets as files only — never bash $$)
 [ ] Clock: note skew vs DC if Kerberos will be used
 [ ] Firewall: open implant/relay ports on tun0 (or reverse tunnel)
-[ ] Erebus: make erebus && erebus teamserver  (if testing C2 this session; not `serve`)
+[ ] ARK: make ark && ark teamserver  (if testing C2 this session; not `serve`)
 [ ] Windows implant built if callback path planned (**prefer C**)
 [ ] Linux implant: **prefer C** (`make implant-c-linux` + CA pin; tunnel if firewalled)
 [ ] If 404 beacons: check teamserver logs for reason=hmac|skew|replay|unknown_implant|parse
@@ -128,7 +119,7 @@ Full inbound / auth / firewall / tunnel checklist: **`docs/OPERATOR_INBOUND.md`*
 3. User flag  
 4. Privilege escalation / domain path  
 5. Root flag  
-6. **Erebus section** — what ran in-framework vs external tools  
+6. **ARK section** — what ran in-framework vs external tools  
 7. **Gap list** — missing module / bug / UX pain (feeds §5)  
 
 ### 4.3 Report locations
@@ -142,7 +133,7 @@ reports/htb-<machine>/
 Support template: `reports/htb-support/PENTEST_REPORT.md`.  
 Logging template: `reports/htb-logging/PROGRESS_AND_FIXES.md`.
 
-### 4.4 Erebus soft path (after foothold)
+### 4.4 ARK soft path (after foothold)
 
 ```text
 sessions → use <id>
@@ -160,7 +151,7 @@ AI: `ai` → Plan with soft-compromise objective → Auto with approvals.
 
 ---
 
-## 5. Development steps (Erebus) — ordered for next boxes
+## 5. Development steps (ARK) — ordered for next boxes
 
 ### Done (do not re-do unless bugs found)
 
@@ -198,13 +189,13 @@ AI: `ai` → Plan with soft-compromise objective → Auto with approvals.
 | P0 | `scripts/htb_krb_env.sh` (LDAP time skew + faketime Docker) | Build before next Kerberos-heavy box |
 | P0 | Secrets only via files (document in every report SOP) | Habit |
 | P1 | Docker images: `logging-krb`, `mingw-i686`, `wsuks-tool` | Logging root + DLL work |
-| P2 | pypsrp PTH helper only if Erebus WinRM unavailable | Fallback |
+| P2 | pypsrp PTH helper only if ARK WinRM unavailable | Fallback |
 
 ### Definition of done (product)
 
-- Soft path on Easy AD fully inside Erebus (no smbclient/ldap3/pypsrp required for user).  
-- At least one Medium root uses a **new** Erebus module (ACL/RBCD/shadow/ticket).  
-- Every eng produces a short **Erebus gaps** bullet list in the report.
+- Soft path on Easy AD fully inside ARK (no smbclient/ldap3/pypsrp required for user).  
+- At least one Medium root uses a **new** ARK module (ACL/RBCD/shadow/ticket).  
+- Every eng produces a short **ARK gaps** bullet list in the report.
 
 ---
 
@@ -226,7 +217,7 @@ AI: `ai` → Plan with soft-compromise objective → Auto with approvals.
 | Shell expansion | Never put passwords with `$` in double-quoted bash (`$$` → PID). Write to file via Python/`printf` |
 | Files | Store secrets under `~/htb-<machine>/` with mode `600`; do not commit to git |
 | Reports | Prefer redaction in public commits; lab-only flags/creds OK in private `reports/` if repo is private |
-| Loot | Erebus loot DB under `~/.erebus/` — treat as sensitive |
+| Loot | ARK loot DB under `~/.ark/` — treat as sensitive |
 | Logs | Do not paste full NT hashes/passwords into public issues/PRs |
 
 ### 6.3 Kerberos / time
@@ -237,7 +228,7 @@ AI: `ai` → Plan with soft-compromise objective → Auto with approvals.
 | Fix | Prefer faketime/Docker wrapper over `date -s` without need |
 | Caches | Treat `.ccache` / `.kirbi` as expiring secrets; delete after eng |
 
-### 6.4 Erebus / C2 safety
+### 6.4 ARK / C2 safety
 
 | Check | Rule |
 | --- | --- |
@@ -261,11 +252,11 @@ AI: `ai` → Plan with soft-compromise objective → Auto with approvals.
 
 ```text
 [ ] user.txt / root.txt submitted if obtained
-[ ] Report updated (flags, path, Erebus gaps)
-[ ] Lab artifacts cleaned (EREBUS01$, RBCD, DNS, local users) if reusing box
+[ ] Report updated (flags, path, ARK gaps)
+[ ] Lab artifacts cleaned (ARK01$, RBCD, DNS, local users) if reusing box
 [ ] Implant dead; listeners stopped if not needed
 [ ] No secrets staged in git status (git status clean of ~/htb-* copies)
-[ ] Open product issues filed or gaps listed in report § Erebus
+[ ] Open product issues filed or gaps listed in report § ARK
 ```
 
 ---
@@ -287,11 +278,11 @@ python3 -c 'open("svc_pass.txt","w").write("Em3rg3ncyPa$$2026")'
 # tools read from file — never: --pass "Em3rg3ncyPa$$2026" in bash double quotes
 ```
 
-### Erebus operator (post-implant)
+### ARK operator (post-implant)
 
 ```text
-erebus teamserver     # C2 daemon
-erebus operator       # REPL in another terminal
+ark teamserver     # C2 daemon
+ark operator       # REPL in another terminal
 sessions
 use <session-id>
 smb list_shares --host <IP> --anon
@@ -305,9 +296,12 @@ loot
 ### Builds
 
 ```bash
-make proto erebus
-make implant-win CALLBACK_URL=https://<C2>:443 SLEEP_MS=500 JITTER_PCT=10
-# optional: generate --language c  (Windows PE)
+make proto ark
+# Windows / Linux primary (C). Empty generate language is c.
+ark op generate --os windows --language c --callback https://<C2>:1750 --out implant.exe
+# or: make implant-c / implant-c-linux + ark op register-secret
+# Go Windows fallback only: make implant-win
+# Go Linux is archived (make implant fails)
 bash scripts/smoke_test.sh
 ```
 
@@ -330,7 +324,7 @@ Adjust to your HTB rank path; keep the **finish open → QA P0 → code P1 → M
 ## 9. Gap log template (paste into each report)
 
 ```markdown
-## Erebus gaps this eng
+## ARK gaps this eng
 
 | Gap | Severity | Workaround used | Wanted module/fix |
 | --- | --- | --- | --- |

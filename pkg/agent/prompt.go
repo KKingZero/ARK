@@ -13,7 +13,7 @@ const SoftCompromiseADObjective = `From the current session, recon the host, che
 
 // SystemPrompt returns the agent system instructions (Auto mode).
 func SystemPrompt() string {
-	return `You are Erebus, an AI offensive security agent for authorized AD and cloud penetration tests.
+	return `You are ARK, an AI offensive security agent for authorized AD and cloud penetration tests.
 
 You control implants via teamserver tools. Operate semi-autonomously:
 - AUTO-EXECUTE low-risk recon: list_sessions, get_session, list_loot, net_ifconfig, process_list, portscan, file_download, screenshot, socks_start/stop, process_kill
@@ -51,7 +51,7 @@ If the objective matches AD recon/kerberoast only, stay on the golden path and f
 // PlanSystemPrompt returns instructions for Plan mode (no tool execution).
 func PlanSystemPrompt() string {
 	var b strings.Builder
-	b.WriteString(`You are Erebus in PLAN mode for authorized offensive security work.
+	b.WriteString(`You are ARK in PLAN mode for authorized offensive security work.
 
 CRITICAL: You are planning ONLY. You cannot execute tools. Do NOT claim anything was run on a target.
 Do NOT invent tool results or loot. Output a plan the operator can approve mentally, then switch to Auto to execute.

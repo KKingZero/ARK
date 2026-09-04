@@ -62,6 +62,12 @@ func TestValidateS4U(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	if err := validateS4U(S4UOptions{
+		Domain: "x.htb", Username: "ATTACKER", KDC: "10.0.0.1", Password: "p",
+		Impersonate: "dmsa$", DMSA: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	err = validateS4U(S4UOptions{
 		Domain: "x.htb", Username: "ATTACK$", KDC: "10.0.0.1", Password: "p",
 		Impersonate: "Administrator", SPN: "cifs/dc.x.htb", AltService: "noslash",

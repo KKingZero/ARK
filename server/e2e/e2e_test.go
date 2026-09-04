@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	implanttasks "github.com/KKingZero/erebus-exploit-framwork/implant/tasks"
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server"
+	implanttasks "github.com/KKingZero/ARK/implant/tasks"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/proto"
@@ -45,7 +45,7 @@ func TestLiveE2E(t *testing.T) {
 	ahDisabled := false
 	cfg := &server.Config{
 		GRPCAddr:      fmt.Sprintf("127.0.0.1:%d", grpcPort),
-		DBPath:        filepath.Join(dataDir, "erebus.db"),
+		DBPath:        filepath.Join(dataDir, "ark.db"),
 		DataDir:       dataDir,
 		OperatorCNs:   []string{"e2e-operator", "e2e-requester"},
 		ApproverCNs:   []string{"e2e-approver"},
@@ -91,7 +91,7 @@ func TestLiveE2E(t *testing.T) {
 	go sim.beaconLoop(ctx)
 
 	// Step 3: shell task round-trip (shell is high-risk → dual-control approval)
-	shellData, _ := proto.Marshal(&pb.ShellTask{Command: "echo erebus-e2e-ok"})
+	shellData, _ := proto.Marshal(&pb.ShellTask{Command: "echo ark-e2e-ok"})
 	execResp := executeTaskWithApproval(t, ctx, requesterClient, approverClient, &pb.ExecuteTaskRequest{
 		SessionId: sessionID,
 		TaskType:  pb.TaskType_TASK_SHELL,
@@ -109,7 +109,7 @@ func TestLiveE2E(t *testing.T) {
 	if shellResult.ExitCode != 0 {
 		t.Fatalf("shell exit code %d stderr=%q", shellResult.ExitCode, shellResult.Stderr)
 	}
-	if !bytes.Contains([]byte(shellResult.Stdout), []byte("erebus-e2e-ok")) {
+	if !bytes.Contains([]byte(shellResult.Stdout), []byte("ark-e2e-ok")) {
 		t.Fatalf("unexpected stdout: %q", shellResult.Stdout)
 	}
 
@@ -515,6 +515,31 @@ func (s *implantSim) executeTask(task *pb.Task) *pb.TaskResult {
 			Data:            data,
 			ExecutionTimeMs: time.Since(start).Milliseconds(),
 		}
+	case pb.TaskType_TASK_KERBEROAST:
+		return simResult(task.TaskId, start, &pb.KerberoastResult{
+			Hashes: []*pb.KerberoastHash{{Spn: "HTTP/dc01.corp.local", SamAccountName: "svc", Hash: "$krb5tgs$simulated"}},
+		})
+	case pb.TaskType_TASK_ASREPROAST:
+		return simResult(task.TaskId, start, &pb.ASREPRoastResult{
+			Hashes: []*pb.ASREPHash{{Username: "no-preauth", Hash: "$krb5asrep$simulated"}},
+		})
+	case pb.TaskType_TASK_LATERAL_MOVE:
+		return simResult(task.TaskId, start, &pb.LateralMoveResult{Method: "winrm", Target: "dc01", Success: true, Output: "simulated"})
+	case pb.TaskType_TASK_PERSIST:
+		return simResult(task.TaskId, start, &pb.PersistResult{Success: true, Method: "schtask", Details: "simulated"})
+	case pb.TaskType_TASK_PRIVESC:
+		return simResult(task.TaskId, start, &pb.PrivescResult{Success: true, Method: "enum", NewIntegrity: "medium"})
+	case pb.TaskType_TASK_MODULE:
+		mod := &pb.ModuleTask{}
+		_ = proto.Unmarshal(task.Data, mod)
+		switch mod.ModuleName {
+		case "cloud":
+			return simResult(task.TaskId, start, &pb.CloudHarvestResult{Provider: "azure", Method: "all", Metadata: "simulated"})
+		case "smb":
+			return simResult(task.TaskId, start, &pb.SMBClientResult{Action: "list_shares", Host: "dc01"})
+		default:
+			return simResult(task.TaskId, start, &pb.CloudHarvestResult{Provider: "simulated", Method: mod.ModuleName})
+		}
 	default:
 		return &pb.TaskResult{
 			TaskId:          task.TaskId,
@@ -522,6 +547,19 @@ func (s *implantSim) executeTask(task *pb.Task) *pb.TaskResult {
 			Data:            []byte(`{"simulated":true}`),
 			ExecutionTimeMs: time.Since(start).Milliseconds(),
 		}
+	}
+}
+
+func simResult(taskID string, start time.Time, msg proto.Message) *pb.TaskResult {
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return failResult(taskID, err, start)
+	}
+	return &pb.TaskResult{
+		TaskId:          taskID,
+		Success:         true,
+		Data:            data,
+		ExecutionTimeMs: time.Since(start).Milliseconds(),
 	}
 }
 

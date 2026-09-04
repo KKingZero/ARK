@@ -4,15 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/KKingZero/ARK/pkg/arkhome"
 )
 
-// erebusHistoryPath returns a private history file under ~/.erebus.
-func erebusHistoryPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(os.TempDir(), "erebus_history")
-	}
-	dir := filepath.Join(home, ".erebus")
+// arkHistoryPath returns a private history file under the ARK data dir.
+func arkHistoryPath() string {
+	dir := arkhome.Dir()
 	_ = os.MkdirAll(dir, 0o700)
 	path := filepath.Join(dir, "history")
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND, 0o600)

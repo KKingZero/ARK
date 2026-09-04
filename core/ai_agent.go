@@ -1,19 +1,19 @@
 package core
 
 import (
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/agent"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/erebuscli"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/llm"
+	"github.com/KKingZero/ARK/pkg/agent"
+	"github.com/KKingZero/ARK/pkg/arkcli"
+	"github.com/KKingZero/ARK/pkg/llm"
 )
 
 // agentAvailable returns a ready agent config when teamserver and mTLS certs are present.
 // Requires operator + approver seats so Auto mode can dual-control approve in-process.
 func agentAvailable(llmCfg llm.Config) (*agent.Config, bool) {
-	cert, key, ca := erebuscli.DefaultCertPaths()
+	cert, key, ca := arkcli.DefaultCertPaths()
 	if !fileExists(cert) || !fileExists(key) || !fileExists(ca) {
 		return nil, false
 	}
-	apCert, apKey := erebuscli.DefaultApproverCertPaths()
+	apCert, apKey := arkcli.DefaultApproverCertPaths()
 	if !fileExists(apCert) || !fileExists(apKey) {
 		// Without approver seat, in-TUI [a]/[d] cannot satisfy dual-control.
 		return nil, false
@@ -34,7 +34,7 @@ func agentAvailable(llmCfg llm.Config) (*agent.Config, bool) {
 	if !fileExists(agentCfg.ApproverCert) || !fileExists(agentCfg.ApproverKey) {
 		return nil, false
 	}
-	if !erebuscli.GRPCReachable(agentCfg.Server) {
+	if !arkcli.GRPCReachable(agentCfg.Server) {
 		return nil, false
 	}
 	agentCfg.LLM = agent.LLMConfig{

@@ -1,5 +1,5 @@
-MODULE      = github.com/KKingZero/erebus-exploit-framwork
-EREBUS      = ./cmd/erebus
+MODULE      = github.com/KKingZero/ARK
+ARK         = ./cmd/ark
 TEAMSERVER  = ./cmd/teamserver
 IMPLANT     = ./cmd/implant
 OPERATOR    = ./cmd/operator
@@ -28,7 +28,7 @@ $(error IMPLANT_SECRET must be 64 hex chars (32 bytes), got $(shell printf '%s' 
 endif
 
 # CA cert for TLS pinning (required for HTTPS implants — no InsecureSkipVerify).
-# Example: make implant CA_CERT_PATH=$$HOME/.erebus/ca-cert.pem
+# Example: make implant CA_CERT_PATH=$$HOME/.ark/ca-cert.pem
 # Go implant: CA_CERT_PEM is base64 of the PEM file bytes.
 # C implant: needs base64 DER — use CA_CERT_PATH (converted below) or C_CA_CERT_PEM.
 CA_CERT_PATH   ?=
@@ -56,35 +56,39 @@ LDFLAGS = -s -w \
 	-X '$(MODULE)/implant.dnsServer=$(DNS_SERVER)' \
 	-X '$(MODULE)/implant.cdnDomain=$(CDN_DOMAIN)'
 
-.PHONY: all proto erebus teamserver implant implant-win implant-dll implant-shellcode implant-c operator agent install uninstall clean
+.PHONY: all proto ark erebus teamserver implant implant-win implant-dll implant-shellcode implant-c operator agent install uninstall clean
 
-all: proto erebus teamserver implant operator agent
+all: proto ark teamserver implant operator agent
 
-install: erebus
+install: ark
 	@mkdir -p $(BINDIR)
-	install -m 755 $(BUILD_DIR)/erebus $(BINDIR)/erebus
-	@ln -sf erebus $(BINDIR)/Erebus
-	@echo "Installed: $(BINDIR)/erebus and $(BINDIR)/Erebus"
+	install -m 755 $(BUILD_DIR)/ark $(BINDIR)/ark
+	@ln -sf ark $(BINDIR)/ARK
+	@ln -sf ark $(BINDIR)/erebus
+	@ln -sf ark $(BINDIR)/Erebus
+	@echo "Installed: $(BINDIR)/ark (symlinks: ARK, erebus, Erebus)"
 	@echo "Ensure $(BINDIR) is in your PATH (e.g. export PATH=\"$(BINDIR):\$$PATH\")"
 
 uninstall:
-	rm -f $(BINDIR)/erebus $(BINDIR)/Erebus
-	@echo "Removed $(BINDIR)/erebus and $(BINDIR)/Erebus"
+	rm -f $(BINDIR)/ark $(BINDIR)/ARK $(BINDIR)/erebus $(BINDIR)/Erebus
+	@echo "Removed $(BINDIR)/ark and compatibility symlinks"
 
 proto:
 	cd proto && bash generate.sh
 
-erebus:
+ark:
 	@mkdir -p $(BUILD_DIR)
-	go build -o $(BUILD_DIR)/erebus $(EREBUS)
+	go build -o $(BUILD_DIR)/ark $(ARK)
+
+erebus: ark
 
 teamserver:
 	@mkdir -p $(BUILD_DIR)
 	go build -o $(BUILD_DIR)/teamserver $(TEAMSERVER)
 
 implant:
-	@mkdir -p $(BUILD_DIR)
-	go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/implant $(IMPLANT)
+	@echo "Go Linux implant is archived. Use: make implant-c-linux CA_CERT_PATH=\$$HOME/.ark/ca-cert.pem"
+	@false
 
 implant-win:
 	@mkdir -p $(BUILD_DIR)
@@ -130,7 +134,7 @@ implant-c:
 		CDN_DOMAIN="$(CDN_DOMAIN)"
 
 # Basic Linux C peer (shell/files/process/net + HTTPS beacon). Needs gcc, libcurl, openssl.
-# CA: pass CA_CERT_PATH=$$HOME/.erebus/ca-cert.pem (auto PEM→DER→b64 for C).
+# CA: pass CA_CERT_PATH=$$HOME/.ark/ca-cert.pem (auto PEM→DER→b64 for C).
 implant-c-linux:
 	$(MAKE) -C cimplant all OS=linux \
 		IMPLANT_ID="$(IMPLANT_ID)" \

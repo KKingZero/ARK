@@ -3,12 +3,14 @@ package llm
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/KKingZero/ARK/pkg/arkhome"
 	"gopkg.in/yaml.v3"
 )
 
-const DefaultConfigPath = "~/.erebus/llm.yaml"
+const DefaultConfigPath = "~/.ark/llm.yaml"
 
 // Config is the resolved settings for the active provider (OpenAI-compatible API).
 type Config struct {
@@ -73,7 +75,7 @@ func DefaultConfig() Config {
 	})
 }
 
-// Load reads ~/.erebus/llm.yaml and returns the active provider config.
+// Load reads ~/.ark/llm.yaml and returns the active provider config.
 func Load(path string) (Config, error) {
 	fileCfg, err := LoadFile(path)
 	if err != nil {
@@ -85,7 +87,7 @@ func Load(path string) (Config, error) {
 // LoadFile reads the full multi-provider config from disk.
 func LoadFile(path string) (FileConfig, error) {
 	cfg := DefaultFileConfig()
-	path = expandPath(path)
+	path = resolveConfigPath(path)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -107,13 +109,13 @@ func LoadFile(path string) (FileConfig, error) {
 
 // SaveFile writes the config with restrictive permissions.
 func SaveFile(path string, cfg FileConfig) error {
-	path = expandPath(path)
+	path = resolveConfigPath(path)
 	cfg.normalize()
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("marshal llm config: %w", err)
 	}
-	if err := os.MkdirAll(expandPath("~/.erebus"), 0o700); err != nil {
+	if err := os.MkdirAll(arkhome.Dir(), 0o700); err != nil {
 		return fmt.Errorf("create config dir: %w", err)
 	}
 	if err := os.WriteFile(path, data, 0o600); err != nil {
@@ -141,7 +143,11 @@ func (f *FileConfig) ActiveConfig() (Config, error) {
 	if cfg.Provider != string(ProviderOllama) && cfg.APIKey == "" {
 		meta, _ := LookupProvider(active)
 		if meta.NeedsKey {
-			return cfg, fmt.Errorf("%s API key not set — run: ai setup", meta.Label)
+			msg := fmt.Sprintf("%s API key not set — run: ai setup", meta.Label)
+			if w := BillingWarning(active); w != "" {
+				msg = msg + "\n" + w
+			}
+			return cfg, fmt.Errorf("%s", msg)
 		}
 	}
 	return cfg, nil
@@ -397,6 +403,13 @@ func MaskKey(key string) string {
 		return "****"
 	}
 	return key[:4] + "..." + key[len(key)-4:]
+}
+
+func resolveConfigPath(path string) string {
+	if path == "" || path == DefaultConfigPath {
+		return filepath.Join(arkhome.Dir(), "llm.yaml")
+	}
+	return expandPath(path)
 }
 
 func expandPath(s string) string {

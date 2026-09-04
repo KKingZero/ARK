@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/krb"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/ldapcli"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/suggestions"
+	"github.com/KKingZero/ARK/pkg/krb"
+	"github.com/KKingZero/ARK/pkg/ldapcli"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/suggestions"
 	"github.com/go-ldap/ldap/v3"
 )
 
@@ -34,18 +34,18 @@ func RunLDAP(args []string) error {
 	}
 }
 
-const ldapUsage = `erebus ldap — operator-host LDAP (no implant)
+const ldapUsage = `ark ldap — operator-host LDAP (no implant)
 
-  erebus ldap bind --dc H --domain D --user U (--pass-file P | --pass P | --hash H) [--tls-verify]
-  erebus ldap enum --dc H --domain D --user U --pass-file P --type interesting
-  erebus ldap dangling --dc H --domain D --user U --pass-file P
-  erebus ldap enum --type maq --dc H --domain D --user U --pass-file P
-  erebus ldap enum --type acl --dc H --domain D --user U --pass-file P [--all]
-  erebus ldap set --dc H --domain D --user U --pass-file P --target SAM scriptPath VALUE --yes
-  erebus ldap set --dc H --domain D --user U --pass-file P --target DC01$ servicePrincipalName HTTP/web.domain.htb --yes
-  erebus ldap bind --dc H --domain D --ticket ID   # GSSAPI from imported ccache
+  ark ldap bind --dc H --domain D --user U (--pass-file P | --pass P | --hash H) [--tls-verify]
+  ark ldap enum --dc H --domain D --user U --pass-file P --type interesting
+  ark ldap dangling --dc H --domain D --user U --pass-file P
+  ark ldap enum --type maq --dc H --domain D --user U --pass-file P
+  ark ldap enum --type acl --dc H --domain D --user U --pass-file P [--all]
+  ark ldap set --dc H --domain D --user U --pass-file P --target SAM scriptPath VALUE --yes
+  ark ldap set --dc H --domain D --user U --pass-file P --target DC01$ servicePrincipalName HTTP/web.domain.htb --yes
+  ark ldap bind --dc H --domain D --ticket ID   # GSSAPI from imported ccache
 
-Uses LDAPS first (lab self-signed OK). Honors EREBUS_PROXY / ALL_PROXY (SOCKS5).
+Uses LDAPS first (lab self-signed OK). Honors ARK_PROXY / ALL_PROXY (SOCKS5).
 Types: acl, asrep_roastable (alias asrep), computers, constrained_delegation, dangling,
 dcs, domain_admins, gpos, groups, interesting, kerberoastable (alias spn), maq,
 rbcd, secrets, shadow (alias keycred), trusts, unconstrained_delegation, users, admins.
@@ -203,8 +203,8 @@ func printACL(conn *ldap.Conn, base string, includePrivileged bool) error {
 	fmt.Printf("query=acl count=%d privileged=%v\n", len(objs), includePrivileged)
 	if len(objs) == 0 {
 		fmt.Println("no interesting DACL rights (or SD not readable)")
-		fmt.Println("next: erebus ldap enum --type interesting")
-		fmt.Println("next: erebus ldap enum --type rbcd")
+		fmt.Println("next: ark ldap enum --type interesting")
+		fmt.Println("next: ark ldap enum --type rbcd")
 		return nil
 	}
 	for _, o := range objs {
@@ -277,7 +277,7 @@ func ldapSet(args []string) error {
 		}
 	}
 	if target == "" || attr == "" {
-		return fmt.Errorf("usage: erebus ldap set --target SAM scriptPath VALUE --yes")
+		return fmt.Errorf("usage: ark ldap set --target SAM scriptPath VALUE --yes")
 	}
 	if !flagBool(f, "yes") {
 		return fmt.Errorf("refusing to set %s on %q without --yes", attr, target)

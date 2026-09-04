@@ -2,10 +2,12 @@ syntax = "proto3";
 
 package erebus.c2;
 
-option go_package = "github.com/KKingZero/erebus-exploit-framwork/pkg/pb";
+option go_package = "github.com/KKingZero/ARK/pkg/pb";
 
 // --- Enums ---
 
+// C implant constants are generated from this enum
+// (proto/gen_c_task_types.py → cimplant/include/ark/pb_task_types.h).
 enum TaskType {
   TASK_UNKNOWN       = 0;
   TASK_SHELL         = 1;

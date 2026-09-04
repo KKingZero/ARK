@@ -5,20 +5,20 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "erebus/platform.h"
+#include "ark/platform.h"
 
-void erebus_sleep_ms(uint32_t ms) {
+void ark_sleep_ms(uint32_t ms) {
     usleep((useconds_t)ms * 1000u);
 }
 
-int64_t erebus_unix_ms(void) {
+int64_t ark_unix_ms(void) {
     struct timespec ts;
     if (clock_gettime(CLOCK_REALTIME, &ts) != 0)
         return (int64_t)time(NULL) * 1000;
     return (int64_t)ts.tv_sec * 1000 + (int64_t)(ts.tv_nsec / 1000000L);
 }
 
-void erebus_get_identity(char *hostname, size_t hcap, char *username, size_t ucap,
+void ark_get_identity(char *hostname, size_t hcap, char *username, size_t ucap,
     uint32_t *pid, char *integrity, size_t icap) {
     if (hostname && hcap) {
         hostname[0] = '\0';
@@ -44,9 +44,9 @@ void erebus_get_identity(char *hostname, size_t hcap, char *username, size_t uca
     }
 }
 
-const char *erebus_os_name(void) { return "linux"; }
+const char *ark_os_name(void) { return "linux"; }
 
-const char *erebus_arch_name(void) {
+const char *ark_arch_name(void) {
 #if defined(__x86_64__) || defined(_M_X64)
     return "amd64";
 #elif defined(__aarch64__)
@@ -56,4 +56,4 @@ const char *erebus_arch_name(void) {
 #endif
 }
 
-int erebus_platform_init(void) { return 1; }
+int ark_platform_init(void) { return 1; }

@@ -4,7 +4,7 @@ Run **5 times** without changing code between runs. Same domain, same model.
 
 ## Preflight
 
-- [ ] Teamserver up (`erebus teamserver`)
+- [ ] Teamserver up (`ark teamserver`)
 - [ ] Implant alive (`sessions` shows yes / recent check-in)
 - [ ] Approver + operator certs exist
 - [ ] LLM configured (prefer Claude/GPT)

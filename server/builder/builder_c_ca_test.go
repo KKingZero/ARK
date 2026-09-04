@@ -20,7 +20,7 @@ func TestCACertPathEncodesDERNotPEM(t *testing.T) {
 	keyPath := filepath.Join(dir, "ca.key")
 	cmd := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:2048",
 		"-keyout", keyPath, "-out", pemPath, "-days", "1", "-nodes",
-		"-subj", "/CN=erebus-test-ca")
+		"-subj", "/CN=ark-test-ca")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("openssl: %v\n%s", err, out)
 	}

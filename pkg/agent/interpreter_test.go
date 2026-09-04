@@ -4,20 +4,20 @@ import (
 	"strings"
 	"testing"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestInterpretShellResult(t *testing.T) {
 	data, _ := proto.Marshal(&pb.ShellResult{
-		Stdout:   "erebus-ok",
+		Stdout:   "ark-ok",
 		ExitCode: 0,
 	})
 	summary := InterpretResult(pb.TaskType_TASK_SHELL, &pb.TaskResult{
 		Success: true,
 		Data:    data,
 	})
-	if !strings.Contains(summary, "erebus-ok") {
+	if !strings.Contains(summary, "ark-ok") {
 		t.Fatalf("unexpected summary: %s", summary)
 	}
 }

@@ -19,16 +19,16 @@ func TestAuthorizeContextRoles(t *testing.T) {
 		ApproverCNs: []string{"approver-a"},
 	}}
 
-	if err := ts.authorizeContext(testTLSContext("operator-a"), "/erebus.api.ErebusC2/ListSessions"); err != nil {
+	if err := ts.authorizeContext(testTLSContext("operator-a"), "/ark.api.ErebusC2/ListSessions"); err != nil {
 		t.Fatalf("operator should be authorized: %v", err)
 	}
-	if err := ts.authorizeContext(testTLSContext("operator-a"), "/erebus.api.ErebusC2/Approve"); status.Code(err) != codes.PermissionDenied {
+	if err := ts.authorizeContext(testTLSContext("operator-a"), "/ark.api.ErebusC2/Approve"); status.Code(err) != codes.PermissionDenied {
 		t.Fatalf("operator should not approve, got %v", err)
 	}
-	if err := ts.authorizeContext(testTLSContext("approver-a"), "/erebus.api.ErebusC2/Approve"); err != nil {
+	if err := ts.authorizeContext(testTLSContext("approver-a"), "/ark.api.ErebusC2/Approve"); err != nil {
 		t.Fatalf("approver should approve: %v", err)
 	}
-	if err := ts.authorizeContext(testTLSContext("unknown"), "/erebus.api.ErebusC2/ListSessions"); status.Code(err) != codes.PermissionDenied {
+	if err := ts.authorizeContext(testTLSContext("unknown"), "/ark.api.ErebusC2/ListSessions"); status.Code(err) != codes.PermissionDenied {
 		t.Fatalf("unknown CN should be rejected, got %v", err)
 	}
 }

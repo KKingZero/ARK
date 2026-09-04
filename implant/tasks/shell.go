@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"runtime"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 const maxOutputBytes = 10 << 20 // 10 MB

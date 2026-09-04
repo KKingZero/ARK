@@ -5,7 +5,7 @@ import (
 	"log"
 	"sync"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // Listener is the interface for all listener types.

@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const DefaultConfigPath = "~/.erebus/agent.yaml"
+const DefaultConfigPath = "~/.ark/agent.yaml"
 
 // Config holds agent connection and LLM settings.
 type Config struct {

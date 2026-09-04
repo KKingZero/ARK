@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/buffer.h"
+#include "ark/buffer.h"
 
-int erebus_buf_init(erebus_buf *b, size_t initial_cap) {
+int ark_buf_init(ark_buf *b, size_t initial_cap) {
     b->data = (uint8_t *)malloc(initial_cap ? initial_cap : 256);
     if (!b->data) return 0;
     b->len = 0;
@@ -11,13 +11,13 @@ int erebus_buf_init(erebus_buf *b, size_t initial_cap) {
     return 1;
 }
 
-void erebus_buf_free(erebus_buf *b) {
+void ark_buf_free(ark_buf *b) {
     free(b->data);
     b->data = NULL;
     b->len = b->cap = 0;
 }
 
-int erebus_buf_reserve(erebus_buf *b, size_t need) {
+int ark_buf_reserve(ark_buf *b, size_t need) {
     if (need <= b->cap) return 1;
     size_t ncap = b->cap ? b->cap : 256;
     while (ncap < need) ncap *= 2;
@@ -28,13 +28,13 @@ int erebus_buf_reserve(erebus_buf *b, size_t need) {
     return 1;
 }
 
-int erebus_buf_append(erebus_buf *b, const void *data, size_t len) {
-    if (!erebus_buf_reserve(b, b->len + len)) return 0;
+int ark_buf_append(ark_buf *b, const void *data, size_t len) {
+    if (!ark_buf_reserve(b, b->len + len)) return 0;
     memcpy(b->data + b->len, data, len);
     b->len += len;
     return 1;
 }
 
-void erebus_buf_reset(erebus_buf *b) {
+void ark_buf_reset(ark_buf *b) {
     b->len = 0;
 }

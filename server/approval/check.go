@@ -1,6 +1,6 @@
 package approval
 
-import pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+import pb "github.com/KKingZero/ARK/pkg/pb"
 
 // ApprovalNeed describes whether a task requires operator approval and why.
 type ApprovalNeed struct {

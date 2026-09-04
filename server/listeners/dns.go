@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/dnstransport"
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/dnstransport"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"github.com/miekg/dns"
 	"google.golang.org/protobuf/proto"
 )

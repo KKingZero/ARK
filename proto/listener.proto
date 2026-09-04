@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package erebus.c2;
 
-option go_package = "github.com/KKingZero/erebus-exploit-framwork/pkg/pb";
+option go_package = "github.com/KKingZero/ARK/pkg/pb";
 
 enum ListenerProtocol {
   LISTENER_UNKNOWN = 0;

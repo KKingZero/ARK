@@ -7,7 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
+	"github.com/KKingZero/ARK/pkg/arkhome"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
 	"gopkg.in/yaml.v3"
 )
 
@@ -46,11 +47,10 @@ type ListenerConfig struct {
 }
 
 func DefaultConfig() *Config {
-	home, _ := os.UserHomeDir()
-	dataDir := filepath.Join(home, ".erebus")
+	dataDir := arkhome.Dir()
 	return &Config{
 		GRPCAddr:          "127.0.0.1:50051",
-		DBPath:            filepath.Join(dataDir, "erebus.db"),
+		DBPath:            defaultDBPath(dataDir),
 		DataDir:           dataDir,
 		OperatorCertFiles: []string{filepath.Join(dataDir, "certs", "operator.pem")},
 		ApproverCertFiles: []string{filepath.Join(dataDir, "certs", "approver.pem")},
@@ -59,7 +59,7 @@ func DefaultConfig() *Config {
 				Name:     "default-https",
 				Protocol: "https",
 				Host:     "0.0.0.0",
-				Port:     443,
+				Port:     1750,
 			},
 		},
 	}
@@ -187,7 +187,18 @@ func (c *Config) Save(path string) error {
 	return os.WriteFile(path, data, 0600)
 }
 
+func defaultDBPath(dataDir string) string {
+	arkDB := filepath.Join(dataDir, "ark.db")
+	if _, err := os.Stat(arkDB); err == nil {
+		return arkDB
+	}
+	legacy := filepath.Join(dataDir, "erebus.db")
+	if _, err := os.Stat(legacy); err == nil {
+		return legacy
+	}
+	return arkDB
+}
+
 func ConfigPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".erebus", "server.yaml")
+	return filepath.Join(arkhome.Dir(), "server.yaml")
 }

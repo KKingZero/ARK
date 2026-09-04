@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/plugin"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/smbcli"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/suggestions"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/plugin"
+	"github.com/KKingZero/ARK/pkg/smbcli"
+	"github.com/KKingZero/ARK/pkg/suggestions"
 	"google.golang.org/protobuf/proto"
 )
 

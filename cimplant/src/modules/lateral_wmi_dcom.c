@@ -10,15 +10,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/lateral_impl.h"
+#include "ark/lateral_impl.h"
 
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "oleaut32.lib")
 #pragma comment(lib, "wbemuuid.lib")
 
 /* Mingw may not link GUID_NULL from uuid without -luuid */
-#ifndef EREBUS_GUID_NULL_DEFINED
-#define EREBUS_GUID_NULL_DEFINED
+#ifndef ARK_GUID_NULL_DEFINED
+#define ARK_GUID_NULL_DEFINED
 const GUID GUID_NULL = {0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0}};
 #endif
 
@@ -66,7 +66,7 @@ static void set_proxy(IUnknown *p, const char *user, const char *password, const
     free(wuser); free(wpass); free(wdom);
 }
 
-int erebus_lateral_wmi(const erebus_lateral_config *cfg, char *output, size_t output_cap, int *success) {
+int ark_lateral_wmi(const ark_lateral_config *cfg, char *output, size_t output_cap, int *success) {
     *success = 0;
     output[0] = '\0';
 
@@ -223,7 +223,7 @@ static const CLSID CLSID_MMCApp = {
     0x49B2791A, 0xB1AE, 0x4C90, {0x9B, 0x8E, 0xE8, 0x60, 0xBA, 0x07, 0xF8, 0x89}
 };
 
-int erebus_lateral_dcom(const erebus_lateral_config *cfg, char *output, size_t output_cap, int *success) {
+int ark_lateral_dcom(const ark_lateral_config *cfg, char *output, size_t output_cap, int *success) {
     *success = 0;
     output[0] = '\0';
 

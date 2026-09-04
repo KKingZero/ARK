@@ -35,6 +35,9 @@ func TestClassifyMask(t *testing.T) {
 	if got := ClassifyMask(RightWriteProperty, GUIDAllowedToAct); !containsRight(got, "AllowedToAct") {
 		t.Fatalf("%v", got)
 	}
+	if got := ClassifyMask(RightWriteProperty, GUIDKeyCredentialLink); !containsRight(got, "AddKeyCredentialLink") {
+		t.Fatalf("%v", got)
+	}
 	if got := ClassifyMask(RightControlAccess, ""); len(got) != 0 {
 		t.Fatalf("control access without GUID should not classify: %v", got)
 	}

@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/approval"
-	"github.com/KKingZero/erebus-exploit-framwork/server/db"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/approval"
+	"github.com/KKingZero/ARK/server/db"
 )
 
 // RequesterCN is the dual-control identity for auto-harvest approval requests.

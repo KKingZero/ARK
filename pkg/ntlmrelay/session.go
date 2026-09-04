@@ -115,7 +115,7 @@ func (s *Session) GetBody(path string) (status int, body []byte, err error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Erebus-NTLMRelay")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ARK-NTLMRelay")
 	req.Header.Set("Connection", "Keep-Alive")
 	// Connection-bound NTLM: no Authorization header; same TCP conn as Type3.
 	resp, err := s.client.Do(req)

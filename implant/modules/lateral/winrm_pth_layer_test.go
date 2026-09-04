@@ -133,6 +133,57 @@ func TestPTHHash_401WithoutNegotiateIsHTTPLayer(t *testing.T) {
 	}
 }
 
+func TestPTHHash_PostAuth401IsSessionLifecycle(t *testing.T) {
+	var authed bool
+	var soap401 int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth == "" {
+			if authed {
+				soap401++
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			w.Header().Set("Www-Authenticate", "NTLM")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		raw, err := decodeNTLMAuth(auth)
+		if err != nil || len(raw) < 12 {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		typ := binary.LittleEndian.Uint32(raw[8:12])
+		if typ == 1 {
+			w.Header().Set("Www-Authenticate", "NTLM "+base64.StdEncoding.EncodeToString(testNTLMType2NoSeal()))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if typ == 3 {
+			authed = true
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+	c := newClientNTLMWithHash(`LAB\alice`, "603fc24ee01a9409f83c9d1d701485c5")
+	if err := c.Transport(endpointFromURL(t, srv.URL)); err != nil {
+		t.Fatal(err)
+	}
+	_, err := c.Post(nil, soap.NewMessage())
+	if err == nil {
+		t.Fatal("expected 401 after handshake")
+	}
+	if soap401 != 1 {
+		t.Fatalf("SOAP 401 count=%d want 1", soap401)
+	}
+	layer, ok := PTHDiagnose(err)
+	if !ok || layer != PTHLayerSessionLife {
+		t.Fatalf("got layer=%q ok=%v err=%v", layer, ok, err)
+	}
+}
+
 func TestPTHHash_NoPlainRetryOn415(t *testing.T) {
 	var posts int
 	var authed bool

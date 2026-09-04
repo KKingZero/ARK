@@ -53,8 +53,8 @@ type LootItem struct {
 	User  string
 }
 
-// ErebusModule is the interface every module must implement
-type ErebusModule interface {
+// ARKModule is the interface every module must implement
+type ARKModule interface {
 	Name() string
 	Description() string
 	CVE() string

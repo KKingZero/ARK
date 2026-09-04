@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -56,7 +56,7 @@ func TestJuiceShopRecon(t *testing.T) {
 	ahDisabled := false
 	cfg := &server.Config{
 		GRPCAddr:      fmt.Sprintf("127.0.0.1:%d", grpcPort),
-		DBPath:        filepath.Join(dataDir, "erebus.db"),
+		DBPath:        filepath.Join(dataDir, "ark.db"),
 		DataDir:       dataDir,
 		OperatorCNs:   []string{"e2e-operator", "juice-requester"},
 		ApproverCNs:   []string{"juice-approver"},
@@ -88,7 +88,7 @@ func TestJuiceShopRecon(t *testing.T) {
 	buildImplant(t, implantBin, implantID, hex.EncodeToString(secret), fmt.Sprintf("https://127.0.0.1:%d", httpsPort), base64.StdEncoding.EncodeToString(caPEM))
 
 	implantCmd := exec.CommandContext(ctx, implantBin)
-	implantCmd.Env = append(os.Environ(), "EREBUS_IMPLANT_QUIET=1")
+	implantCmd.Env = append(os.Environ(), "ARK_IMPLANT_QUIET=1")
 	if err := implantCmd.Start(); err != nil {
 		t.Fatalf("start implant: %v", err)
 	}
@@ -223,13 +223,13 @@ func buildImplant(t *testing.T, out, implantID, secret, callbackURL, caPEM strin
 	}
 	repoRoot := filepath.Clean(filepath.Join(wd, "..", ".."))
 	ldflags := fmt.Sprintf(
-		"-s -w -X github.com/KKingZero/erebus-exploit-framwork/implant.implantID=%s "+
-			"-X github.com/KKingZero/erebus-exploit-framwork/implant.implantSecret=%s "+
-			"-X github.com/KKingZero/erebus-exploit-framwork/implant.callbackURL=%s "+
-			"-X github.com/KKingZero/erebus-exploit-framwork/implant.sleepMs=500 "+
-			"-X github.com/KKingZero/erebus-exploit-framwork/implant.jitterPct=0 "+
-			"-X github.com/KKingZero/erebus-exploit-framwork/implant.caCertPEM=%s "+
-			"-X github.com/KKingZero/erebus-exploit-framwork/implant.transportType=https",
+		"-s -w -X github.com/KKingZero/ARK/implant.implantID=%s "+
+			"-X github.com/KKingZero/ARK/implant.implantSecret=%s "+
+			"-X github.com/KKingZero/ARK/implant.callbackURL=%s "+
+			"-X github.com/KKingZero/ARK/implant.sleepMs=500 "+
+			"-X github.com/KKingZero/ARK/implant.jitterPct=0 "+
+			"-X github.com/KKingZero/ARK/implant.caCertPEM=%s "+
+			"-X github.com/KKingZero/ARK/implant.transportType=https",
 		implantID, secret, callbackURL, caPEM,
 	)
 	cmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", out, "./cmd/implant")

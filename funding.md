@@ -1,8 +1,8 @@
-# Erebus — Funding & Go-To-Market Plan
+# ARK — Funding & Go-To-Market Plan
 
 **Pricing model:** **$5,000 USD / month / organization** — includes **3–5 operator seats** (minimum **3 seats** to buy).
 
-**Positioning:** First **AI-native** command-and-control framework where the operator states intent; Erebus plans, executes, and requests approval on high-risk actions — with full audit trail and human-in-the-loop control.
+**Positioning:** First **AI-native** command-and-control framework where the operator states intent; ARK plans, executes, and requests approval on high-risk actions — with full audit trail and human-in-the-loop control.
 
 > For authorized security testing, red team engagements, and research only.
 
@@ -10,7 +10,7 @@
 
 ## 1. Executive summary
 
-Erebus is not “a chatbot on top of Cobalt Strike.” The wedge is **intent-driven operations**: autonomous agent loops wired to real implant tasks, server-side approval gates, structured loot/results for the LLM, and `next_suggested_actions` chaining from recon output.
+ARK is not “a chatbot on top of Cobalt Strike.” The wedge is **intent-driven operations**: autonomous agent loops wired to real implant tasks, server-side approval gates, structured loot/results for the LLM, and `next_suggested_actions` chaining from recon output.
 
 **Today:** Strong engineering foundation (~40% of a meeting-ready demo MVP; ~25–30% of a credible commercial product).
 
@@ -39,7 +39,7 @@ Erebus is not “a chatbot on top of Cobalt Strike.” The wedge is **intent-dri
 | 4 | $1,250 | $15,000 |
 | 5 (max included) | $1,000 | $12,000 |
 
-Compare: Cobalt Strike ≈ **$3,500/year/seat** (~$290/mo). Erebus at full 5-seat bundle ≈ **3.4× CS per seat** — defensible as **AI-native team platform**, not a lone C2 license.
+Compare: Cobalt Strike ≈ **$3,500/year/seat** (~$290/mo). ARK at full 5-seat bundle ≈ **3.4× CS per seat** — defensible as **AI-native team platform**, not a lone C2 license.
 
 ### What’s included in $5k/mo
 
@@ -96,7 +96,7 @@ Compare: Cobalt Strike ≈ **$3,500/year/seat** (~$290/mo). Erebus at full 5-sea
 - **~$1k–1.7k/seat/mo** vs hiring another senior operator month
 - **Governed AI** vs shadow ChatGPT on engagements
 - **One invoice** — simpler than per-seat C2 + separate AI tools
-- **Pitch:** “Small red team in a box” — 3 people + Erebus ≈ 5-person throughput
+- **Pitch:** “Small red team in a box” — 3 people + ARK ≈ 5-person throughput
 
 ---
 
@@ -105,7 +105,7 @@ Compare: Cobalt Strike ≈ **$3,500/year/seat** (~$290/mo). Erebus at full 5-sea
 | Dimension | Score (1–10) | Gap to $5k/org sale |
 |-----------|--------------|---------------------|
 | C2 engine | 7 | Deploy story, HA |
-| Implant (Go) | 6 | Builder UX, stability |
+| Implant (C primary; Go Windows fallback) | 6 | Builder UX, C AD lab-verify, Go Linux archived |
 | AI agent + tools | 5 | Plan/Auto modes, reliability |
 | Operator UX (AI TUI) | 6 | Onboarding, no stubs |
 | Console REPL | 3 | Hide or wire |
@@ -143,7 +143,7 @@ Compare: Cobalt Strike ≈ **$3,500/year/seat** (~$290/mo). Erebus at full 5-sea
 
 - mTLS seat provisioning (3–5 certs)
 - Operator audit log
-- `make install` + `erebus serve` onboarding doc
+- `make install` + `ark serve` onboarding doc
 - MSA + Authorized Use Policy
 - **Exit:** 1 external org runs pilot without founder on call
 
@@ -244,4 +244,4 @@ Compare: Cobalt Strike ≈ **$3,500/year/seat** (~$290/mo). Erebus at full 5-sea
 
 ---
 
-*Last updated: 2026-06-27*
+*Last updated: 2026-09-04*

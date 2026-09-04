@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="${1:-$ROOT/include/erebus/config.h}"
-TEMPLATE="${2:-$ROOT/include/erebus/config.h.in}"
+OUT="${1:-$ROOT/include/ark/config.h}"
+TEMPLATE="${2:-$ROOT/include/ark/config.h.in}"
 
 IMPLANT_ID="${IMPLANT_ID:-}"
 IMPLANT_SECRET="${IMPLANT_SECRET:-}"

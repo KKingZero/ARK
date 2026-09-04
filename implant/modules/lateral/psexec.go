@@ -6,7 +6,7 @@ import (
 	"net"
 
 	"github.com/hirochachacha/go-smb2"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 func movePsExec(ctx context.Context, cfg *pb.LateralMoveConfig) (*pb.LateralMoveResult, error) {
@@ -53,7 +53,7 @@ func movePsExec(ctx context.Context, cfg *pb.LateralMoveConfig) (*pb.LateralMove
 
 	serviceName := cfg.ServiceName
 	if serviceName == "" {
-		serviceName = "ErebusSvc"
+		serviceName = "ARKSvc"
 	}
 
 	if len(cfg.Payload) == 0 {

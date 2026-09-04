@@ -18,7 +18,7 @@ func TestDefaultConfigOllama(t *testing.T) {
 }
 
 func TestLoadMissingFileUsesDefaults(t *testing.T) {
-	cfg, err := Load("/nonexistent/erebus-llm-test.yaml")
+	cfg, err := Load("/nonexistent/ark-llm-test.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,6 +79,9 @@ func TestSetAPIKeyRequiresKeyForOpenAI(t *testing.T) {
 	_, err := cfg.ActiveConfig()
 	if err == nil {
 		t.Fatal("expected missing key error")
+	}
+	if !strings.Contains(err.Error(), "ChatGPT Plus") {
+		t.Fatalf("missing plus-vs-api warning: %v", err)
 	}
 }
 

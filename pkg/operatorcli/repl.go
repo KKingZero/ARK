@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"github.com/chzyer/readline"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
 )
 
 type REPL struct {
@@ -31,7 +31,7 @@ func NewREPL(client pb.ErebusC2Client, approverClient pb.ErebusC2Client) (*REPL,
 	}
 
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:          "erebus > ",
+		Prompt:          "ark > ",
 		AutoComplete:    readline.NewPrefixCompleter(items...),
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
@@ -46,10 +46,10 @@ func NewREPL(client pb.ErebusC2Client, approverClient pb.ErebusC2Client) (*REPL,
 	}, nil
 }
 
-func (r *REPL) Run() {
+func (r *REPL) Run() error {
 	defer r.rl.Close()
 
-	fmt.Println("Erebus C2 Operator Console")
+	fmt.Println("ARK C2 Operator Console")
 	fmt.Println("Type 'help' for available commands")
 	fmt.Println()
 
@@ -58,12 +58,12 @@ func (r *REPL) Run() {
 	for {
 		// Update prompt with active session
 		if r.cmds.sessionID != "" {
-			r.rl.SetPrompt(fmt.Sprintf("erebus [%s] > ", r.cmds.sessionID[:8]))
+			r.rl.SetPrompt(fmt.Sprintf("ark [%s] > ", r.cmds.sessionID[:8]))
 		}
 
 		line, err := r.rl.Readline()
 		if err != nil {
-			break
+			return err
 		}
 
 		line = strings.TrimSpace(line)
@@ -83,7 +83,7 @@ func (r *REPL) Run() {
 
 		if err := handler(args); err != nil {
 			if err == errExit {
-				return
+				return nil
 			}
 			fmt.Printf("Error: %v\n", err)
 		}

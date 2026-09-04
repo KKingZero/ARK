@@ -42,7 +42,7 @@ func CheckListenPort(addr string, allowPriv bool) error {
 		return fmt.Errorf("parse port %q: %w", portStr, err)
 	}
 	if port < 1024 && !allowPriv {
-		return fmt.Errorf("port %d is privileged; use a port >= 1024 (rootless lab) or set EREBUS_ALLOW_PRIV_PORTS=1 / --allow-priv-ports (see docs/OPERATOR_PRE_IMPLANT.md)", port)
+		return fmt.Errorf("port %d is privileged; use a port >= 1024 (rootless lab) or set ARK_ALLOW_PRIV_PORTS=1 / --allow-priv-ports (see docs/OPERATOR_PRE_IMPLANT.md)", port)
 	}
 	if port <= 0 || port > 65535 {
 		return fmt.Errorf("invalid port %d", port)
@@ -83,7 +83,7 @@ func relayStep(client *http.Client, targetURL string, victimMsg []byte, method, 
 		return nil, nil, err
 	}
 	req.Header.Set("Authorization", EncodeNTLMAuthHeader(victimMsg))
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Erebus-NTLMRelay")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ARK-NTLMRelay")
 	req.Header.Set("Connection", "Keep-Alive")
 	resp, err = client.Do(req)
 	if err != nil {

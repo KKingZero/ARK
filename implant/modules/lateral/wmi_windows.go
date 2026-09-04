@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 func moveWMI(ctx context.Context, cfg *pb.LateralMoveConfig) (*pb.LateralMoveResult, error) {

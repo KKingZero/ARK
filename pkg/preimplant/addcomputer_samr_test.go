@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/ldapcli"
+	"github.com/KKingZero/ARK/pkg/ldapcli"
 )
 
 func TestAddComputerSAMRArgv(t *testing.T) {

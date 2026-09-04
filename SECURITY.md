@@ -2,7 +2,7 @@
 
 ## Authorized use only
 
-Erebus is a command-and-control (C2) framework for **authorized** offensive
+ARK is a command-and-control (C2) framework for **authorized** offensive
 security work: red team engagements, penetration tests, CTF/lab environments
 (e.g. Hack The Box), and defensive research.
 
@@ -28,7 +28,7 @@ Please report security issues **privately** so we can fix them before
 public disclosure.
 
 1. **Preferred:** Open a private security advisory on GitHub for
-   [KKingZero/Erebus](https://github.com/KKingZero/Erebus/security/advisories/new)
+   [KKingZero/ARK](https://github.com/KKingZero/ARK/security/advisories/new)
    if available, **or** email the repository owner via the contact listed on
    their GitHub profile.
 2. Include:
@@ -55,7 +55,7 @@ be abused against third parties.
 
 - “The tool can be used maliciously” (it is a C2; authorized use is the control)
 - Social engineering of operators
-- Vulnerabilities only in third-party dependencies with no Erebus-specific impact
+- Vulnerabilities only in third-party dependencies with no ARK-specific impact
   (still welcome if you note the package and version)
 - Issues requiring already-compromised teamserver credentials and no additional
   privilege gain
@@ -65,7 +65,7 @@ be abused against third parties.
 Operators should:
 
 - Generate unique implant secrets per build; never commit real secrets
-- Keep `~/.erebus/` (certs, DB, `llm.yaml` API keys) private (`0600` / `0700`)
+- Keep `~/.ark/` (certs, DB, `llm.yaml` API keys) private (`0600` / `0700`)
 - Use dual-control approver seats for high-risk tasks in multi-operator settings
 - Disable or carefully scope auto-harvest in shared environments
 - Point listeners only at authorized lab/engagement infrastructure

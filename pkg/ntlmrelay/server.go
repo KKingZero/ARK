@@ -214,7 +214,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		id := s.store.Add(sess)
 		s.cfg.logf("[relay] Authenticating connection from %s\\%s SUCCEED [%d] status=%d", domain, user, id, resp.StatusCode)
-		s.cfg.logf("[relay] Session %d stored — use: erebus relay http get --session %d --path /", id, id)
+		s.cfg.logf("[relay] Session %d stored — use: ark relay http get --session %d --path /", id, id)
 
 		for k, vv := range resp.Header {
 			if isHopByHop(k) {

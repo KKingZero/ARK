@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // harvestAzureCLI reads Azure CLI token cache files.

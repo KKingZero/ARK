@@ -12,14 +12,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
 )
 
 // BuildC compiles the C implant via cimplant/Makefile.
 // Windows: mingw cross-compile PE. Linux: host gcc + libcurl/openssl (basic peer).
 func BuildC(req *BuildRequest) (*BuildResult, error) {
 	if req.OS != "windows" && req.OS != "linux" {
-		return nil, fmt.Errorf("C implant supports windows|linux (got %q); use --language go for %s", req.OS, req.OS)
+		return nil, fmt.Errorf("C implant supports windows|linux (got %q)", req.OS)
 	}
 	if req.Arch != "amd64" {
 		return nil, fmt.Errorf("C implant only supports amd64 (got %q)", req.Arch)

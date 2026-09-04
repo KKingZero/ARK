@@ -8,10 +8,10 @@ type modelChoice struct {
 
 // pickerModels are shown in the Tab model selector (order matters).
 var pickerModels = []modelChoice{
-	{Label: "Claude", Provider: "anthropic"},
+	{Label: "Claude API", Provider: "anthropic"},
 	{Label: "Grok", Provider: "grok"},
 	{Label: "Gemini", Provider: "gemini"},
-	{Label: "ChatGPT", Provider: "openai"},
+	{Label: "OpenAI API", Provider: "openai"},
 	{Label: "Kimi", Provider: "kimi"},
 	{Label: "local ai", Provider: "ollama"},
 }

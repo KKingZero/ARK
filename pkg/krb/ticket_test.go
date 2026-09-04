@@ -24,7 +24,7 @@ func TestDetectTicketFormat(t *testing.T) {
 
 func TestCCacheWriteRoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("EREBUS_TICKET_DIR", dir)
+	t.Setenv("ARK_TICKET_DIR", dir)
 	raw, err := WriteCCache(CCacheCred{
 		ClientRealm: "PUPPET.VL",
 		Client:      []string{"bruce.smith"},

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // ApprovalAction tells the executor how to handle a high-risk task gate.

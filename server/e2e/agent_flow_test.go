@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/agent"
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server"
+	"github.com/KKingZero/ARK/pkg/agent"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server"
 )
 
 func TestAgentExecutorShell(t *testing.T) {
@@ -163,6 +163,94 @@ func TestAgentExecutorApprovalFlow(t *testing.T) {
 	close(sim.done)
 }
 
+// TestAgentCatalogDedicatedTaskTypes runs the AD/credential/lateral/persist/privesc
+// catalog tools through AI → gRPC → approval → implantSim → InterpretResult.
+// C routing of those enums is cimplant/tests/task_dispatch_host_test.c and
+// task_typed_linux_host_test.c.
+func TestAgentCatalogDedicatedTaskTypes(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	_, sim, sessionID, grpcAddr := startAgentE2EFixture(t, ctx)
+	client := newAgentClientDual(t, sim, grpcAddr)
+	defer client.Close()
+	if err := client.StartSubscribe(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	exec := &agent.Executor{
+		Client: client,
+		OnApproval: func(id, risk, desc string) (agent.ApprovalAction, string) {
+			return agent.ApprovalGrant, ""
+		},
+	}
+
+	cases := []struct {
+		tool string
+		args string
+		want string
+	}{
+		{
+			tool: "ldap_enum",
+			args: fmt.Sprintf(`{"session_id":%q,"query_type":"kerberoastable","domain":"corp.local","target_dc":"dc01.corp.local"}`, sessionID),
+			want: "ldap",
+		},
+		{
+			tool: "kerberoast",
+			args: fmt.Sprintf(`{"session_id":%q,"domain":"corp.local","target_dc":"dc01.corp.local","username":"u","password":"p"}`, sessionID),
+			want: "kerberoast",
+		},
+		{
+			tool: "asreproast",
+			args: fmt.Sprintf(`{"session_id":%q,"domain":"corp.local","target_dc":"dc01.corp.local"}`, sessionID),
+			want: "asreproast",
+		},
+		{
+			tool: "creds_dump",
+			args: fmt.Sprintf(`{"session_id":%q,"method":"lsass"}`, sessionID),
+			want: "creds_dump",
+		},
+		{
+			tool: "lateral_move",
+			args: fmt.Sprintf(`{"session_id":%q,"method":"winrm","target":"dc01"}`, sessionID),
+			want: "lateral",
+		},
+		{
+			tool: "persist",
+			args: fmt.Sprintf(`{"session_id":%q,"method":"schtask","name":"e2e"}`, sessionID),
+			want: "persist",
+		},
+		{
+			tool: "privesc",
+			args: fmt.Sprintf(`{"session_id":%q,"method":"enum"}`, sessionID),
+			want: "privesc",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.tool, func(t *testing.T) {
+			tool, ok := agent.LookupTool(tc.tool)
+			if !ok {
+				t.Fatalf("catalog missing %s", tc.tool)
+			}
+			if tool.TaskType == pb.TaskType_TASK_UNKNOWN {
+				t.Fatalf("%s has no TaskType", tc.tool)
+			}
+			result, err := exec.RunTool(ctx, tc.tool, tc.args, sessionID)
+			if err != nil {
+				t.Fatalf("RunTool %s: %v", tc.tool, err)
+			}
+			if strings.HasPrefix(result, "FAILED:") {
+				t.Fatalf("%s failed: %s", tc.tool, result)
+			}
+			if !strings.Contains(strings.ToLower(result), tc.want) {
+				t.Fatalf("%s result %q does not contain %q", tc.tool, result, tc.want)
+			}
+		})
+	}
+	close(sim.done)
+}
+
 func startAgentE2EFixture(t *testing.T, ctx context.Context) (*server.Teamserver, *implantSim, string, string) {
 	t.Helper()
 
@@ -179,7 +267,7 @@ func startAgentE2EFixture(t *testing.T, ctx context.Context) (*server.Teamserver
 	ahDisabled := false
 	cfg := &server.Config{
 		GRPCAddr:      grpcAddr,
-		DBPath:        filepath.Join(dataDir, "erebus.db"),
+		DBPath:        filepath.Join(dataDir, "ark.db"),
 		DataDir:       dataDir,
 		OperatorCNs:   []string{"e2e-operator", "e2e-agent", "e2e-agent-op"},
 		ApproverCNs:   []string{"e2e-agent-ap"},

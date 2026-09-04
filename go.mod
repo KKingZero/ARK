@@ -1,13 +1,15 @@
-module github.com/KKingZero/erebus-exploit-framwork
+module github.com/KKingZero/ARK
 
 go 1.25.0
 
 require (
+	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358
 	github.com/Binject/go-donut v0.0.0-20220908180326-fcdcc35d591c
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/chzyer/readline v1.5.1
+	github.com/eclipse/paho.mqtt.golang v1.5.0
 	github.com/go-ldap/ldap/v3 v3.4.12
 	github.com/go-ole/go-ole v1.3.0
 	github.com/hirochachacha/go-smb2 v1.1.0
@@ -25,7 +27,6 @@ require (
 )
 
 require (
-	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
 	github.com/Binject/debug v0.0.0-20210312092933-6277045c2fdf // indirect
 	github.com/ChrisTrenkamp/goxpath v0.0.0-20210404020558-97928f7e12b6 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -46,6 +47,7 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
@@ -76,4 +78,5 @@ require (
 	modernc.org/libc v1.61.7 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.8.1 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.5.0 // indirect
 )

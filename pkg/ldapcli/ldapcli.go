@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/netproxy"
+	"github.com/KKingZero/ARK/pkg/netproxy"
 	"github.com/go-ldap/ldap/v3"
 )
 

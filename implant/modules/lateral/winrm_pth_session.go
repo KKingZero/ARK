@@ -8,7 +8,7 @@ import (
 
 // Persistent PTH slot: one NTLM handshake, then N SOAP commands on the same
 // transport. Keyed by target|user|hash so sequential lateral winrm tasks
-// do not renegotiate. Implant-local only — no extra C2 beacons.
+// do not renegotiate.
 type pthSlot struct {
 	mu        sync.Mutex
 	transport *clientNTLMHash

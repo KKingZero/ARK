@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/krb"
+	"github.com/KKingZero/ARK/pkg/krb"
 	"github.com/jcmturner/gokrb5/v8/credentials"
 )
 
-// TODO(native): replace Impacket wrap with a Kerberos SMB initiator
-// (go-smb2 Initiator methods are unexported; needs a fork or another stack).
+// Impacket wrap is the fallback when ARK_SMB_IMPACKET=1.
+// Default Kerberos SMB is native (DialKerberos).
 
 var (
 	lookSMBClient = lookImpacketBin
@@ -124,7 +124,7 @@ func ticketEnv(auth ticketAuth, opts Options) ([]string, error) {
 	if d := krb.ClockOffset(); d != 0 {
 		extra, err := krb.FaketimeEnv(d)
 		if err != nil {
-			return nil, fmt.Errorf("smb --ticket needs faketime SO (EREBUS_FAKETIME_SO) while skew_delta=%s; native Kerberos SMB not shipped: %w", krb.FormatDelta(d), err)
+			return nil, fmt.Errorf("smb --ticket Impacket wrap needs faketime SO (ARK_FAKETIME_SO) while skew_delta=%s: %w", krb.FormatDelta(d), err)
 		}
 		env = append(env, extra...)
 	}
@@ -143,7 +143,7 @@ func runTicketShell(opts Options, commands string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir, err := os.MkdirTemp("", "erebus-smb-")
+	dir, err := os.MkdirTemp("", "ark-smb-")
 	if err != nil {
 		return "", err
 	}
@@ -176,8 +176,16 @@ func parseSmbclientLines(out string) []string {
 	return lines
 }
 
-// TicketListShares lists shares via Impacket smbclient.py -k.
+// TicketListShares lists shares via native Kerberos SMB (Impacket if ARK_SMB_IMPACKET=1).
 func TicketListShares(opts Options) ([]string, error) {
+	if ticketNativeEnabled() {
+		s, err := DialKerberos(opts)
+		if err != nil {
+			return nil, err
+		}
+		defer s.Close()
+		return s.ListShares()
+	}
 	out, err := runTicketShell(opts, "shares\n")
 	if err != nil {
 		return nil, err
@@ -203,8 +211,16 @@ func TicketListShares(opts Options) ([]string, error) {
 	return names, nil
 }
 
-// TicketListDir lists a share path via Impacket smbclient.py -k.
+// TicketListDir lists a share path via native Kerberos SMB (Impacket if ARK_SMB_IMPACKET=1).
 func TicketListDir(opts Options, share, path string) ([]string, error) {
+	if ticketNativeEnabled() {
+		s, err := DialKerberos(opts)
+		if err != nil {
+			return nil, err
+		}
+		defer s.Close()
+		return s.ListDir(share, path)
+	}
 	if share == "" {
 		return nil, fmt.Errorf("share required")
 	}
@@ -220,12 +236,28 @@ func TicketListDir(opts Options, share, path string) ([]string, error) {
 	return parseSmbclientLines(out), nil
 }
 
-// TicketDownload copies a remote file via Impacket smbclient.py -k.
+// TicketDownload copies a remote file via native Kerberos SMB (Impacket if ARK_SMB_IMPACKET=1).
 func TicketDownload(opts Options, share, remote, destPath string) error {
+	if ticketNativeEnabled() {
+		s, err := DialKerberos(opts)
+		if err != nil {
+			return err
+		}
+		defer s.Close()
+		data, err := s.Download(share, remote)
+		if err != nil {
+			return err
+		}
+		if destPath == "" || destPath == "-" {
+			_, err = os.Stdout.Write(data)
+			return err
+		}
+		return os.WriteFile(destPath, data, 0o600)
+	}
 	if share == "" || remote == "" {
 		return fmt.Errorf("share and path required")
 	}
-	dir, err := os.MkdirTemp("", "erebus-smbget-")
+	dir, err := os.MkdirTemp("", "ark-smbget-")
 	if err != nil {
 		return err
 	}

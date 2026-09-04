@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/erebuscli"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/operatorcli"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server"
+	"github.com/KKingZero/ARK/pkg/arkcli"
+	"github.com/KKingZero/ARK/pkg/operatorcli"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server"
 	"google.golang.org/grpc"
 )
 
@@ -31,11 +31,11 @@ func (tc *TeamClient) connect() (pb.ErebusC2Client, string, error) {
 	if err != nil {
 		cfg = server.DefaultConfig()
 	}
-	if !erebuscli.GRPCReachable(cfg.GRPCAddr) {
+	if !arkcli.GRPCReachable(cfg.GRPCAddr) {
 		return nil, "", fmt.Errorf("teamserver not reachable at %s", cfg.GRPCAddr)
 	}
 
-	cert, key, ca, err := erebuscli.EnsureOperatorCerts(cfg.DataDir)
+	cert, key, ca, err := arkcli.EnsureOperatorCerts(cfg.DataDir)
 	if err != nil {
 		return nil, "", err
 	}

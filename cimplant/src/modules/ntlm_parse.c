@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "erebus/ntlm_pth.h"
+#include "ark/ntlm_pth.h"
 
 static int hex_nibble(char c) {
     if (c >= '0' && c <= '9') return c - '0';
@@ -14,7 +14,7 @@ static int hex_nibble(char c) {
     return -1;
 }
 
-int erebus_ntlm_parse_hash(const char *hash_str, uint8_t nt[16]) {
+int ark_ntlm_parse_hash(const char *hash_str, uint8_t nt[16]) {
     if (!hash_str || !nt) return 0;
     const char *p = hash_str;
     const char *colon = strchr(hash_str, ':');
@@ -37,7 +37,7 @@ int erebus_ntlm_parse_hash(const char *hash_str, uint8_t nt[16]) {
     return 1;
 }
 
-void erebus_ntlm_split_user(const char *user_in, const char *domain_in,
+void ark_ntlm_split_user(const char *user_in, const char *domain_in,
     char *domain_out, size_t domain_cap, char *user_out, size_t user_cap) {
     if (!domain_out || !domain_cap || !user_out || !user_cap) return;
     domain_out[0] = '\0';

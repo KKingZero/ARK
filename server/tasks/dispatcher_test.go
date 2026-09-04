@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/db"
-	"github.com/KKingZero/erebus-exploit-framwork/server/sessions"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/db"
+	"github.com/KKingZero/ARK/server/sessions"
 )
 
 func newTestDispatcher(t *testing.T) (*Dispatcher, *sessions.Manager, *db.Store) {

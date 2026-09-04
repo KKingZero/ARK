@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -29,7 +29,7 @@ type LabPerfStep struct {
 	Error     string  `json:"error,omitempty"`
 }
 
-// LabPerfReport compares Erebus implant recon to prior Zypheron CLI lab numbers.
+// LabPerfReport compares ARK implant recon to prior Zypheron CLI lab numbers.
 type LabPerfReport struct {
 	Timestamp string         `json:"timestamp"`
 	TotalS    float64        `json:"total_s"`
@@ -38,7 +38,7 @@ type LabPerfReport struct {
 	Baseline  map[string]any `json:"baseline_prior_review,omitempty"`
 }
 
-// TestLabPerfJuiceAndMetasploitable times Erebus teamserver+implant recon against
+// TestLabPerfJuiceAndMetasploitable times ARK teamserver+implant recon against
 // local Juice Shop and Metasploitable2 (same lab family as Jul 8 Zypheron review).
 func TestLabPerfJuiceAndMetasploitable(t *testing.T) {
 	juiceURL := envOr("JUICE_SHOP_URL", "http://127.0.0.1:3000/")
@@ -64,7 +64,7 @@ func TestLabPerfJuiceAndMetasploitable(t *testing.T) {
 			"zypheron_nikto_juice_s":          45.03,
 			"zypheron_nikto_juice_success":    false,
 			"zypheron_nikto_meta_success":     true,
-			"notes":                           "Prior run: external nmap/nikto via Zypheron CLI tool manager; Erebus run: implant C2 recon (portscan+shell).",
+			"notes":                           "Prior run: external nmap/nikto via Zypheron CLI tool manager; ARK run: implant C2 recon (portscan+shell).",
 		},
 	}
 
@@ -83,7 +83,7 @@ func TestLabPerfJuiceAndMetasploitable(t *testing.T) {
 	ahDisabled := false
 	cfg := &server.Config{
 		GRPCAddr:      fmt.Sprintf("127.0.0.1:%d", grpcPort),
-		DBPath:        filepath.Join(dataDir, "erebus.db"),
+		DBPath:        filepath.Join(dataDir, "ark.db"),
 		DataDir:       dataDir,
 		OperatorCNs:   []string{"e2e-operator", "lab-requester"},
 		ApproverCNs:   []string{"lab-approver"},
@@ -114,7 +114,7 @@ func TestLabPerfJuiceAndMetasploitable(t *testing.T) {
 		base64.StdEncoding.EncodeToString(caPEM))
 
 	implantCmd := exec.CommandContext(ctx, implantBin)
-	implantCmd.Env = append(os.Environ(), "EREBUS_IMPLANT_QUIET=1")
+	implantCmd.Env = append(os.Environ(), "ARK_IMPLANT_QUIET=1")
 	if err := implantCmd.Start(); err != nil {
 		t.Fatalf("start implant: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestLabPerfJuiceAndMetasploitable(t *testing.T) {
 	// Write report next to repo for comparison
 	outDir := filepath.Join(repoRootFromTest(t), "reports", "lab-perf")
 	_ = os.MkdirAll(outDir, 0o755)
-	outPath := filepath.Join(outDir, "erebus_lab_perf.json")
+	outPath := filepath.Join(outDir, "ark_lab_perf.json")
 	raw, _ := json.MarshalIndent(report, "", "  ")
 	if err := os.WriteFile(outPath, raw, 0o644); err != nil {
 		t.Logf("write report: %v", err)
@@ -191,7 +191,7 @@ func TestLabPerfJuiceAndMetasploitable(t *testing.T) {
 	}
 
 	// Console summary
-	t.Logf("=== EREBUS LAB PERF SUMMARY total=%.3fs setup=%.3fs ===", report.TotalS, report.SetupS)
+	t.Logf("=== ARK LAB PERF SUMMARY total=%.3fs setup=%.3fs ===", report.TotalS, report.SetupS)
 	var reconS float64
 	var rtts []float64
 	allOK := true

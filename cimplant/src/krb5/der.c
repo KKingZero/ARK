@@ -1,11 +1,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/krb5_internal.h"
+#include "ark/krb5_internal.h"
 
 /* ---- writer ---- */
 
-int erebus_der_init(erebus_der_buf *b, size_t cap) {
+int ark_der_init(ark_der_buf *b, size_t cap) {
     if (!cap) cap = 256;
     b->data = (uint8_t *)malloc(cap);
     if (!b->data) return 0;
@@ -14,13 +14,13 @@ int erebus_der_init(erebus_der_buf *b, size_t cap) {
     return 1;
 }
 
-void erebus_der_free(erebus_der_buf *b) {
+void ark_der_free(ark_der_buf *b) {
     free(b->data);
     b->data = NULL;
     b->len = b->cap = 0;
 }
 
-static int der_grow(erebus_der_buf *b, size_t need) {
+static int der_grow(ark_der_buf *b, size_t need) {
     if (need <= b->cap) return 1;
     size_t ncap = b->cap ? b->cap : 256;
     while (ncap < need) ncap *= 2;
@@ -31,15 +31,15 @@ static int der_grow(erebus_der_buf *b, size_t need) {
     return 1;
 }
 
-int erebus_der_append(erebus_der_buf *b, const uint8_t *p, size_t n) {
+int ark_der_append(ark_der_buf *b, const uint8_t *p, size_t n) {
     if (!der_grow(b, b->len + n)) return 0;
     memcpy(b->data + b->len, p, n);
     b->len += n;
     return 1;
 }
 
-int erebus_der_append_byte(erebus_der_buf *b, uint8_t v) {
-    return erebus_der_append(b, &v, 1);
+int ark_der_append_byte(ark_der_buf *b, uint8_t v) {
+    return ark_der_append(b, &v, 1);
 }
 
 static int der_len_bytes(size_t len, uint8_t *out, size_t *out_n) {
@@ -69,16 +69,16 @@ static int der_len_bytes(size_t len, uint8_t *out, size_t *out_n) {
     return 1;
 }
 
-int erebus_der_put_tl(erebus_der_buf *b, uint8_t tag, const uint8_t *val, size_t n) {
+int ark_der_put_tl(ark_der_buf *b, uint8_t tag, const uint8_t *val, size_t n) {
     uint8_t lb[8];
     size_t ln = 0;
     if (!der_len_bytes(n, lb, &ln)) return 0;
-    if (!erebus_der_append_byte(b, tag)) return 0;
-    if (!erebus_der_append(b, lb, ln)) return 0;
-    return erebus_der_append(b, val, n);
+    if (!ark_der_append_byte(b, tag)) return 0;
+    if (!ark_der_append(b, lb, ln)) return 0;
+    return ark_der_append(b, val, n);
 }
 
-int erebus_der_put_int(erebus_der_buf *b, uint8_t tag, int32_t v) {
+int ark_der_put_int(ark_der_buf *b, uint8_t tag, int32_t v) {
     uint8_t tmp[5];
     size_t n = 0;
     uint32_t u = (uint32_t)v;
@@ -135,52 +135,52 @@ int erebus_der_put_int(erebus_der_buf *b, uint8_t tag, int32_t v) {
             n--;
         }
     }
-    return erebus_der_put_tl(b, tag, tmp, n);
+    return ark_der_put_tl(b, tag, tmp, n);
 }
 
-int erebus_der_put_general_string(erebus_der_buf *b, uint8_t tag, const char *s) {
+int ark_der_put_general_string(ark_der_buf *b, uint8_t tag, const char *s) {
     if (!s) s = "";
-    return erebus_der_put_tl(b, tag, (const uint8_t *)s, strlen(s));
+    return ark_der_put_tl(b, tag, (const uint8_t *)s, strlen(s));
 }
 
-int erebus_der_put_octet(erebus_der_buf *b, uint8_t tag, const uint8_t *p, size_t n) {
-    return erebus_der_put_tl(b, tag, p, n);
+int ark_der_put_octet(ark_der_buf *b, uint8_t tag, const uint8_t *p, size_t n) {
+    return ark_der_put_tl(b, tag, p, n);
 }
 
-int erebus_der_put_bitstring_unused0(erebus_der_buf *b, uint8_t tag, const uint8_t *bits, size_t nbytes) {
-    erebus_der_buf inner;
-    if (!erebus_der_init(&inner, nbytes + 1)) return 0;
-    if (!erebus_der_append_byte(&inner, 0)) { erebus_der_free(&inner); return 0; }
-    if (!erebus_der_append(&inner, bits, nbytes)) { erebus_der_free(&inner); return 0; }
-    int ok = erebus_der_put_tl(b, tag, inner.data, inner.len);
-    erebus_der_free(&inner);
+int ark_der_put_bitstring_unused0(ark_der_buf *b, uint8_t tag, const uint8_t *bits, size_t nbytes) {
+    ark_der_buf inner;
+    if (!ark_der_init(&inner, nbytes + 1)) return 0;
+    if (!ark_der_append_byte(&inner, 0)) { ark_der_free(&inner); return 0; }
+    if (!ark_der_append(&inner, bits, nbytes)) { ark_der_free(&inner); return 0; }
+    int ok = ark_der_put_tl(b, tag, inner.data, inner.len);
+    ark_der_free(&inner);
     return ok;
 }
 
 /* Context-specific constructed: [n] IMPLICIT SEQUENCE content */
-int erebus_der_put_ctx_seq(erebus_der_buf *b, uint8_t ctx_num, const uint8_t *seq_content, size_t n) {
+int ark_der_put_ctx_seq(ark_der_buf *b, uint8_t ctx_num, const uint8_t *seq_content, size_t n) {
     uint8_t tag = (uint8_t)(0xA0 | (ctx_num & 0x1F));
-    return erebus_der_put_tl(b, tag, seq_content, n);
+    return ark_der_put_tl(b, tag, seq_content, n);
 }
 
-int erebus_der_put_seq(erebus_der_buf *b, const uint8_t *content, size_t n) {
-    return erebus_der_put_tl(b, 0x30, content, n);
+int ark_der_put_seq(ark_der_buf *b, const uint8_t *content, size_t n) {
+    return ark_der_put_tl(b, 0x30, content, n);
 }
 
-int erebus_der_put_app(erebus_der_buf *b, uint8_t app_num, const uint8_t *content, size_t n) {
+int ark_der_put_app(ark_der_buf *b, uint8_t app_num, const uint8_t *content, size_t n) {
     uint8_t tag = (uint8_t)(0x60 | (app_num & 0x1F)); /* constructed application */
-    return erebus_der_put_tl(b, tag, content, n);
+    return ark_der_put_tl(b, tag, content, n);
 }
 
 /* ---- reader ---- */
 
-void erebus_der_r_init(erebus_der_reader *r, const uint8_t *data, size_t len) {
+void ark_der_r_init(ark_der_reader *r, const uint8_t *data, size_t len) {
     r->data = data;
     r->len = len;
     r->pos = 0;
 }
 
-static int der_read_len(erebus_der_reader *r, size_t *out) {
+static int der_read_len(ark_der_reader *r, size_t *out) {
     if (r->pos >= r->len) return 0;
     uint8_t b = r->data[r->pos++];
     if ((b & 0x80) == 0) {
@@ -195,7 +195,7 @@ static int der_read_len(erebus_der_reader *r, size_t *out) {
     return 1;
 }
 
-int erebus_der_r_tag_len(erebus_der_reader *r, uint8_t *tag, const uint8_t **val, size_t *vlen) {
+int ark_der_r_tag_len(ark_der_reader *r, uint8_t *tag, const uint8_t **val, size_t *vlen) {
     if (r->pos >= r->len) return 0;
     *tag = r->data[r->pos++];
     size_t ln = 0;
@@ -207,13 +207,13 @@ int erebus_der_r_tag_len(erebus_der_reader *r, uint8_t *tag, const uint8_t **val
     return 1;
 }
 
-int erebus_der_r_expect(erebus_der_reader *r, uint8_t want_tag, const uint8_t **val, size_t *vlen) {
+int ark_der_r_expect(ark_der_reader *r, uint8_t want_tag, const uint8_t **val, size_t *vlen) {
     uint8_t tag;
-    if (!erebus_der_r_tag_len(r, &tag, val, vlen)) return 0;
+    if (!ark_der_r_tag_len(r, &tag, val, vlen)) return 0;
     return tag == want_tag;
 }
 
-int erebus_der_r_int(const uint8_t *val, size_t n, int32_t *out) {
+int ark_der_r_int(const uint8_t *val, size_t n, int32_t *out) {
     if (n == 0 || n > 4) return 0;
     int32_t v = (val[0] & 0x80) ? -1 : 0;
     for (size_t i = 0; i < n; i++) v = (v << 8) | val[i];
@@ -221,17 +221,17 @@ int erebus_der_r_int(const uint8_t *val, size_t n, int32_t *out) {
     return 1;
 }
 
-int erebus_der_r_find_ctx(const uint8_t *seq, size_t seq_len, uint8_t ctx_num,
+int ark_der_r_find_ctx(const uint8_t *seq, size_t seq_len, uint8_t ctx_num,
     uint8_t *out_tag, const uint8_t **val, size_t *vlen) {
-    erebus_der_reader r;
-    erebus_der_r_init(&r, seq, seq_len);
+    ark_der_reader r;
+    ark_der_r_init(&r, seq, seq_len);
     uint8_t want = (uint8_t)(0xA0 | (ctx_num & 0x1F));
     uint8_t want_prim = (uint8_t)(0x80 | (ctx_num & 0x1F));
     while (r.pos < r.len) {
         uint8_t tag;
         const uint8_t *v;
         size_t vn;
-        if (!erebus_der_r_tag_len(&r, &tag, &v, &vn)) return 0;
+        if (!ark_der_r_tag_len(&r, &tag, &v, &vn)) return 0;
         if (tag == want || tag == want_prim) {
             if (out_tag) *out_tag = tag;
             *val = v;
@@ -243,18 +243,18 @@ int erebus_der_r_find_ctx(const uint8_t *seq, size_t seq_len, uint8_t ctx_num,
 }
 
 /* Unwrap [n] that contains a single universal element (INTEGER/OCTET/etc). */
-int erebus_der_r_ctx_inner(const uint8_t *seq, size_t seq_len, uint8_t ctx_num,
+int ark_der_r_ctx_inner(const uint8_t *seq, size_t seq_len, uint8_t ctx_num,
     uint8_t want_inner_tag, const uint8_t **val, size_t *vlen) {
     const uint8_t *ctx_val;
     size_t ctx_len;
     uint8_t t;
-    if (!erebus_der_r_find_ctx(seq, seq_len, ctx_num, &t, &ctx_val, &ctx_len)) return 0;
+    if (!ark_der_r_find_ctx(seq, seq_len, ctx_num, &t, &ctx_val, &ctx_len)) return 0;
     /* Constructed context: content is the inner TLV */
     if (t & 0x20) {
-        erebus_der_reader r;
-        erebus_der_r_init(&r, ctx_val, ctx_len);
+        ark_der_reader r;
+        ark_der_r_init(&r, ctx_val, ctx_len);
         uint8_t itag;
-        if (!erebus_der_r_tag_len(&r, &itag, val, vlen)) return 0;
+        if (!ark_der_r_tag_len(&r, &itag, val, vlen)) return 0;
         return itag == want_inner_tag;
     }
     /* Primitive context: content is raw value */
@@ -271,14 +271,14 @@ int erebus_der_r_ctx_inner(const uint8_t *seq, size_t seq_len, uint8_t ctx_num,
     return 0;
 }
 
-int erebus_der_r_ctx_int(const uint8_t *seq, size_t seq_len, uint8_t ctx_num, int32_t *out) {
+int ark_der_r_ctx_int(const uint8_t *seq, size_t seq_len, uint8_t ctx_num, int32_t *out) {
     const uint8_t *v;
     size_t n;
-    if (!erebus_der_r_ctx_inner(seq, seq_len, ctx_num, 0x02, &v, &n)) return 0;
-    return erebus_der_r_int(v, n, out);
+    if (!ark_der_r_ctx_inner(seq, seq_len, ctx_num, 0x02, &v, &n)) return 0;
+    return ark_der_r_int(v, n, out);
 }
 
-int erebus_der_r_ctx_octet(const uint8_t *seq, size_t seq_len, uint8_t ctx_num,
+int ark_der_r_ctx_octet(const uint8_t *seq, size_t seq_len, uint8_t ctx_num,
     const uint8_t **val, size_t *vlen) {
-    return erebus_der_r_ctx_inner(seq, seq_len, ctx_num, 0x04, val, vlen);
+    return ark_der_r_ctx_inner(seq, seq_len, ctx_num, 0x04, val, vlen);
 }

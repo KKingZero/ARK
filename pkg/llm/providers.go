@@ -37,7 +37,7 @@ var supportedProviders = []ProviderMeta{
 	},
 	{
 		ID:           ProviderOpenAI,
-		Label:        "OpenAI",
+		Label:        "OpenAI (API)",
 		BaseURL:      "https://api.openai.com/v1",
 		DefaultModel: "gpt-4o",
 		APIKeyEnv:    "OPENAI_API_KEY",
@@ -45,7 +45,7 @@ var supportedProviders = []ProviderMeta{
 	},
 	{
 		ID:           ProviderAnthropic,
-		Label:        "Anthropic",
+		Label:        "Anthropic (Claude API)",
 		BaseURL:      "https://api.anthropic.com/v1",
 		DefaultModel: "claude-sonnet-4-6",
 		APIKeyEnv:    "ANTHROPIC_API_KEY",

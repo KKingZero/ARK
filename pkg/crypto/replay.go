@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -44,4 +45,23 @@ func (c *ReplayCache) CheckAndRecord(implantID string, timestamp int64) error {
 	}
 	c.seen[key] = now
 	return nil
+}
+
+// Clear drops all cached timestamps for implantID so a surviving copy can beacon.
+// Returns how many keys were removed. implantID is matched as the prefix before '|'.
+func (c *ReplayCache) Clear(implantID string) int {
+	if c == nil || implantID == "" {
+		return 0
+	}
+	prefix := implantID + "|"
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	n := 0
+	for k := range c.seen {
+		if strings.HasPrefix(k, prefix) {
+			delete(c.seen, k)
+			n++
+		}
+	}
+	return n
 }

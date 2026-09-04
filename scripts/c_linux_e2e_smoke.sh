@@ -5,7 +5,7 @@
 #
 # Usage:
 #   ./scripts/c_linux_e2e_smoke.sh
-#   CA_CERT_PATH=~/.erebus/ca-cert.pem CALLBACK_URL=https://127.0.0.1:8443 ./scripts/c_linux_e2e_smoke.sh
+#   CA_CERT_PATH=~/.ark/ca-cert.pem CALLBACK_URL=https://127.0.0.1:8443 ./scripts/c_linux_e2e_smoke.sh
 #   SKIP_LIVE=1 ./scripts/c_linux_e2e_smoke.sh   # build + unit tests only
 set -euo pipefail
 
@@ -16,7 +16,13 @@ export GOTMPDIR="${TMPDIR}"
 export GOCACHE="${ROOT}/.cache/gocache"
 mkdir -p "$TMPDIR" "$GOCACHE" build
 
-CA_CERT_PATH="${CA_CERT_PATH:-$HOME/.erebus/ca-cert.pem}"
+CA_CERT_PATH="${CA_CERT_PATH:-$HOME/.ark/ca-cert.pem}"
+if [[ ! -f "$CA_CERT_PATH" ]]; then
+  CA_CERT_PATH="${HOME}/.ark/certs/ca.pem"
+fi
+if [[ ! -f "$CA_CERT_PATH" ]]; then
+  CA_CERT_PATH="${HOME}/.erebus/ca-cert.pem"
+fi
 if [[ ! -f "$CA_CERT_PATH" ]]; then
   CA_CERT_PATH="${HOME}/.erebus/certs/ca.pem"
 fi
@@ -31,7 +37,7 @@ if [[ ! -f "$CA_CERT_PATH" ]]; then
   echo "==> No CA at CA_CERT_PATH; generating ephemeral test CA for build only"
   CA_CERT_PATH="$(mktemp "${ROOT}/build/e2e-ca-XXXXXX.pem")"
   openssl req -x509 -newkey rsa:2048 -keyout "${ROOT}/build/e2e-ca.key" \
-    -out "$CA_CERT_PATH" -days 1 -nodes -subj /CN=erebus-e2e-smoke >/dev/null 2>&1
+    -out "$CA_CERT_PATH" -days 1 -nodes -subj /CN=ark-e2e-smoke >/dev/null 2>&1
   SKIP_LIVE=1
 fi
 
@@ -71,12 +77,13 @@ if [[ "$SKIP_LIVE" == "1" ]]; then
   cat <<EOF
 
 Next (live HTB / FireFlow pattern):
-  1. erebus serve / teamserver HTTPS on :8443
+  1. ark serve / teamserver HTTPS on :8443
   2. ./scripts/htb_reverse_tunnel.sh user@TARGET   # if no VPN route from box
   3. scp build/implant_c_linux user@TARGET:/tmp/
   4. ssh user@TARGET '/tmp/implant_c_linux'
-  5. erebus op: sessions / shell whoami
-  Pivot: SOCKS not on Linux C — tunnel + Ligolo or Go implant reverse SOCKS
+  5. ark op: sessions / shell whoami
+  Pivot until M4c: tunnel / Ligolo / Go reverse SOCKS (C reverse SOCKS = Sprint L)
+  Plan: docs/plans/SPRINT_L_C_LINUX.md
 EOF
   exit 0
 fi
@@ -98,10 +105,10 @@ fi
 
 echo "==> Short live run (8s) — register/beacon attempt"
 # Implant loops forever; run briefly and expect process to stay up if registered.
-timeout 8 "$BIN" >/tmp/erebus_c_linux_e2e.out 2>/tmp/erebus_c_linux_e2e.err || true
-if grep -qiE 'register failed|requires CA|transport create failed|invalid IMPLANT' /tmp/erebus_c_linux_e2e.err 2>/dev/null; then
+timeout 8 "$BIN" >/tmp/ark_c_linux_e2e.out 2>/tmp/ark_c_linux_e2e.err || true
+if grep -qiE 'register failed|requires CA|transport create failed|invalid IMPLANT' /tmp/ark_c_linux_e2e.err 2>/dev/null; then
   echo "warn: implant stderr indicates hard fail:" >&2
-  cat /tmp/erebus_c_linux_e2e.err >&2 || true
+  cat /tmp/ark_c_linux_e2e.err >&2 || true
   # Still pass build path; live C2 misconfig is operator env
 fi
 echo "==> c_linux_e2e_smoke: PASS"

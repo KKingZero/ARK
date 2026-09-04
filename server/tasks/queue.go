@@ -3,7 +3,7 @@ package tasks
 import (
 	"sync"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // ResultWaiter allows blocking until a task result arrives.

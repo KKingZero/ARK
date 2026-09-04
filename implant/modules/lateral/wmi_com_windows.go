@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 func wmiConnect(ctx context.Context, cfg *pb.LateralMoveConfig) (*ole.IDispatch, func(), error) {

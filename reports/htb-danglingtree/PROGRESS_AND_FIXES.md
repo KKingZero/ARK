@@ -24,6 +24,8 @@ Previous spawn `10.129.8.47` was fully filtered (free VPN vs Season/VIP). This s
 3. Owner GenericAll → certipy req Administrator SAN+SID
 4. faketime +7h PKINIT UnPAC → Admin NT `8cacb3a97e460c65d105ca7cd9913925`
 
-## Erebus
+## ARK
 
-Teamserver up (`erebus teamserver`, not `serve` — `serve` dies when stdin closes). ADCS / ForceChangePassword / PKINIT remain gaps; see report §7.
+Teamserver up (`ark teamserver`). At the time of this eng, `serve` died on stdin close and ADCS / ForceChangePassword / PKINIT were gaps (report §7).
+
+**Later (2026-09):** `ark serve` EOF no longer stops C2. Host `ark ad password`, `ark adcs` dangling ESC1 template+req, and `ark rbcd` shipped. Native PKINIT UnPAC is still not assembled.

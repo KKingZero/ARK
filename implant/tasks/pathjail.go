@@ -31,13 +31,30 @@ func resolveJailedPath(remotePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve cwd: %w", err)
 	}
+	cwdReal, err := filepath.EvalSymlinks(cwdAbs)
+	if err != nil {
+		return "", fmt.Errorf("resolve cwd symlinks: %w", err)
+	}
 
 	targetAbs, err := filepath.Abs(filepath.Join(cwdAbs, clean))
 	if err != nil {
 		return "", fmt.Errorf("resolve path: %w", err)
 	}
+	if info, err := os.Lstat(targetAbs); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("symlink paths not allowed")
+	}
 
-	rel, err := filepath.Rel(cwdAbs, targetAbs)
+	targetReal, err := filepath.EvalSymlinks(targetAbs)
+	if err != nil {
+		parent := filepath.Dir(targetAbs)
+		parentReal, parentErr := filepath.EvalSymlinks(parent)
+		if parentErr != nil {
+			return "", fmt.Errorf("resolve parent symlinks: %w", parentErr)
+		}
+		targetReal = filepath.Join(parentReal, filepath.Base(targetAbs))
+	}
+
+	rel, err := filepath.Rel(cwdReal, targetReal)
 	if err != nil {
 		return "", fmt.Errorf("path outside working directory")
 	}
@@ -45,5 +62,5 @@ func resolveJailedPath(remotePath string) (string, error) {
 		return "", fmt.Errorf("path escapes working directory")
 	}
 
-	return targetAbs, nil
+	return targetReal, nil
 }

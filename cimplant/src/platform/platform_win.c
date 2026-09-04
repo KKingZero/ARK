@@ -2,14 +2,14 @@
 #include <windows.h>
 #include <string.h>
 
-#include "erebus/platform.h"
-#include "erebus/syscall.h"
+#include "ark/platform.h"
+#include "ark/syscall.h"
 
-void erebus_sleep_ms(uint32_t ms) {
+void ark_sleep_ms(uint32_t ms) {
     Sleep(ms);
 }
 
-int64_t erebus_unix_ms(void) {
+int64_t ark_unix_ms(void) {
     FILETIME ft;
     ULARGE_INTEGER u;
     GetSystemTimeAsFileTime(&ft);
@@ -19,7 +19,7 @@ int64_t erebus_unix_ms(void) {
     return (int64_t)((u.QuadPart - 116444736000000000ULL) / 10000ULL);
 }
 
-void erebus_get_identity(char *hostname, size_t hcap, char *username, size_t ucap,
+void ark_get_identity(char *hostname, size_t hcap, char *username, size_t ucap,
     uint32_t *pid, char *integrity, size_t icap) {
     if (hostname && hcap) {
         DWORD sz = (DWORD)hcap;
@@ -36,9 +36,9 @@ void erebus_get_identity(char *hostname, size_t hcap, char *username, size_t uca
     }
 }
 
-const char *erebus_os_name(void) { return "windows"; }
+const char *ark_os_name(void) { return "windows"; }
 
-const char *erebus_arch_name(void) {
+const char *ark_arch_name(void) {
 #if defined(_M_X64) || defined(__x86_64__)
     return "amd64";
 #elif defined(_M_ARM64)
@@ -48,6 +48,6 @@ const char *erebus_arch_name(void) {
 #endif
 }
 
-int erebus_platform_init(void) {
-    return erebus_syscall_init() ? 1 : 0;
+int ark_platform_init(void) {
+    return ark_syscall_init() ? 1 : 0;
 }

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/netproxy"
+	"github.com/KKingZero/ARK/pkg/netproxy"
 	"github.com/hirochachacha/go-smb2"
 )
 
@@ -28,19 +28,26 @@ type Options struct {
 	Hash      string
 	Anonymous bool
 	// Ticket is a ticket-store id or ccache/kirbi path.
-	// Kerberos SMB is an Impacket wrap (smbclient.py -k) until a native
-	// initiator exists (go-smb2 methods are unexported).
+	// Kerberos SMB is native (DialKerberos). Impacket smbclient.py -k
+	// remains behind ARK_SMB_IMPACKET=1.
 	Ticket string
 }
 
 // Session is a logged-on SMB2 session.
 type Session struct {
 	inner *smb2.Session
+	kerb  *krbSession
 	host  string
 }
 
 // Dial authenticates to host:445.
 func Dial(opts Options) (*Session, error) {
+	if UseTicket(opts) {
+		if ticketNativeEnabled() {
+			return DialKerberos(opts)
+		}
+		return nil, fmt.Errorf("smb Dial is NTLM-only; set ARK_SMB_IMPACKET=0 for native Kerberos")
+	}
 	if opts.Host == "" {
 		return nil, fmt.Errorf("host required")
 	}
@@ -62,8 +69,22 @@ func Dial(opts Options) (*Session, error) {
 	return &Session{inner: s, host: opts.Host}, nil
 }
 
+// SessionKey is the Kerberos SMB session key (nil for NTLM go-smb2).
+func (s *Session) SessionKey() []byte {
+	if s == nil || s.kerb == nil {
+		return nil
+	}
+	return append([]byte(nil), s.kerb.sessionKey...)
+}
+
 func (s *Session) Close() error {
-	if s == nil || s.inner == nil {
+	if s == nil {
+		return nil
+	}
+	if s.kerb != nil {
+		return s.kerb.Close()
+	}
+	if s.inner == nil {
 		return nil
 	}
 	return s.inner.Logoff()
@@ -71,6 +92,9 @@ func (s *Session) Close() error {
 
 // ListShares returns share names.
 func (s *Session) ListShares() ([]string, error) {
+	if s.kerb != nil {
+		return s.kerb.ListShares()
+	}
 	names, err := s.inner.ListSharenames()
 	if err != nil {
 		return nil, fmt.Errorf("list shares: %w", err)
@@ -82,6 +106,9 @@ func (s *Session) ListShares() ([]string, error) {
 func (s *Session) ListDir(share, p string) ([]string, error) {
 	if share == "" {
 		return nil, fmt.Errorf("share required")
+	}
+	if s.kerb != nil {
+		return s.kerb.ListDir(share, p)
 	}
 	sh, err := s.inner.Mount(uncShare(s.host, share))
 	if err != nil {
@@ -109,6 +136,9 @@ func (s *Session) Download(share, p string) ([]byte, error) {
 	if share == "" || p == "" {
 		return nil, fmt.Errorf("share and path required")
 	}
+	if s.kerb != nil {
+		return s.kerb.Download(share, p)
+	}
 	sh, err := s.inner.Mount(uncShare(s.host, share))
 	if err != nil {
 		return nil, fmt.Errorf("mount %s: %w", share, err)
@@ -132,7 +162,7 @@ func (s *Session) Download(share, p string) ([]byte, error) {
 
 // DownloadTo writes a remote file to destPath (or stdout if destPath is "-"/empty after print).
 func DownloadTo(opts Options, share, remote, destPath string) error {
-	if UseTicket(opts) {
+	if UseTicket(opts) && !ticketNativeEnabled() {
 		return TicketDownload(opts, share, remote, destPath)
 	}
 	s, err := Dial(opts)
@@ -153,7 +183,7 @@ func DownloadTo(opts Options, share, remote, destPath string) error {
 
 func initiator(opts Options) (*smb2.NTLMInitiator, error) {
 	if opts.Ticket != "" && opts.Hash == "" {
-		return nil, fmt.Errorf("smb Dial is NTLM-only; Kerberos is erebus smb --ticket (Impacket wrap)")
+		return nil, fmt.Errorf("smb Dial is NTLM-only; Kerberos uses DialKerberos")
 	}
 	if opts.Anonymous || (opts.Username == "" && opts.Password == "" && opts.Hash == "") {
 		return &smb2.NTLMInitiator{}, nil

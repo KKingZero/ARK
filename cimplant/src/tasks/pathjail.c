@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-#ifndef EREBUS_PATHJAIL_HOST_TEST
+#ifndef ARK_PATHJAIL_HOST_TEST
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -13,13 +13,13 @@
 #endif
 #endif
 
-#include "erebus/pathjail.h"
+#include "ark/pathjail.h"
 
-#ifndef EREBUS_PATH_MAX
-#define EREBUS_PATH_MAX 520
+#ifndef ARK_PATH_MAX
+#define ARK_PATH_MAX 520
 #endif
 
-int erebus_path_is_absolute(const char *path) {
+int ark_path_is_absolute(const char *path) {
     if (!path || !path[0]) return 0;
     /* Unix-style absolute or UNC */
     if (path[0] == '/' || path[0] == '\\') return 1;
@@ -32,10 +32,10 @@ int erebus_path_is_absolute(const char *path) {
 }
 
 /* Reject paths that escape via ".." segments (after ignoring "." and collapsing separators). */
-int erebus_path_has_dotdot_escape(const char *path) {
+int ark_path_has_dotdot_escape(const char *path) {
     if (!path || !path[0]) return 0;
 
-    char buf[EREBUS_PATH_MAX];
+    char buf[ARK_PATH_MAX];
     size_t len = 0;
     for (const char *p = path; *p && len + 1 < sizeof(buf); p++) {
         char c = (*p == '/') ? '\\' : *p;
@@ -65,7 +65,7 @@ int erebus_path_has_dotdot_escape(const char *path) {
     return 0;
 }
 
-#ifndef EREBUS_PATHJAIL_HOST_TEST
+#ifndef ARK_PATHJAIL_HOST_TEST
 
 static int path_under_cwd(const char *cwd, const char *resolved) {
     size_t cl = strlen(cwd);
@@ -80,13 +80,13 @@ static int path_under_cwd(const char *cwd, const char *resolved) {
     return 0;
 }
 
-int erebus_resolve_jailed_path(const char *remote_path, char *out, size_t out_cap) {
+int ark_resolve_jailed_path(const char *remote_path, char *out, size_t out_cap) {
     if (!remote_path || !remote_path[0] || !out || out_cap < 4) return 0;
-    if (erebus_path_is_absolute(remote_path)) return 0;
-    if (erebus_path_has_dotdot_escape(remote_path)) return 0;
+    if (ark_path_is_absolute(remote_path)) return 0;
+    if (ark_path_has_dotdot_escape(remote_path)) return 0;
 
 #ifdef _WIN32
-    char cwd[EREBUS_PATH_MAX];
+    char cwd[ARK_PATH_MAX];
     DWORD n = GetCurrentDirectoryA((DWORD)sizeof(cwd), cwd);
     if (n == 0 || n >= sizeof(cwd)) return 0;
 
@@ -95,15 +95,15 @@ int erebus_resolve_jailed_path(const char *remote_path, char *out, size_t out_ca
         cwd[--cl] = '\0';
     }
 
-    char joined[EREBUS_PATH_MAX];
+    char joined[ARK_PATH_MAX];
     if (snprintf(joined, sizeof(joined), "%s\\%s", cwd, remote_path) >= (int)sizeof(joined))
         return 0;
 
-    char full[EREBUS_PATH_MAX];
+    char full[ARK_PATH_MAX];
     DWORD flen = GetFullPathNameA(joined, (DWORD)sizeof(full), full, NULL);
     if (flen == 0 || flen >= sizeof(full)) return 0;
 
-    char cwd_full[EREBUS_PATH_MAX];
+    char cwd_full[ARK_PATH_MAX];
     DWORD cflen = GetFullPathNameA(cwd, (DWORD)sizeof(cwd_full), cwd_full, NULL);
     if (cflen == 0 || cflen >= sizeof(cwd_full)) return 0;
     size_t cwl = strlen(cwd_full);
@@ -117,19 +117,19 @@ int erebus_resolve_jailed_path(const char *remote_path, char *out, size_t out_ca
     memcpy(out, full, strlen(full) + 1);
     return 1;
 #else
-    char cwd[EREBUS_PATH_MAX];
+    char cwd[ARK_PATH_MAX];
     if (!getcwd(cwd, sizeof(cwd))) return 0;
     size_t cl = strlen(cwd);
     while (cl > 0 && cwd[cl - 1] == '/') cwd[--cl] = '\0';
 
-    char joined[EREBUS_PATH_MAX];
+    char joined[ARK_PATH_MAX];
     if (snprintf(joined, sizeof(joined), "%s/%s", cwd, remote_path) >= (int)sizeof(joined))
         return 0;
 
     char full[PATH_MAX];
     if (!realpath(joined, full)) {
         /* File may not exist yet (upload): resolve parent + basename */
-        char parent[EREBUS_PATH_MAX];
+        char parent[ARK_PATH_MAX];
         strncpy(parent, joined, sizeof(parent) - 1);
         parent[sizeof(parent) - 1] = '\0';
         char *slash = strrchr(parent, '/');
@@ -155,4 +155,4 @@ int erebus_resolve_jailed_path(const char *remote_path, char *out, size_t out_ca
 #endif
 }
 
-#endif /* !EREBUS_PATHJAIL_HOST_TEST */
+#endif /* !ARK_PATHJAIL_HOST_TEST */

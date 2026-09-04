@@ -1,5 +1,5 @@
-#include "erebus/beacon.h"
+#include "ark/beacon.h"
 
 int main(void) {
-    return erebus_beacon_run();
+    return ark_beacon_run();
 }

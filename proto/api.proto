@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package erebus.c2;
 
-option go_package = "github.com/KKingZero/erebus-exploit-framwork/pkg/pb";
+option go_package = "github.com/KKingZero/ARK/pkg/pb";
 
 import "c2.proto";
 import "listener.proto";
@@ -190,6 +190,16 @@ message RegisterImplantSecretResponse {
   string error   = 2;
 }
 
+message ClearReplayRequest {
+  string implant_id = 1;
+}
+
+message ClearReplayResponse {
+  bool   success = 1;
+  int32  cleared = 2;
+  string error   = 3;
+}
+
 // --- Loot ---
 
 message LootItem {
@@ -239,6 +249,7 @@ service ErebusC2 {
   // Builder
   rpc GenerateImplant(GenerateImplantRequest) returns (GenerateImplantResponse);
   rpc RegisterImplantSecret(RegisterImplantSecretRequest) returns (RegisterImplantSecretResponse);
+  rpc ClearReplay(ClearReplayRequest) returns (ClearReplayResponse);
 
   // Loot
   rpc ListLoot(ListLootRequest) returns (ListLootResponse);

@@ -33,7 +33,7 @@ func (o Options) clientID() string {
 	if o.ClientID != "" {
 		return o.ClientID
 	}
-	return fmt.Sprintf("erebus-%d", time.Now().UnixNano()%1_000_000_000)
+	return fmt.Sprintf("ark-%d", time.Now().UnixNano()%1_000_000_000)
 }
 
 func newClient(o Options) (mqtt.Client, error) {

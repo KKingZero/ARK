@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/krb"
+	"github.com/KKingZero/ARK/pkg/krb"
 )
 
 func TestUseTicket(t *testing.T) {
@@ -36,8 +36,9 @@ func TestSmbclientArgv(t *testing.T) {
 }
 
 func TestTicketListSharesMock(t *testing.T) {
+	t.Setenv("ARK_SMB_IMPACKET", "1")
 	dir := t.TempDir()
-	t.Setenv("EREBUS_TICKET_DIR", dir)
+	t.Setenv("ARK_TICKET_DIR", dir)
 	raw, err := krb.WriteCCache(krb.CCacheCred{
 		ClientRealm: "PIRATE.HTB",
 		Client:      []string{"Administrator"},

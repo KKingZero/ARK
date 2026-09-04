@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-// FaketimeSO looks for libfaketime (lab clock skew). Override with EREBUS_FAKETIME_SO.
+// FaketimeSO looks for libfaketime (lab clock skew). Override with ARK_FAKETIME_SO.
 func FaketimeSO() string {
-	if p := os.Getenv("EREBUS_FAKETIME_SO"); p != "" {
+	if p := os.Getenv("ARK_FAKETIME_SO"); p != "" {
 		if st, err := os.Stat(p); err == nil && !st.IsDir() {
 			return p
 		}
@@ -66,7 +66,7 @@ func FaketimeOffset(delta time.Duration) string {
 func FaketimeEnv(delta time.Duration) ([]string, error) {
 	so := FaketimeSO()
 	if so == "" {
-		return nil, fmt.Errorf("libfaketime not found (set EREBUS_FAKETIME_SO or install libfaketime)")
+		return nil, fmt.Errorf("libfaketime not found (set ARK_FAKETIME_SO or install libfaketime)")
 	}
 	return []string{
 		"LD_PRELOAD=" + so,

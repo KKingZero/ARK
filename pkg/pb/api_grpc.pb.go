@@ -31,6 +31,7 @@ const (
 	ErebusC2_Subscribe_FullMethodName             = "/erebus.c2.ErebusC2/Subscribe"
 	ErebusC2_GenerateImplant_FullMethodName       = "/erebus.c2.ErebusC2/GenerateImplant"
 	ErebusC2_RegisterImplantSecret_FullMethodName = "/erebus.c2.ErebusC2/RegisterImplantSecret"
+	ErebusC2_ClearReplay_FullMethodName           = "/erebus.c2.ErebusC2/ClearReplay"
 	ErebusC2_ListLoot_FullMethodName              = "/erebus.c2.ErebusC2/ListLoot"
 	ErebusC2_GetLoot_FullMethodName               = "/erebus.c2.ErebusC2/GetLoot"
 	ErebusC2_ListPendingApprovals_FullMethodName  = "/erebus.c2.ErebusC2/ListPendingApprovals"
@@ -59,6 +60,7 @@ type ErebusC2Client interface {
 	// Builder
 	GenerateImplant(ctx context.Context, in *GenerateImplantRequest, opts ...grpc.CallOption) (*GenerateImplantResponse, error)
 	RegisterImplantSecret(ctx context.Context, in *RegisterImplantSecretRequest, opts ...grpc.CallOption) (*RegisterImplantSecretResponse, error)
+	ClearReplay(ctx context.Context, in *ClearReplayRequest, opts ...grpc.CallOption) (*ClearReplayResponse, error)
 	// Loot
 	ListLoot(ctx context.Context, in *ListLootRequest, opts ...grpc.CallOption) (*ListLootResponse, error)
 	GetLoot(ctx context.Context, in *GetLootRequest, opts ...grpc.CallOption) (*GetLootResponse, error)
@@ -205,6 +207,16 @@ func (c *erebusC2Client) RegisterImplantSecret(ctx context.Context, in *Register
 	return out, nil
 }
 
+func (c *erebusC2Client) ClearReplay(ctx context.Context, in *ClearReplayRequest, opts ...grpc.CallOption) (*ClearReplayResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearReplayResponse)
+	err := c.cc.Invoke(ctx, ErebusC2_ClearReplay_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *erebusC2Client) ListLoot(ctx context.Context, in *ListLootRequest, opts ...grpc.CallOption) (*ListLootResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListLootResponse)
@@ -276,6 +288,7 @@ type ErebusC2Server interface {
 	// Builder
 	GenerateImplant(context.Context, *GenerateImplantRequest) (*GenerateImplantResponse, error)
 	RegisterImplantSecret(context.Context, *RegisterImplantSecretRequest) (*RegisterImplantSecretResponse, error)
+	ClearReplay(context.Context, *ClearReplayRequest) (*ClearReplayResponse, error)
 	// Loot
 	ListLoot(context.Context, *ListLootRequest) (*ListLootResponse, error)
 	GetLoot(context.Context, *GetLootRequest) (*GetLootResponse, error)
@@ -328,6 +341,9 @@ func (UnimplementedErebusC2Server) GenerateImplant(context.Context, *GenerateImp
 }
 func (UnimplementedErebusC2Server) RegisterImplantSecret(context.Context, *RegisterImplantSecretRequest) (*RegisterImplantSecretResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RegisterImplantSecret not implemented")
+}
+func (UnimplementedErebusC2Server) ClearReplay(context.Context, *ClearReplayRequest) (*ClearReplayResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ClearReplay not implemented")
 }
 func (UnimplementedErebusC2Server) ListLoot(context.Context, *ListLootRequest) (*ListLootResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListLoot not implemented")
@@ -574,6 +590,24 @@ func _ErebusC2_RegisterImplantSecret_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ErebusC2_ClearReplay_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearReplayRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ErebusC2Server).ClearReplay(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ErebusC2_ClearReplay_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ErebusC2Server).ClearReplay(ctx, req.(*ClearReplayRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ErebusC2_ListLoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListLootRequest)
 	if err := dec(in); err != nil {
@@ -714,6 +748,10 @@ var ErebusC2_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RegisterImplantSecret",
 			Handler:    _ErebusC2_RegisterImplantSecret_Handler,
+		},
+		{
+			MethodName: "ClearReplay",
+			Handler:    _ErebusC2_ClearReplay_Handler,
 		},
 		{
 			MethodName: "ListLoot",

@@ -3,7 +3,7 @@ package tasks
 import (
 	"context"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // taskTypeModules maps dedicated proto task types to compiled-in module names.

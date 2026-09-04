@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -54,8 +54,7 @@ func RunREPL(opts Options) error {
 	if err != nil {
 		return err
 	}
-	r.Run()
-	return nil
+	return r.Run()
 }
 
 func dialGRPC(addr, certFile, keyFile, caFile string) (*grpc.ClientConn, error) {

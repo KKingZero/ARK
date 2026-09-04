@@ -113,6 +113,9 @@ func (c *clientNTLMHash) Post(_ *winrm.Client, request *soap.SoapMessage) (strin
 
 	plain := []byte(request.String())
 	useEnc := c.neg.session != nil && canSeal(c.neg.session.flags)
+	// Snapshot before RoundTrip: a 401 on a live session resets complete inside
+	// the transport so Post would otherwise always see handshake.
+	wasComplete := c.neg != nil && c.neg.complete
 
 	body, ct, status, err := c.doSOAPLocked(plain, useEnc)
 	if err != nil {
@@ -120,7 +123,6 @@ func (c *clientNTLMHash) Post(_ *winrm.Client, request *soap.SoapMessage) (strin
 	}
 
 	if status == http.StatusUnauthorized {
-		wasComplete := c.neg != nil && c.neg.complete
 		c.resetSessionLocked()
 		snippet := clipBody(body, 256)
 		layer := PTHLayerNTLMHandshake

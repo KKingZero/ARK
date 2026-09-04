@@ -1,12 +1,12 @@
 # Fill the AD skeleton — beat BloodHound + Impacket on the HTB corpus
 
-**Active cut (2026-08-20):** inbound wrapper → internal Kerberos skew → Garfield `rbcd write` + `s4u` usable ticket → writeup. Parked until that writeup: ADCS, golden/DCSync, ESC8/11, KeyList, 443 redirector. See session plan.
+**Active cut (2026-08-20):** inbound wrapper → internal Kerberos skew → Garfield `rbcd write` + `s4u` usable ticket → writeup. **Landed after cut:** 443/1750 inbound redirector, KeyList wire (RODC TGT forge + KERB-KEY-LIST), native Kerberos SMB. Parked: ADCS, golden/DCSync, ESC8/11. See session plan.
 
 **Duration:** 4–6 weeks solo (superseded by the cut above; do not reopen parked items)  
 **Bar:** same 9 HTB boxes + `c-linux-peer`. A primitive that only demos on GOAD does not count.  
 **Consumer:** agent executes, human sees and approves. Dual-seat stays.  
 **Authorized labs only.**  
-**Baseline:** `reports/EREBUS_HTB_CORPUS_SCORECARD.md`
+**Baseline:** `reports/ARK_HTB_CORPUS_SCORECARD.md`
 
 Related: `SPRINT_B_AD.md`, `SPRINT_E_ADCS.md`, `FIX_CYCLE_SERVE_SKEW_PTH.md`, `docs/AD_ENGAGEMENT.md`.
 
@@ -17,7 +17,7 @@ Related: `SPRINT_B_AD.md`, `SPRINT_E_ADCS.md`, `FIX_CYCLE_SERVE_SKEW_PTH.md`, `d
 | Axis | Call |
 |---|---|
 | Surface | Whole AD weapon (Sprint B Kerberos + soft writes + shadow + dangling ESC1 + DCSync + golden/silver) |
-| Demo | Find the path **and** pull the trigger in-Erebus on the same box Impacket/BloodHound would |
+| Demo | Find the path **and** pull the trigger in-ARK on the same box Impacket/BloodHound would |
 | PTH | Soft gate — live pypsrp in parallel, do not block writes |
 | Home | **Host first, then lean C.** Shared `pkg/` is the brain |
 | Inbound | **Thin slice first**, then AD |
@@ -32,9 +32,9 @@ This cycle ships **Impacket-shaped verbs + a BloodHound-lite path finder**. It d
 
 | In | Out (wave 2, after week 6) |
 |---|---|
-| Thin inbound (tunnel + SOCKS as one operator path) | Implant listen-inbound-by-default |
+| Thin inbound (tunnel + SOCKS + 1750/443 TCP redirector) | Implant listen-inbound-by-default |
 | ACL / dangerous-rights enum + 1–3 step path suggestions | Full BloodHound collector / neo4j |
-| Ticket store + AskTGT AES + S4U AES + KeyList MVP | Diamond, renew-all, overpass kitchen sink |
+| Ticket store + AskTGT AES + S4U AES + KeyList wire (RODC forge + KERB-KEY-LIST) | Diamond, renew-all, overpass kitchen sink |
 | RBCD write (required for S4U to be a path) | Unconstrained-delegation hunt as a product |
 | scriptPath, ForceChange (shipped), addcomputer | Arbitrary LDAP set-attr |
 | Shadow creds (one account) | Shadow at scale |
@@ -54,12 +54,12 @@ If a week slips, **cut from the bottom** (golden, then DCSync, then ESC1), not f
 ```
                     human (sees + approves)
                             │
-                     erebus operator / AI
+                     ark operator / AI
                             │
               ┌─────────────┼─────────────┐
               ▼             ▼             ▼
      host CLI          teamserver      C implant
-  erebus ldap/ad/      approval +      lean: shell, SMB,
+  ark ldap/ad/      approval +      lean: shell, SMB,
   kerberos/smb         ticket loot     WinRM PTH, SOCKS
               │                           │
               └──────── pkg/ ─────────────┘
@@ -87,7 +87,7 @@ W5–6  dangling ESC1 + PKINIT UnPAC + dcsync(one) + golden/silver
 C this cycle: WinRM password + PTH quality, consume NT/ticket, reverse SOCKS (already written).  
 C does not: AskTGT / S4U / KeyList / DCSync / ADCS / shadow write / inbound listen.
 
-If a host verb cannot reach the DC, the fix is **SOCKS / tunnel**, not a C port of `pkg/krb`.
+If a host verb cannot reach the DC, the fix is **SOCKS / tunnel / redirector**, not a C port of `pkg/krb`.
 
 ## Agent + human
 
@@ -103,13 +103,15 @@ Every write is **critical** approval. Do not let Plan/Auto chain two critical wr
 
 ## Definition of done
 
+- [x] Inbound redirector (TCP passthrough 1750/443 → teamserver; `ark inbound redirector`)
 - [ ] Inbound: host `ldap` works through SOCKS or reverse tunnel
-- [x] ACL enum + suggestions name a real next verb (`erebus ldap enum --type acl`)
-- [x] Ticket import used by at least one of SMB / LDAP / WinRM (LDAP GSSAPI `--ticket` uses `krb.Now()`; SMB `--ticket` is Impacket `smbclient.py -k` until a native initiator)
+- [x] ACL enum + suggestions name a real next verb (`ark ldap enum --type acl`)
+- [x] Ticket import used by at least one of SMB / LDAP / WinRM (LDAP GSSAPI `--ticket` uses `krb.Now()`; SMB `--ticket` is native Kerberos SMB2)
 - [ ] AskTGT AES + S4U AES + RBCD write lab-green or HTB-green (Pirate asktgt AES green; `s4u` PAC-OPTIONS + `--altservice` coded, not live-reproved; `rbcd write` coded)
 - [x] Soft set: scriptPath + addcomputer; password already shipped (host verbs; live DC still required)
-- [ ] At least two of: shadow, KeyList, dangling ESC1, DCSync — live on corpus or recorded fixture + one live
-- [ ] Golden **or** silver from a key obtained in-Erebus
+- [x] KeyList wire: RODC AES TGT forge + KERB-KEY-LIST-REQ/REP (etype 23 NT); live RODC still required
+- [ ] At least two of: shadow, KeyList live, dangling ESC1, DCSync — live on corpus or recorded fixture + one live
+- [ ] Golden **or** silver from a key obtained in-ARK
 - [ ] Agent can propose each write; human must approve
 - [ ] C did not gain a Kerberos stack
-- [ ] Corpus table updated; claim only boxes whose critical path ran in Erebus
+- [ ] Corpus table updated; claim only boxes whose critical path ran in ARK

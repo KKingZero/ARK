@@ -3,7 +3,7 @@ package preimplant
 import (
 	"fmt"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/smbcli"
+	"github.com/KKingZero/ARK/pkg/smbcli"
 )
 
 // RunSMB dispatches host-side SMB (no implant).
@@ -26,15 +26,15 @@ func RunSMB(args []string) error {
 	}
 }
 
-const smbUsage = `erebus smb — operator-host SMB (no implant)
+const smbUsage = `ark smb — operator-host SMB (no implant)
 
-  erebus smb shares --host H [--anon | --user U --pass-file P --domain D]
-  erebus smb ls --host H --share IT [--path .]
-  erebus smb get --host H --share C$ --path Users\\a\\Desktop\\user.txt --out user.txt
+  ark smb shares --host H [--anon | --user U --pass-file P --domain D]
+  ark smb ls --host H --share IT [--path .]
+  ark smb get --host H --share C$ --path Users\\a\\Desktop\\user.txt --out user.txt
 
-Hash: --hash 32hex-NT. Ticket: --ticket ID|path (store via erebus kerberos ticket import / s4u).
-Kerberos SMB is a temporary Impacket wrap (smbclient.py -k). Native initiator later.
-Honors EREBUS_PROXY / ALL_PROXY (SOCKS5).
+Hash: --hash 32hex-NT. Ticket: --ticket ID|path (store via ark kerberos ticket import / s4u).
+Kerberos SMB is native (cifs/ TGS + SMB2). Impacket wrap: ARK_SMB_IMPACKET=1.
+Honors ARK_PROXY / ALL_PROXY (SOCKS5).
 Lab-only. See docs/OPERATOR_PRE_IMPLANT.md
 `
 

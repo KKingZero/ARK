@@ -8,11 +8,11 @@ import (
 	"runtime"
 	"time"
 
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/plugin"
-	"github.com/KKingZero/erebus-exploit-framwork/implant/tasks"
-	"github.com/KKingZero/erebus-exploit-framwork/implant/transport"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/plugin"
+	"github.com/KKingZero/ARK/implant/tasks"
+	"github.com/KKingZero/ARK/implant/transport"
 	"google.golang.org/protobuf/proto"
 )
 

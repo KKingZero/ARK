@@ -5,11 +5,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/erebuscli"
+	"github.com/KKingZero/ARK/pkg/arkcli"
 )
 
 func main() {
-	s, err := erebuscli.EnsureSeatCerts("/home/zero/.erebus")
+	s, err := arkcli.EnsureSeatCerts("/home/zero/.ark")
 	if err != nil {
 		panic(err)
 	}

@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/agent"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/agent"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 func main() {

@@ -215,7 +215,7 @@ Verify: `dig @<DC_IP> wsus.logging.htb +short` → attacker IP.
 
 ---
 
-## 6. Tooling fixes to implement (Erebus / lab host)
+## 6. Tooling fixes to implement (ARK / lab host)
 
 Prioritized so next eng is faster:
 
@@ -282,7 +282,7 @@ cd /home/zero/logging-htb
 
 ---
 
-## 10. Session 2026-07-30 — root complete (Erebus + external)
+## 10. Session 2026-07-30 — root complete (ARK + external)
 
 ### Solved path
 
@@ -296,11 +296,11 @@ wallace.everette (given) → SMB Logs → svc_recovery Em3rg3ncyPa$$2026
   → wsuks --serve-only HTTPS:8531 → dark DA → root.txt
 ```
 
-### Erebus use
+### ARK use
 
 | Item | Result |
 | --- | --- |
-| Teamserver | `erebus teamserver`, HTTPS listener `:8443` |
+| Teamserver | `ark teamserver`, HTTPS listener `:8443` |
 | Local Linux implant | Callback `127.0.0.1:8443` — shell + approvals OK |
 | Lateral WinRM PTH | Timed out / 401 via implant (pypsrp OK — gap) |
 | Target Windows implant | Built; target could not reach C2 until firewall opened on `tun0` |

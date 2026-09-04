@@ -22,29 +22,42 @@ func TestBuild_DefaultLanguageIsC(t *testing.T) {
 	}
 }
 
-func TestBuild_ExplicitGoStillAccepted(t *testing.T) {
-	// Should not route to BuildC; will fail later on missing project/tooling if run fully.
-	// We only assert it does not reject language go immediately as unsupported.
+func TestBuild_GoLinuxArchived(t *testing.T) {
+	_, err := Build(&BuildRequest{
+		Language:  "go",
+		OS:        "linux",
+		Arch:      "amd64",
+		Format:    FormatEXE,
+		Callbacks: []string{"https://127.0.0.1:443"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "archived") {
+		t.Fatalf("want go linux archived, got %v", err)
+	}
+}
+
+func TestBuild_ExplicitGoWindowsStillAccepted(t *testing.T) {
 	_, err := Build(&BuildRequest{
 		Language:   "go",
-		OS:         "linux",
+		OS:         "windows",
 		Arch:       "amd64",
 		Format:     FormatEXE,
 		Callbacks:  []string{"https://127.0.0.1:443"},
 		SleepMs:    5000,
 		JitterPct:  10,
-		CACertPath: "/nonexistent-ca-for-test.pem", // HTTPS requires path; fails on stat/read
+		CACertPath: "/nonexistent-ca-for-test.pem",
 	})
-	// May fail on CA path or go build; must not be "unsupported language"
 	if err != nil && strings.Contains(err.Error(), "unsupported implant language") {
-		t.Fatalf("go language rejected: %v", err)
+		t.Fatalf("go windows rejected: %v", err)
+	}
+	if err != nil && strings.Contains(err.Error(), "archived") {
+		t.Fatalf("go windows must not be archived: %v", err)
 	}
 }
 
 func TestBuild_HTTPSRequiresCACertPath(t *testing.T) {
 	_, err := Build(&BuildRequest{
 		Language:  "go",
-		OS:        "linux",
+		OS:        "windows",
 		Arch:      "amd64",
 		Format:    FormatEXE,
 		Transport: "https",
@@ -57,5 +70,24 @@ func TestBuild_HTTPSRequiresCACertPath(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "CACertPath") {
 		t.Fatalf("expected CACertPath error, got: %v", err)
+	}
+}
+
+func TestBuild_GoRejectsCDNDomain(t *testing.T) {
+	_, err := Build(&BuildRequest{
+		Language:   "go",
+		OS:         "windows",
+		Arch:       "amd64",
+		Format:     FormatEXE,
+		Transport:  "https",
+		Callbacks:  []string{"https://127.0.0.1:443"},
+		CDNDomain:  "cdn.example.com",
+		CACertPath: "/nonexistent-ca-for-test.pem",
+	})
+	if err == nil {
+		t.Fatal("expected CDNDomain rejection")
+	}
+	if !strings.Contains(err.Error(), "CDNDomain") {
+		t.Fatalf("expected CDNDomain error, got: %v", err)
 	}
 }

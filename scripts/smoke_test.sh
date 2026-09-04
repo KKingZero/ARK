@@ -10,8 +10,8 @@ mkdir -p "$TMPDIR" "$GOCACHE"
 echo "==> Go tests"
 go test ./pkg/suggestions/... ./pkg/agent/... ./pkg/dnstransport/... ./pkg/ldapcli/... ./pkg/smbcli/... ./pkg/preimplant/... ./pkg/krb/... ./server/approval/... ./server/listeners/... ./server/builder/... ./pkg/crypto/... -count=1
 
-echo "==> Build erebus + teamserver + agent"
-make erebus teamserver agent
+echo "==> Build ark + teamserver + agent"
+make ark teamserver agent
 
 echo "==> Build Go implant (linux amd64)"
 GOOS=linux GOARCH=amd64 go build -o build/implant_linux ./cmd/implant
@@ -24,7 +24,11 @@ LLVM_MINGW="${ROOT}/.toolchain/llvm-mingw/bin"
 if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1 || [[ -x "${MINGW_BIN}/x86_64-w64-mingw32-gcc" ]] || [[ -x "${LLVM_MINGW}/x86_64-w64-mingw32-gcc" ]]; then
   echo "==> Build C implant Windows PE"
   CA_ARG=()
-  if [[ -f "${HOME}/.erebus/ca-cert.pem" ]]; then
+  if [[ -f "${HOME}/.ark/ca-cert.pem" ]]; then
+    CA_ARG=(CA_CERT_PATH="${HOME}/.ark/ca-cert.pem")
+  elif [[ -f "${HOME}/.ark/certs/ca.pem" ]]; then
+    CA_ARG=(CA_CERT_PATH="${HOME}/.ark/certs/ca.pem")
+  elif [[ -f "${HOME}/.erebus/ca-cert.pem" ]]; then
     CA_ARG=(CA_CERT_PATH="${HOME}/.erebus/ca-cert.pem")
   elif [[ -f "${HOME}/.erebus/certs/ca.pem" ]]; then
     CA_ARG=(CA_CERT_PATH="${HOME}/.erebus/certs/ca.pem")

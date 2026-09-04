@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/core/theme"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/agent"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/llm"
+	"github.com/KKingZero/ARK/core/theme"
+	"github.com/KKingZero/ARK/pkg/agent"
+	"github.com/KKingZero/ARK/pkg/llm"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -147,7 +147,7 @@ func Run(opts Options) (QuitMode, error) {
 
 func newModel(opts Options) model {
 	ti := textinput.New()
-	ti.Placeholder = "Ask Erebus..."
+	ti.Placeholder = "Ask ARK..."
 	ti.Prompt = "› "
 	ti.CharLimit = 4096
 	ti.TextStyle = theme.Default
@@ -166,14 +166,14 @@ func newModel(opts Options) model {
 		cancel:         cancel,
 		messages: []openai.ChatCompletionMessage{{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: llm.ErebusSystemPrompt,
+			Content: llm.ArkSystemPrompt,
 		}},
 	}
-	m.appendSystem("Erebus AI ready. Tab = model · Shift+Tab = mode (Normal / Plan / Auto).")
+	m.appendSystem("ARK AI ready. Tab = model · Shift+Tab = mode (Normal / Plan / Auto).")
 	if opts.AgentCfg != nil {
 		m.appendSystem("Teamserver connected — use Auto mode to run the agent. Approvals happen in this TUI ([a]/[d]).")
 	} else {
-		m.appendSystem("No teamserver — Normal/Plan chat only. Start with: erebus serve")
+		m.appendSystem("No teamserver — Normal/Plan chat only. Start with: ark serve")
 	}
 	m.syncViewport()
 	return m
@@ -271,6 +271,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, textinput.Blink
 			}
 			m.appendError(msg.err.Error())
+			if h := llm.APIErrorHint(m.opts.LLMCfg.Provider, msg.err); h != "" {
+				m.appendSystem(h)
+			}
 		} else {
 			reply := strings.TrimSpace(msg.reply)
 			m.messages = append(m.messages, openai.ChatCompletionMessage{
@@ -352,14 +355,14 @@ func (m model) cycleMode() (tea.Model, tea.Cmd) {
 	mode := sessionModes[m.modeIdx]
 	m.appendSystem(fmt.Sprintf("Mode: %s — %s", mode.Label, mode.Hint))
 	if mode.ID == ModeAuto && m.opts.AgentCfg == nil {
-		m.appendSystem("Auto needs teamserver (erebus serve) + operator and approver certs under ~/.erebus/certs/.")
+		m.appendSystem("Auto needs teamserver (ark serve) + operator and approver certs under ~/.ark/certs/.")
 	}
 	m.syncViewport()
 	return m, nil
 }
 
 func (m *model) resetChatSystem() {
-	sys := llm.ErebusSystemPrompt
+	sys := llm.ArkSystemPrompt
 	if m.currentMode() == ModePlan {
 		sys = agent.PlanSystemPrompt()
 	}
@@ -388,12 +391,12 @@ func (m model) handleSubmit(text string) (tea.Model, tea.Cmd) {
 	switch m.currentMode() {
 	case ModeAuto:
 		if m.opts.AgentCfg == nil {
-			m.appendError("Auto mode requires teamserver (erebus serve) plus operator and approver certs (~/.erebus/certs/).")
+			m.appendError("Auto mode requires teamserver (ark serve) plus operator and approver certs (~/.ark/certs/).")
 			m.syncViewport()
 			return m, nil
 		}
 		if m.opts.AgentCfg.ApproverCert == "" || m.opts.AgentCfg.ApproverKey == "" {
-			m.appendError("Auto mode needs approver_cert/approver_key for in-TUI [a]/[d] dual-control. Run erebus serve to generate seats.")
+			m.appendError("Auto mode needs approver_cert/approver_key for in-TUI [a]/[d] dual-control. Run ark serve to generate seats.")
 			m.syncViewport()
 			return m, nil
 		}
@@ -424,8 +427,8 @@ func (m model) handleSubmit(text string) (tea.Model, tea.Cmd) {
 	default: // ModeNormal
 		if len(m.messages) == 0 || m.messages[0].Role != openai.ChatMessageRoleSystem {
 			m.resetChatSystem()
-		} else if m.messages[0].Content != llm.ErebusSystemPrompt {
-			m.messages[0].Content = llm.ErebusSystemPrompt
+		} else if m.messages[0].Content != llm.ArkSystemPrompt {
+			m.messages[0].Content = llm.ArkSystemPrompt
 		}
 		m.messages = append(m.messages, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleUser,
@@ -456,7 +459,7 @@ func (m model) View() string {
 	if m.opts.AgentCfg != nil {
 		backend = "teamserver"
 	}
-	header := headerStyle.Render(" Erebus AI ")
+	header := headerStyle.Render(" ARK AI ")
 	subhead := subheadStyle.Render(fmt.Sprintf(" %s / %s · %s · %s ",
 		m.opts.LLMCfg.Provider, m.opts.LLMCfg.Model, backend, sessionModes[m.modeIdx].Hint))
 
@@ -544,6 +547,9 @@ func (m model) applyModelChoice(idx int) (tea.Model, tea.Cmd) {
 	active, err := fileCfg.ActiveConfig()
 	if err != nil {
 		m.appendError(err.Error())
+		if w := llm.BillingWarning(choice.Provider); w != "" && !strings.Contains(err.Error(), w) {
+			m.appendSystem(w)
+		}
 		m.syncViewport()
 		return m, nil
 	}
@@ -700,7 +706,7 @@ func labelFor(k entryKind) string {
 	case entryUser:
 		return "You"
 	case entryAI:
-		return "Erebus"
+		return "ARK"
 	case entrySystem:
 		return "·"
 	case entryStep:
@@ -753,7 +759,7 @@ func runAgent(ctx context.Context, cfg *agent.Config, objective string, ch chan<
 	if cfg.ApproverCert == "" || cfg.ApproverKey == "" {
 		sendAgentMsg(ctx, ch, agentEventMsg{
 			done: true,
-			err:  fmt.Errorf("approver certs required for Auto (run erebus serve)"),
+			err:  fmt.Errorf("approver certs required for Auto (run ark serve)"),
 		})
 		return
 	}

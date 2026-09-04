@@ -3,7 +3,7 @@ package smb
 import (
 	"testing"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/smbcli"
+	"github.com/KKingZero/ARK/pkg/smbcli"
 )
 
 func TestParseNTHash(t *testing.T) {

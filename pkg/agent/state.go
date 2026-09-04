@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // StepLog records one agent iteration.

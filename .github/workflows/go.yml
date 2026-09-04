@@ -29,6 +29,12 @@ jobs:
     - name: Unit tests
       run: go test ./pkg/suggestions/... ./pkg/agent/... ./pkg/dnstransport/... ./server/approval/... ./server/listeners/... -v -count=1
 
+    - name: C implant host tests
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq gcc libssl-dev
+        make -C cimplant test-host
+
     - name: E2E tests
       run: go test ./server/e2e/... -v -count=1
 

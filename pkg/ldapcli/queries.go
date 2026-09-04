@@ -74,7 +74,7 @@ func FilterFor(queryType, baseDN string) (string, error) {
 		return "(&(objectCategory=person)(objectClass=user)(memberOf=CN=Domain Admins,CN=Users," + baseDN + "))", nil
 	}
 	if queryType == "maq" || queryType == "dangling" || queryType == "acl" {
-		return "", fmt.Errorf("query type %q is host-only (erebus ldap enum --type %s); not implant ldap_enum", queryType, queryType)
+		return "", fmt.Errorf("query type %q is host-only (ark ldap enum --type %s); not implant ldap_enum", queryType, queryType)
 	}
 	f, ok := QueryFilters[queryType]
 	if !ok {

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
 const defaultApprovalTimeout = 30 * time.Minute

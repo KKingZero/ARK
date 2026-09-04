@@ -1,13 +1,29 @@
 package listeners
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/sessions"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/sessions"
 )
+
+func TestReadLimitedBodyRejectsOversize(t *testing.T) {
+	if _, err := readLimitedBody(strings.NewReader("abcd"), 3); err == nil {
+		t.Fatal("expected oversize body rejection")
+	}
+	body, err := readLimitedBody(strings.NewReader("abc"), 3)
+	if err != nil {
+		t.Fatalf("exact limit should pass: %v", err)
+	}
+	if string(body) != "abc" {
+		t.Fatalf("body=%q", body)
+	}
+}
 
 func TestHandleBeaconTerminateAfterKill(t *testing.T) {
 	secret, err := zcrypto.RandomBytes(32)
@@ -314,5 +330,27 @@ func TestSharedReplayCacheRejectsAcrossHandlers(t *testing.T) {
 	}
 	if _, err := HandleBeacon(h2, beacon); err == nil {
 		t.Fatal("expected replay rejection on second handler")
+	}
+}
+
+func TestHmacRejectReason(t *testing.T) {
+	if got := hmacRejectReason(nil); got != "hmac" {
+		t.Fatalf("nil → %q", got)
+	}
+	if got := hmacRejectReason(fmt.Errorf("timestamp outside replay window")); got != "skew" {
+		t.Fatalf("skew → %q", got)
+	}
+	if got := hmacRejectReason(fmt.Errorf("HMAC verification failed")); got != "hmac" {
+		t.Fatalf("hmac → %q", got)
+	}
+}
+
+func TestAuthFailReasonFormat(t *testing.T) {
+	err := authFail("parse", "bad protobuf")
+	if !errors.Is(err, ErrBeaconAuth) {
+		t.Fatalf("expected ErrBeaconAuth, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "parse") || !strings.Contains(err.Error(), "bad protobuf") {
+		t.Fatalf("unexpected: %v", err)
 	}
 }

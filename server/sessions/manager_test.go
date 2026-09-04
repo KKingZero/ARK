@@ -3,8 +3,8 @@ package sessions
 import (
 	"testing"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/db"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/db"
 )
 
 func TestRegisterOrReconnectUpdatesMetadata(t *testing.T) {

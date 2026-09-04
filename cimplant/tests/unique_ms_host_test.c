@@ -2,12 +2,12 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "erebus/platform.h"
+#include "ark/platform.h"
 
 static int fails;
 static int64_t g_now = 1700000000000LL; /* frozen wall clock (ms) */
 
-int64_t erebus_unix_ms(void) {
+int64_t ark_unix_ms(void) {
     return g_now;
 }
 
@@ -20,17 +20,17 @@ static void expect_eq(const char *name, int64_t got, int64_t want) {
 
 int main(void) {
     int64_t last = 0;
-    int64_t a = erebus_unique_unix_ms(&last);
+    int64_t a = ark_unique_unix_ms(&last);
     expect_eq("first is wall", a, g_now);
     expect_eq("last stored", last, g_now);
 
-    int64_t b = erebus_unique_unix_ms(&last);
+    int64_t b = ark_unique_unix_ms(&last);
     expect_eq("same wall increments", b, g_now + 1);
-    int64_t c = erebus_unique_unix_ms(&last);
+    int64_t c = ark_unique_unix_ms(&last);
     expect_eq("third increments", c, g_now + 2);
 
     g_now += 5;
-    int64_t d = erebus_unique_unix_ms(&last);
+    int64_t d = ark_unique_unix_ms(&last);
     expect_eq("wall jump used", d, g_now);
 
     if (fails) {

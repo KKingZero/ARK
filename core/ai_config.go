@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/KKingZero/erebus-exploit-framwork/core/aisetup"
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/llm"
+	"github.com/KKingZero/ARK/core/aisetup"
+	"github.com/KKingZero/ARK/pkg/llm"
 )
 
 func (c *Console) cmdAI(args []string) {
@@ -49,9 +49,10 @@ func (c *Console) aiUsage() {
   ai model <provider> <model>      Set model for a provider
   ai config                        Show active provider and saved keys (masked)
 
-In TUI: /back = return to erebus ›   /quit = exit Erebus   /clear = reset transcript
+In TUI: /back = return to ark ›   /quit = exit ARK   /clear = reset transcript
 Providers: ollama (local), openai, anthropic, grok (xAI), bedrock, kimi, gemini
-Auth: API keys (or env vars) only — no browser OAuth in this release`
+Auth: API keys (or env vars) only — no browser OAuth in this release
+OpenAI/Anthropic are Platform API keys with API credits. ChatGPT Plus/Codex and Claude Pro/Claude Code do not apply.`
 	emit(c.mode, Response{
 		Status:  "ok",
 		Command: "ai",
@@ -208,7 +209,7 @@ func (c *Console) aiShowConfig() {
 		b.WriteString(fmt.Sprintf("  %-10s key=%-14s model=%s\n",
 			p.ID, llm.MaskKey(s.APIKey), firstNonEmpty(s.Model, p.DefaultModel)))
 	}
-	b.WriteString(fmt.Sprintf("\nConfig file: %s\n", expandErebusPath(llm.DefaultConfigPath)))
+	b.WriteString(fmt.Sprintf("\nConfig file: %s\n", expandArkPath(llm.DefaultConfigPath)))
 	b.WriteString("Reconfigure: ai setup\n")
 	emit(c.mode, Response{
 		Status:  "ok",
@@ -228,7 +229,7 @@ func firstNonEmpty(a, b string) string {
 	return b
 }
 
-func expandErebusPath(p string) string {
+func expandArkPath(p string) string {
 	if strings.HasPrefix(p, "~/") {
 		home, err := os.UserHomeDir()
 		if err == nil {

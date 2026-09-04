@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/proto"
@@ -27,11 +27,11 @@ func main() {
 	pass := flag.String("pass", "", "")
 	domain := flag.String("domain", "", "")
 	hash := flag.String("hash", "", "")
-	opCert := flag.String("op-cert", os.ExpandEnv("$HOME/.erebus/certs/operator.pem"), "")
-	opKey := flag.String("op-key", os.ExpandEnv("$HOME/.erebus/certs/operator-key.pem"), "")
-	apCert := flag.String("ap-cert", os.ExpandEnv("$HOME/.erebus/certs/approver.pem"), "")
-	apKey := flag.String("ap-key", os.ExpandEnv("$HOME/.erebus/certs/approver-key.pem"), "")
-	ca := flag.String("ca", os.ExpandEnv("$HOME/.erebus/certs/ca.pem"), "")
+	opCert := flag.String("op-cert", os.ExpandEnv("$HOME/.ark/certs/operator.pem"), "")
+	opKey := flag.String("op-key", os.ExpandEnv("$HOME/.ark/certs/operator-key.pem"), "")
+	apCert := flag.String("ap-cert", os.ExpandEnv("$HOME/.ark/certs/approver.pem"), "")
+	apKey := flag.String("ap-key", os.ExpandEnv("$HOME/.ark/certs/approver-key.pem"), "")
+	ca := flag.String("ca", os.ExpandEnv("$HOME/.ark/certs/ca.pem"), "")
 	flag.Parse()
 	if *session == "" || *target == "" {
 		fatal(fmt.Errorf("need -session and -target"))

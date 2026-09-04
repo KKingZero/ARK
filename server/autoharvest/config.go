@@ -4,7 +4,7 @@ import (
 	"log"
 	"runtime"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"google.golang.org/protobuf/proto"
 )
 

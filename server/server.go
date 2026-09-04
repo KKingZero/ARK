@@ -12,15 +12,15 @@ import (
 	"strings"
 	"time"
 
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/approval"
-	"github.com/KKingZero/erebus-exploit-framwork/server/autoharvest"
-	"github.com/KKingZero/erebus-exploit-framwork/server/db"
-	"github.com/KKingZero/erebus-exploit-framwork/server/listeners"
-	"github.com/KKingZero/erebus-exploit-framwork/server/sessions"
-	"github.com/KKingZero/erebus-exploit-framwork/server/socks"
-	"github.com/KKingZero/erebus-exploit-framwork/server/tasks"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/approval"
+	"github.com/KKingZero/ARK/server/autoharvest"
+	"github.com/KKingZero/ARK/server/db"
+	"github.com/KKingZero/ARK/server/listeners"
+	"github.com/KKingZero/ARK/server/sessions"
+	"github.com/KKingZero/ARK/server/socks"
+	"github.com/KKingZero/ARK/server/tasks"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
@@ -229,6 +229,7 @@ func (ts *Teamserver) CreateListener(cfg *pb.ListenerConfig) (listeners.Listener
 			return nil, err
 		}
 		if err := ts.Listeners.Start(l.ID()); err != nil {
+			_ = ts.Listeners.Remove(l.ID())
 			return nil, err
 		}
 		return l, nil
@@ -241,6 +242,7 @@ func (ts *Teamserver) CreateListener(cfg *pb.ListenerConfig) (listeners.Listener
 			return nil, err
 		}
 		if err := ts.Listeners.Start(l.ID()); err != nil {
+			_ = ts.Listeners.Remove(l.ID())
 			return nil, err
 		}
 		return l, nil
@@ -325,7 +327,7 @@ func loadOrCreateCA(dataDir string) (*zcrypto.CertificateAuthority, error) {
 		return zcrypto.LoadCA(certPath, keyPath)
 	}
 
-	ca, err := zcrypto.NewCA("Erebus", 10)
+	ca, err := zcrypto.NewCA("ARK", 10)
 	if err != nil {
 		return nil, err
 	}

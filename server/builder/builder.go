@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	"github.com/KKingZero/erebus-exploit-framwork/server/db"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	"github.com/KKingZero/ARK/server/db"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -79,7 +79,7 @@ func Build(req *BuildRequest) (*BuildResult, error) {
 		lang = "c"
 	}
 	if lang == "c" {
-		// Fail closed: C is Windows PE only. Empty OS/arch/format → engagement defaults.
+		// C is primary for Windows PE and Linux. Empty OS/arch/format → Windows engagement defaults.
 		if req.OS == "" {
 			req.OS = "windows"
 		}
@@ -97,6 +97,9 @@ func Build(req *BuildRequest) (*BuildResult, error) {
 
 	if req.OS == "" {
 		req.OS = "windows"
+	}
+	if strings.EqualFold(req.OS, "linux") || strings.EqualFold(req.OS, "darwin") {
+		return nil, fmt.Errorf("go implant on %s is archived; use language=c (make implant-c-linux)", req.OS)
 	}
 	if req.Arch == "" {
 		req.Arch = "amd64"
@@ -137,12 +140,7 @@ func Build(req *BuildRequest) (*BuildResult, error) {
 		return nil, err
 	}
 	if req.CDNDomain != "" {
-		if !validDomainRe.MatchString(req.CDNDomain) {
-			return nil, fmt.Errorf("invalid CDN domain: %s", req.CDNDomain)
-		}
-		if err := validateLdflagValue(req.CDNDomain, "CDNDomain"); err != nil {
-			return nil, err
-		}
+		return nil, fmt.Errorf("Go HTTPS implant builds do not support CDNDomain with strict CA pinning; use language=c or omit CDNDomain")
 	}
 	if req.CACertPath != "" {
 		if err := validateLdflagValue(req.CACertPath, "CACertPath"); err != nil {
@@ -155,7 +153,7 @@ func Build(req *BuildRequest) (*BuildResult, error) {
 	}
 
 	// Build ldflags
-	module := "github.com/KKingZero/erebus-exploit-framwork"
+	module := "github.com/KKingZero/ARK"
 	ldflags := []string{
 		"-s", "-w",
 		fmt.Sprintf("-X '%s/implant.implantID=%s'", module, implantID),
@@ -211,7 +209,7 @@ func Build(req *BuildRequest) (*BuildResult, error) {
 	}
 
 	// Determine output file
-	tmpDir, err := os.MkdirTemp("", "erebus-build-*")
+	tmpDir, err := os.MkdirTemp("", "ark-build-*")
 	if err != nil {
 		return nil, fmt.Errorf("create temp dir: %w", err)
 	}
@@ -263,7 +261,7 @@ func Build(req *BuildRequest) (*BuildResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve project root: %w", err)
 	}
-	// Verify it looks like an Erebus project (has go.mod)
+	// Verify it looks like an ARK project (has go.mod)
 	if _, err := os.Stat(filepath.Join(absRoot, "go.mod")); err != nil {
 		return nil, fmt.Errorf("project root %s does not contain go.mod", absRoot)
 	}

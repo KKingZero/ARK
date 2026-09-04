@@ -33,9 +33,7 @@ func TestVerifyHMAC_RejectsStale(t *testing.T) {
 	}
 }
 
-// HTB hosts are often 6–8h off operator UTC. Production window is 8h absolute
-// (server/listeners/beacon.go). If this fails, offset negotiation is required;
-// if it passes, the remaining tax is operator-visible diagnosis, not a wider window.
+// Matches server/listeners/beacon.go (8h absolute HMAC window).
 const htbHMACWindowSec = 8 * 3600
 
 func TestVerifyHMAC_HTBSkewInside8hWindow(t *testing.T) {

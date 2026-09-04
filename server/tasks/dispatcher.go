@@ -6,10 +6,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/db"
-	"github.com/KKingZero/erebus-exploit-framwork/server/sessions"
+	"github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/db"
+	"github.com/KKingZero/ARK/server/sessions"
 	"google.golang.org/protobuf/proto"
 )
 

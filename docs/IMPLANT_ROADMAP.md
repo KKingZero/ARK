@@ -1,7 +1,7 @@
-# Erebus Implant Roadmap
+# ARK Implant Roadmap
 
 **Status:** v0.1.0 lab / research  
-**Last updated:** 2026-08-05 (Sprint A+B+C: CA/beacon/auth + Linux tunnel scripts + explicit Linux stubs)  
+**Last updated:** 2026-09-04 (docs pass: C primary both OS; Go Linux archived; host ADCS/RBCD/shadow; PKINIT still incomplete)  
 **Audience:** maintainers planning the next implant sprint(s)
 
 This document inventories **what the implant can do today**, **what is left**, and **how a possible Zig implant branch fits**. It does not authorize use against unauthorized targets — authorized labs and engagements only.
@@ -17,8 +17,7 @@ This document inventories **what the implant can do today**, **what is left**, a
         ▼                   ▼                   ▼
    Go implant          C implant            Zig implant
    implant/            cimplant/            (future branch)
-   Linux + Windows     Windows PE only      TBD
-   secondary           PRIMARY (Windows)    deferred peer
+   fallback            PRIMARY (Win+Linux)  deferred peer
         │                   │                   │
         └───────────────────┴───────────────────┘
                             │
@@ -28,8 +27,8 @@ This document inventories **what the implant can do today**, **what is left**, a
 
 | Language | Path | Platforms | Role |
 |----------|------|-----------|------|
-| **Go** | `implant/`, `cmd/implant/` | Linux + Windows | Control-plane peer / temporary demo / possible Linux peer (not product Windows focus) |
-| **C** | `cimplant/` | Windows PE + **Linux basic peer** | **Primary Windows implant**; Linux: shell/files/process/net + HTTPS |
+| **Go** | `implant/`, `cmd/implant/` | Linux + Windows | Fallback / demo; reverse SOCKS until C M4c; **not** product growth path |
+| **C** | `cimplant/` | Windows PE + **Linux primary** | **Primary implant** both OS; Linux deep post-ex track (Sprint L) |
 | **Zig** | *(not started)* | TBD | Possible third peer on same wire protocol |
 
 **Shared (do not rewrite per language):**
@@ -40,7 +39,7 @@ This document inventories **what the implant can do today**, **what is left**, a
 - Crypto contract: HMAC-SHA256 identity, AES-256-GCM session payloads  
 - Build-time identity: implant ID, secret, callback URL, sleep/jitter  
 
-**Builder today:** `language: "c"` (default, Windows PE) or `language: "go"` (explicit; Linux peer / dll/shellcode). A Zig path would add `language: "zig"` later without changing the server contract.
+**Builder today:** `language: "c"` (default for empty language — Windows PE or Linux) or `language: "go"` (explicit fallback / dll/shellcode). A Zig path would add `language: "zig"` later without changing the server contract.
 
 ---
 
@@ -58,14 +57,14 @@ All implants should eventually honor the same task enum. Current coverage:
 | `TASK_KEYLOG_*` | Windows | Windows | Stub on non-Windows Go |
 | `TASK_INJECT` | Windows | Windows | Method matrix incomplete |
 | `TASK_PE_LOAD` / `PE_LOAD_EXEC` | Windows | Windows | Stub on non-Windows Go |
-| `TASK_SOCKS_START` / `STOP` | Yes | Yes | |
+| `TASK_SOCKS_START` / `STOP` | Yes | Linux yes; Windows stub | Windows C `socks_api_stub.c` fail-closed |
 | `TASK_EXIT` / sleep handling | Yes | Yes | Sleep updates via server/checkin |
 | `TASK_MODULE` | Yes | Yes | Dispatches to module registry |
 | `TASK_LDAP_ENUM` | Yes | Partial | C: basic LDAP |
-| `TASK_KERBEROAST` | Yes | **Stub** | C returns placeholder hash text |
-| `TASK_ASREPROAST` | Yes | **Stub** | Same |
+| `TASK_KERBEROAST` | Yes | Yes | C: real hashes, no placeholders; lab-verify still open |
+| `TASK_ASREPROAST` | Yes | Yes | Same |
 | `TASK_CREDS_DUMP` | Windows | Partial | Go: LSASS/SAM/browser |
-| `TASK_LATERAL_MOVE` | WinRM/WMI/DCOM/PsExec | WMI only | C: PsExec/WinRM/DCOM stubbed |
+| `TASK_LATERAL_MOVE` | WinRM/WMI/DCOM/PsExec | WinRM/PsExec/WMI/DCOM | C: WinRM password+PTH; PsExec password+SCM (no hash); Windows C SOCKS stub |
 | `TASK_PERSIST` / `PRIVESC` | Windows | Partial | Linux Go: not supported stubs |
 | `TASK_PIVOT_*` | Via SOCKS path | Via SOCKS | Confirm no half-wired pivot tasks |
 
@@ -141,12 +140,15 @@ Many modules have `_stub.go` (`//go:build !windows`) and return clear “not sup
 - Lateral **WMI** + WinRM password (WSMan); Kerberoast wire (RC4 MVP)  
 - Indirect syscall scaffolding  
 
-**Linux basic peer** (`make implant-c-linux` / `generate --language c --os linux`)
+**Linux primary** (`make implant-c-linux` / `generate --language c --os linux`) — Sprint L
 
 - Beacon + HTTPS (libcurl + OpenSSL, CA pin required)  
 - Shell (`/bin/sh -c`), file download/upload + path jail, process list/kill, ifconfig + portscan  
-- Module `shell` only; Windows post-ex / AD / lateral / DNS transport hard-fail  
-- Host unit tests: path jail pure logic, protobuf bounded string copy  
+- Modules: shell, cloud, Linux-native creds collection, persist, and privesc enum  
+- Windows post-ex / AD / lateral hard-fail with explicit strings  
+- Reverse SOCKS is Linux-native; screenshot/keylog/inject/PE-load remain explicit unsupported tasks  
+- Host unit tests: path jail, pb-copy, kerberoast-pb, ntlm-parse; smoke: `scripts/c_linux_e2e_smoke.sh`  
+- Sign-off: `reports/htb-c-linux-peer/SIGN_OFF.md` · plan: `docs/plans/SPRINT_L_C_LINUX.md`  
 
 ---
 
@@ -156,7 +158,7 @@ Many modules have `_stub.go` (`//go:build !windows`) and return clear “not sup
 
 | # | Item | Current behavior |
 |---|------|------------------|
-| C1 | **Kerberoast** | Wire Kerberos (RC4 + AES, hashcat format) — **no placeholder hashes**; **lab-verify GOAD/HTB** still open |
+| C1 | **Kerberoast** | Wire Kerberos (RC4 + AES, hashcat format) — **no placeholder hashes**; clear fail strings; **lab-verify GOAD/HTB** still open |
 | C2 | **AS-REP roast** | Real AS-REQ without pre-auth + hashcat lines — lab-verify still open |
 | C3 | **Lateral PsExec** | Password: ADMIN$ stage + SCM create/start; PTH via hash not on WNet (use WinRM PTH) |
 | C4 | **Lateral WinRM** | Password via WSMan; PTH via WinHTTP+NTLMv2+SOAP — **clearer errors + parse tests**; **live pypsrp parity eng-verify** |
@@ -167,7 +169,7 @@ Many modules have `_stub.go` (`//go:build !windows`) and return clear “not sup
 | C9 | **Tests** | Host: pathjail, pb-copy, kerberoast-pb, **ntlm-parse**; no Windows integration CI |
 | C10 | **Beacon timestamps** | **Unix ms** (was seconds → same-second replay on SLEEP_MS=500) |
 | C11 | **Auth observability** | Server logs `unknown_implant|hmac|skew|replay` on drop; wire still 404 |
-| C12 | **Linux drop UX** | `scripts/htb_reverse_tunnel.sh`, `scripts/c_linux_e2e_smoke.sh`; SOCKS explicitly unsupported with message |
+| C12 | **Linux drop UX** | Tunnel + smoke scripts done; reverse SOCKS → Sprint L M4c (`SPRINT_L_C_LINUX.md`) |
 
 ### Policy (locked)
 
@@ -238,7 +240,7 @@ A **third language peer** on the same wire protocol — not a rewrite of the tea
 | **0** | Golden Demo 5/5 Auto on best available path | Prove AI + C2 reliability |
 | **A** | **C implant = #1** (Windows) — real AD + lateral, no fake stubs | C is the engagement implant on Windows |
 | **B** | Lateral vertical (WinRM → PsExec → WMI quality → DCOM) | Demo-grade movement on C |
-| **C** | Linux ambition | **Not in C** (Windows-only) → thin Go Linux peer **or** later Zig/Linux |
+| **C** | Linux ambition | **L3 C Linux primary** (Sprint L) — reverse SOCKS then native post-ex |
 | **D** | Zig | Only after C Windows path is proven |
 | **E** | Evasion P2 | After lab demos are boring |
 
@@ -252,14 +254,14 @@ Locked product intent:
 - **Lateral** as first capability vertical
 - **Golden Demo 5/5 Auto** as sprint success metric
 
-**Conflict:** C is **Windows-only**. Full Linux post-ex cannot ship inside `cimplant/` without a huge port.
+**Resolved:** C owns **Windows** (AD + lateral) and **Linux** (Sprint L deep track). Go implant is fallback only.
 
 **Practical interpretation used in §13:**
 
-1. **Near term:** C owns **Windows** implant surface (AD stubs → real; lateral → real).
-2. **Linux:** either (a) **thin Go Linux peer** (shell/files/net + grow post-ex), (b) defer Linux until **Zig**, or (c) future C Linux (not recommended soon).
-3. **"Zig after Go proven":** means after **control plane + wire + lab demos** are solid **and** C Windows is good enough—not "finish the Go Windows implant first."
-4. **Golden Demo** needs working **LDAP + Kerberoast**. C Kerberoast is currently a **stub** → either demo temporarily on **Go**, or **port C Kerberoast before counting 5/5 on C**.
+1. **Near term:** C owns **Windows** implant surface (AD real; lateral vertical) **in parallel** with Linux reverse SOCKS + post-ex.
+2. **Linux:** **L3 C primary** — grow reverse SOCKS then native creds/persist/privesc enum (not Windows ports).
+3. **"Zig after stack proven":** after control plane + C Windows + C Linux baseline demos—not "finish Go first."
+4. **Golden Demo** needs working **LDAP + Kerberoast** on **Windows C**.
 
 ---
 
@@ -303,9 +305,9 @@ Locked product intent:
 |-------|----------|------|
 | Control plane | **Go** teamserver, operator, AI, listeners | 2026-07-31 |
 | Primary implant | **C (Windows)** | 2026-07-31 |
-| Go implant | **Not product focus** on Windows; **L1 Linux peer**; **archive Go Windows eventually** after C AD+lateral proven | 2026-07-31 |
+| Go implant | **Not product focus**; Linux/Windows **fallback** until archived after C proven | 2026-07-31; Linux demoted 2026-08-09 |
 | C policy | **#1 investment** — real AD + lateral, no placeholder "success" | 2026-07-31 |
-| Linux post-ex | **Full parity ambition** via **L1: thin Go Linux peer** (grow over time) | 2026-07-31 |
+| Linux post-ex | **Full parity ambition** via **L3: C Linux primary** (Sprint L) | **2026-08-09** (was L1 Go) |
 | Zig | **After** C Windows + demos proven; MVP peer only | 2026-07-31 |
 | First vertical | **Lateral**, starting with **WinRM** on C (after C Kerberoast for demo) | 2026-07-31 |
 | Sprint success metric | **Golden Demo 5/5 Auto on C only** (requires real C Kerberoast first) | 2026-07-31 |
@@ -403,17 +405,18 @@ Implement **in order**:
 
 ---
 
-### Sprint 3 — Linux ambition (pick a track)
+### Sprint 3 / Sprint L — Linux ambition (**L3 locked**)
 
-Full Linux parity is **multi-quarter**. Choose one:
+Full Linux parity is **multi-sprint**. Track chosen:
 
 | Track | Near term | Long term |
 |-------|-----------|-----------|
-| **L1 — Thin Go Linux peer** (**locked**) | Package Go implant as Linux-only peer; shell/files/net/SOCKS + grow post-ex | Expand Linux in Go |
-| **L2 — Wait for Zig** | No Linux implant until Zig MVP | Zig on Linux |
-| **L3 — C on Linux** | Not soon | Only if C is forever cross-platform primary |
+| L1 — Thin Go Linux peer | Superseded | — |
+| L2 — Wait for Zig | Not chosen | — |
+| **L3 — C on Linux** (**locked 2026-08-09**) | Baseline peer + reverse SOCKS + native post-ex | C is cross-platform primary |
 
-**Exit Sprint 3:** Written L1/L2/L3 + first shipping milestone.
+**Plan:** `docs/plans/SPRINT_L_C_LINUX.md`  
+**Exit Sprint L baseline:** M4a host+live sign-off + M4c reverse SOCKS.
 
 ---
 
@@ -450,12 +453,13 @@ Sleep mask, ETW/AMSI, inject matrix, malleable C2 — after demos are boring.
 
 ## 15. Immediate next actions (this week)
 
-1. **Port C Kerberoast** (real tickets) + verify C LDAP enum on lab DC (**Sprint 0B**).
-2. **Run Golden Demo 5/5 Auto on a C implant session** only (**Sprint 0C**).
-3. Default Windows builder language toward **c** (docs + `GenerateImplant` default when ready).
+1. **Sprint 0B code:** C Kerberoast is **real** (wire AS-REQ/TGS, hashcat format, no placeholders, operator-facing errors). **Remaining:** lab-verify on GOAD/HTB (`docs/C_IMPLANT_LAB_CHECKLIST.md` §2).
+2. **Run Golden Demo 5/5 Auto on a C implant session** only (**Sprint 0C**) — eng gate, not code.
+3. Default Windows builder language is **c** (empty language → C).
 4. **Do not start Zig.** Do not expand Go Windows modules.
-5. After M0: implement **C WinRM lateral** (Sprint 1B #1).
-6. Plan Go implant as **Linux peer packaging** (L1); schedule Go Windows archive after M2–M3.
+5. After M0 lab gate: **Sprint 1** C lateral vertical — plan: `docs/plans/SPRINT_1_C_LATERAL.md`.
+6. Parallel product: **Sprint B** AD engagement modules — plan: `docs/plans/SPRINT_B_AD.md`.
+7. **Sprint L:** C Linux habit + reverse SOCKS (M4c); schedule Go archive after M2–M3 Windows **and** M4c Linux.
 
 ---
 
@@ -464,7 +468,7 @@ Sleep mask, ETW/AMSI, inject matrix, malleable C2 — after demos are boring.
 | Fork | Decision |
 |------|----------|
 | Golden Demo implant | **C-only after Kerberoast port** |
-| Linux track | **L1 — thin Go Linux peer** |
+| Linux track | **L3 — C Linux primary** (Sprint L) |
 | First C lateral | **WinRM first** |
 | Go Windows long-term | **Archive eventually** (after C AD + lateral proven) |
 
@@ -480,7 +484,7 @@ This section tracks **console AI provider auth**, separate from implant work. Re
 |-----------|--------|
 | API key via `ai setup` (hidden prompt) | Yes |
 | Environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY`, `OLLAMA_API_KEY`, …) | Yes |
-| Multi-provider config in `~/.erebus/llm.yaml` | Yes |
+| Multi-provider config in `~/.ark/llm.yaml` | Yes |
 | Providers | Ollama (local/remote/cloud), Anthropic, OpenAI, **Grok (xAI)**, Gemini, Kimi, Bedrock bearer |
 
 All hosted providers use the **OpenAI-compatible HTTP client** with a **Bearer API key** (except Ollama local dummy key).
@@ -489,7 +493,7 @@ All hosted providers use the **OpenAI-compatible HTTP client** with a **Bearer A
 
 | Item | Notes |
 |------|--------|
-| **OAuth / browser login** for Anthropic, OpenAI, xAI (Grok), etc. | Device-code or redirect flow; per-provider OAuth apps; refresh tokens; secure token store under `~/.erebus/` |
+| **OAuth / browser login** for Anthropic, OpenAI, xAI (Grok), etc. | Device-code or redirect flow; per-provider OAuth apps; refresh tokens; secure token store under `~/.ark/` |
 | Token refresh / expiry handling | Required if OAuth ships |
 | Revoke / re-auth in `ai setup` | UX for expired sessions |
 | Optional multi-account seats per provider | Nice-to-have after single-account OAuth works |

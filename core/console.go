@@ -8,25 +8,25 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
+	pb "github.com/KKingZero/ARK/pkg/pb"
 	"github.com/chzyer/readline"
 )
 
-// Version is the Erebus framework version shown at startup.
+// Version is the ARK framework version shown at startup.
 const Version = "0.1.0"
 
 const banner = `
-888888 88""Yb 888888 88""Yb 88   88 .dP"Y8
-88__   88__dP 88__   88__dP 88   88 Ybo."
-88""   88"Yb  88""   88""Yb Y8   8P o.Y8b
-888888 88  Yb 888888 88oodP YbodP  8bodP
+   db    88""Yb 88  dP
+  dPYb   88__dP 88odP
+ dP__Yb  88"Yb  88"Yb
+dP""""Yb 88  Yb 88  Yb
 
-    Exploitation Framework - Powered by AI
-             by Zypheron Team
+        C2  ·  BY ZYPHERON
+    SPEED · STEALTH · CONTROL
 `
 
-const promptDefault = "erebus › "
-const promptModuleFmt = "erebus (%s) › "
+const promptDefault = "ark › "
+const promptModuleFmt = "ark (%s) › "
 
 type Console struct {
 	currentModule string
@@ -66,7 +66,7 @@ func (c *Console) startInteractive() {
 
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:          c.prompt(),
-		HistoryFile:     erebusHistoryPath(),
+		HistoryFile:     arkHistoryPath(),
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
 	})
@@ -87,7 +87,7 @@ func (c *Console) startInteractive() {
 		}
 		c.handleCommand(input)
 		if commandMayContainSecret(input) {
-			scrubLastHistoryEntry(erebusHistoryPath())
+			scrubLastHistoryEntry(arkHistoryPath())
 		}
 	}
 }
@@ -97,7 +97,7 @@ func (c *Console) startJSON() {
 	emit(c.mode, Response{
 		Status:  "ok",
 		Command: "init",
-		Message: "Erebus console ready",
+		Message: "ARK console ready",
 		Data: map[string]interface{}{
 			"version": Version,
 			"mode":    "json",
@@ -160,7 +160,7 @@ func (c *Console) handleCommand(input string) {
 		emit(c.mode, Response{
 			Status:  "ok",
 			Command: "exit",
-			Message: "\n> Exiting Erebus. Stay in the shadows.\n",
+			Message: "\n> Exiting ARK. Stay in the shadows.\n",
 		})
 		c.running = false
 	default:
@@ -191,12 +191,12 @@ func (c *Console) cmdHelp() {
 		{"workspace <new|list>", "Manage engagements"},
 		{"report generate", "Generate pentest report"},
 		{"clear", "Clear screen"},
-		{"exit", "Exit Erebus"},
+		{"exit", "Exit ARK"},
 	}
 
 	var humanMsg strings.Builder
 	humanMsg.WriteString("\nPrimary workflow:\n")
-	humanMsg.WriteString("  1. erebus serve          Start teamserver + operator session\n")
+	humanMsg.WriteString("  1. ark serve          Start teamserver + operator session\n")
 	humanMsg.WriteString("  2. ai                    Open AI TUI — Plan path, Auto execute\n")
 	humanMsg.WriteString("  3. In Auto: [a]/[d]      Approve/deny high-risk tasks in the TUI\n")
 	humanMsg.WriteString("\nCommands:\n")
@@ -204,7 +204,7 @@ func (c *Console) cmdHelp() {
 		humanMsg.WriteString(fmt.Sprintf("  %-24s%s\n", cmd.Command, cmd.Description))
 	}
 	humanMsg.WriteString("\nOperator REPL (implant tasks):\n")
-	humanMsg.WriteString("  erebus serve / erebus operator — shell, ldap-enum, kerberoast, approve\n")
+	humanMsg.WriteString("  ark serve / ark operator — shell, ldap-enum, kerberoast, approve\n")
 	humanMsg.WriteString("\nNote: Metasploit-style use/run modules are not wired in this console;\n")
 	humanMsg.WriteString("use `ai` (Auto) or the operator REPL for live tasks.\n")
 
@@ -222,7 +222,7 @@ func (c *Console) cmdUse(args []string) {
 	emit(c.mode, Response{
 		Status:  "info",
 		Command: "use",
-		Message: "> Module load is not available in the startup console.\n> Use `ai` (Plan/Auto) or `erebus serve` operator REPL for live tasks.",
+		Message: "> Module load is not available in the startup console.\n> Use `ai` (Plan/Auto) or `ark serve` operator REPL for live tasks.",
 		Data: map[string]interface{}{
 			"status": "unavailable",
 			"args":   args,
@@ -270,7 +270,7 @@ func (c *Console) cmdSessions(args []string) {
 		emit(c.mode, Response{
 			Status:  "info",
 			Command: "sessions",
-			Message: fmt.Sprintf("> Teamserver unavailable (%v)\n> Start with: erebus serve", err),
+			Message: fmt.Sprintf("> Teamserver unavailable (%v)\n> Start with: ark serve", err),
 			Data: map[string]interface{}{
 				"sessions": []interface{}{},
 				"count":    0,
@@ -389,7 +389,7 @@ func (c *Console) cmdOptions() {
 	emit(c.mode, Response{
 		Status:  "info",
 		Command: "options",
-		Message: "> Module options are not available in the startup console.\n> Use `ai` (Auto) or `erebus serve` operator REPL for live tasks.",
+		Message: "> Module options are not available in the startup console.\n> Use `ai` (Auto) or `ark serve` operator REPL for live tasks.",
 		Data: map[string]string{
 			"status": "unavailable",
 		},
@@ -411,7 +411,7 @@ func (c *Console) cmdRun() {
 	emit(c.mode, Response{
 		Status:  "info",
 		Command: "run",
-		Message: "> Module execution is not available in the startup console.\n> Use `ai` (Auto mode) or `erebus serve` operator REPL.",
+		Message: "> Module execution is not available in the startup console.\n> Use `ai` (Auto mode) or `ark serve` operator REPL.",
 		Data: map[string]string{
 			"status": "unavailable",
 		},
@@ -424,7 +424,7 @@ func (c *Console) cmdLoot() {
 		emit(c.mode, Response{
 			Status:  "info",
 			Command: "loot",
-			Message: fmt.Sprintf("> Teamserver unavailable (%v)\n> Start with: erebus serve", err),
+			Message: fmt.Sprintf("> Teamserver unavailable (%v)\n> Start with: ark serve", err),
 			Data: map[string]interface{}{
 				"items": []interface{}{},
 				"count": 0,
@@ -491,6 +491,5 @@ func (c *Console) maybeTeamBanner(addr string) {
 		return
 	}
 	c.teamBanner = true
-	fmt.Fprintf(os.Stderr, "[erebus] connected to teamserver at %s\n", addr)
+	fmt.Fprintf(os.Stderr, "[ark] connected to teamserver at %s\n", addr)
 }
-

@@ -1,13 +1,13 @@
-# Erebus Architecture Decisions & Strategic Direction
+# ARK Architecture Decisions & Strategic Direction
 
 > Living document. Records architectural decisions, rationale, and the strategic roadmap.
-> Last updated: 2026-06-25
+> Last updated: 2026-09-04
 
 ---
 
 ## Mission Statement
 
-Erebus is an AI-driven C2 framework purpose-built for **Active Directory and Cloud security testing**. It is designed for semi-autonomous operation — an AI agent plans and chains attacks, with operator oversight and manual override capability. All module output is machine-parseable (structured JSON) for AI consumption first, human-readable second.
+ARK is an AI-driven C2 framework purpose-built for **Active Directory and Cloud security testing**. It is designed for semi-autonomous operation — an AI agent plans and chains attacks, with operator oversight and manual override capability. All module output is machine-parseable (structured JSON) for AI consumption first, human-readable second.
 
 ---
 
@@ -147,19 +147,19 @@ Phase 3: Cloud Expansion
 
 ---
 
-### IMPLANT-1: Dual-Language Implant — Go Default, C Optional
+### IMPLANT-1: Dual-Language Implant — C Primary, Go Windows Fallback
 
-**Decision:** Teamserver, operator CLI, gRPC API, and listeners remain **Go**. Implants ship in two forms: the default **Go** implant (`implant/`, `cmd/implant/`) and an optional **C** Windows implant (`cimplant/`) for smaller binaries and indirect-syscall evasion.
+**Decision:** Teamserver, operator CLI, gRPC API, and listeners remain **Go**. The **engagement implant is C** (`cimplant/`) on **Windows PE and Linux**. The Go implant (`implant/`, `cmd/implant/`) is a **Windows fallback** for the full module set, DLL, and shellcode. **Go Linux is archived.**
 
 **Rationale:**
-- Go implant is the reference implementation — fastest to extend, cross-platform (Linux/Windows), full module coverage
-- C implant targets Windows-only engagements where PE size, syscall indirection, and non-Go runtime matter
-- Single wire protocol (`c2.proto`) and shared DNS chunking (`pkg/dnstransport/`) keep both implants interoperable with one teamserver
-- `GenerateImplant` gRPC accepts `language: "go"` (default) or `language: "c"`; builder routes to `make implant-c`
+- C owns size, syscall indirection, and the Linux peer; operators should get C unless they need Go-only surfaces
+- Go remains the fastest place to add Windows post-ex modules and non-EXE formats
+- Single wire protocol (`c2.proto`) and shared DNS chunking (`pkg/dnstransport/`) keep both implants on one teamserver
+- `GenerateImplant` empty `language` defaults to **`c`**. `language: "go"` is Windows-only; `language: "go"` + Linux/darwin fails closed
 
-**C implant scope (2026-06):** Beacon loop, HTTPS/DNS transport, HMAC + AES-GCM, 9 compiled-in modules, task handlers for shell/file/process/network/screenshot/keylog/socks/inject/peload. Kerberoast ticket extraction and several lateral primitives remain stubs.
+**C implant scope (2026-09):** Beacon loop, HTTPS/DNS, HMAC + AES-GCM, path-jailed files, shell/process/network. Windows: screenshot/keylog/inject/PE-load, LDAP, Kerberoast/AS-REP (real hashes, lab-verify still open), WinRM (password + PTH), PsExec (password + SCM), WMI, DCOM. Linux: reverse SOCKS, creds/persist/privesc enum. Windows C reverse SOCKS is still a fail-closed stub.
 
-**Toolchain:** llvm-mingw via `scripts/setup_c_toolchain.sh`, or Fedora `mingw64-gcc` + `mingw64-cpp` (provides `cc1`).
+**Toolchain:** llvm-mingw via `scripts/setup_c_toolchain.sh`, or Fedora `mingw64-gcc` + `mingw64-cpp` (provides `cc1`). Linux C: gcc + libcurl + openssl.
 
 ---
 
@@ -205,7 +205,7 @@ Phase 3: Cloud Expansion
 
 ### CRYPTO-1: gRPC Authentication — mTLS with Operator Certificates
 
-**Decision:** Secure the gRPC API with mutual TLS. The Erebus CA auto-generates operator certificates. Token-based auth (API keys) as secondary mechanism for AI agent integration.
+**Decision:** Secure the gRPC API with mutual TLS. The ARK CA auto-generates operator certificates. Token-based auth (API keys) as secondary mechanism for AI agent integration.
 
 **Rationale:**
 - mTLS is the strongest option for remote operator access — no passwords to brute-force
@@ -214,9 +214,9 @@ Phase 3: Cloud Expansion
 - Sliver uses this model successfully
 
 **Implementation:**
-- `erebus operator create <name>` generates a signed client cert + config file
-- gRPC server requires valid client certificate from Erebus CA
-- Optional: API key header for AI agents (validated against stored hashes)
+- `ark certs seats` ensures `operator.pem` + `approver.pem` under `~/.ark/certs/`
+- gRPC server requires a valid client certificate from the ARK CA
+- Dual-control: high-risk `ExecuteTask` must be approved by a different mTLS CN
 - gRPC reflection disabled by default, enabled only with `--debug` flag
 
 ---
@@ -226,8 +226,8 @@ Phase 3: Cloud Expansion
 **Decision:** Implement key negotiation during registration (ephemeral per-session keys), then AES-256-GCM encrypt all subsequent protobuf payloads.
 
 **Rationale:**
-- TLS alone is insufficient because the implant currently skips certificate validation
-- Even after adding TLS pinning, defense-in-depth requires payload encryption
+- TLS pinning (CRYPTO-3) is required; implants fail closed without a CA pin
+- Defense-in-depth still requires payload encryption inside TLS
 - Per-session keys mean compromising one session doesn't decrypt others
 - AES-GCM provides both confidentiality and integrity
 
@@ -242,7 +242,7 @@ Phase 3: Cloud Expansion
 
 ### CRYPTO-3: TLS Certificate Pinning
 
-**Decision:** Pin the Erebus CA certificate in the implant at build time (injected via ldflags or embedded).
+**Decision:** Pin the ARK CA certificate in the implant at build time (injected via ldflags or embedded).
 
 **Rationale:**
 - Eliminates MITM attacks — implant only trusts the specific CA that signed the server cert
@@ -260,7 +260,7 @@ Phase 3: Cloud Expansion
 - OS keyring adds platform-specific complexity
 - Env vars are visible in `/proc` and process listings
 - Passphrase-on-startup is the simplest secure option
-- Unattended mode: passphrase via `EREBUS_PASSPHRASE` env var (documented risk)
+- Unattended mode: passphrase via `ARK_PASSPHRASE` env var (documented risk)
 
 ---
 
@@ -351,10 +351,10 @@ Phase 3: Cloud Expansion
 | # | Issue | Priority |
 |---|---|---|
 | 1 | Browser cred DPAPI decryption placeholder | Medium |
-| 2 | C implant: Kerberoast/AS-REP ticket extraction stubs | Medium |
-| 3 | C implant: lateral PsExec/WinRM/DCOM stubs | Medium |
-| 4 | C implant: TLS pinning incomplete in HTTPS transport | Medium |
-| 5 | Operator CLI lacks `generate --language c` | Low |
+| 2 | C implant: Kerberoast/AS-REP needs live lab verification, but no placeholder hashes | Medium |
+| 3 | C implant: lateral methods are partial; unsupported paths hard-fail explicitly | Medium |
+| 4 | Windows C reverse SOCKS over beacon remains a fail-closed no-op stub | Medium |
+| 5 | Operator CLI generate transport flags require end-to-end coverage | Low |
 | 6 | Inject error handling for VirtualAllocEx failures | Low |
 | 7 | Screenshot handle cleanup order | Low |
 | 8 | WMI shells out to wmic.exe (detected by EDR) | Low |
@@ -381,3 +381,4 @@ Phase 3: Cloud Expansion
 | 2026-03-09 | Phase 2 complete: AD attacks, evasion, infrastructure, operator CLI. 10 code review fixes applied. |
 | 2026-03-10 | Phase 3: Redirector support (#2), Azure-first cloud modules (#7), auto-harvest (#8), shellcode/DLL output (#11). |
 | 2026-06-25 | C implant (`cimplant/`), DNS listener completion, approval gate wiring on `ExecuteTask`, llvm-mingw toolchain, live e2e tests (`server/e2e/`). |
+| 2026-09-04 | IMPLANT-1 updated: C is primary on Windows **and** Linux; Go Linux archived; empty generate language is `c`. CRYPTO-1 cert command is `ark certs seats`. CRYPTO-2 no longer claims skipped TLS validation. |

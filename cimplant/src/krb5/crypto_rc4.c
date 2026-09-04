@@ -5,13 +5,13 @@
 #include <windows.h>
 #include <bcrypt.h>
 
-#include "erebus/krb5_internal.h"
+#include "ark/krb5_internal.h"
 
 /* ---- MD4 (RFC 1320) ---- */
 
 static uint32_t rol(uint32_t x, int n) { return (x << n) | (x >> (32 - n)); }
 
-void erebus_md4(const uint8_t *msg, size_t msg_len, uint8_t out[16]) {
+void ark_md4(const uint8_t *msg, size_t msg_len, uint8_t out[16]) {
     uint32_t a0 = 0x67452301, b0 = 0xEFCDAB89, c0 = 0x98BADCFE, d0 = 0x10325476;
     size_t new_len = msg_len + 1;
     while (new_len % 64 != 56) new_len++;
@@ -68,7 +68,7 @@ void erebus_md4(const uint8_t *msg, size_t msg_len, uint8_t out[16]) {
 }
 
 /* UTF-8 → UTF-16LE (BMP only) then MD4 → NT hash */
-int erebus_nt_hash(const char *password_utf8, uint8_t out[16]) {
+int ark_nt_hash(const char *password_utf8, uint8_t out[16]) {
     if (!password_utf8) return 0;
     size_t n = strlen(password_utf8);
     uint8_t *u16 = (uint8_t *)malloc(n * 2 + 2);
@@ -94,7 +94,7 @@ int erebus_nt_hash(const char *password_utf8, uint8_t out[16]) {
         u16[ulen++] = (uint8_t)(cp & 0xFF);
         u16[ulen++] = (uint8_t)((cp >> 8) & 0xFF);
     }
-    erebus_md4(u16, ulen, out);
+    ark_md4(u16, ulen, out);
     free(u16);
     return 1;
 }
@@ -149,16 +149,16 @@ static void rc4_crypt(rc4_state *st, uint8_t *buf, size_t n) {
     }
 }
 
-int erebus_krb_random(uint8_t *buf, size_t n) {
+int ark_krb_random(uint8_t *buf, size_t n) {
     NTSTATUS st = BCryptGenRandom(NULL, buf, (ULONG)n, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
     return st >= 0;
 }
 
 /* RFC 4757 RC4-HMAC */
-int erebus_rc4_hmac_encrypt(const uint8_t key[16], int32_t usage,
+int ark_rc4_hmac_encrypt(const uint8_t key[16], int32_t usage,
     const uint8_t *plain, size_t plain_len, uint8_t **out, size_t *out_len) {
     uint8_t confounder[8];
-    if (!erebus_krb_random(confounder, 8)) return 0;
+    if (!ark_krb_random(confounder, 8)) return 0;
 
     size_t data_len = 8 + plain_len;
     uint8_t *data = (uint8_t *)malloc(data_len);
@@ -190,7 +190,7 @@ int erebus_rc4_hmac_encrypt(const uint8_t key[16], int32_t usage,
     return 1;
 }
 
-int erebus_rc4_hmac_decrypt(const uint8_t key[16], int32_t usage,
+int ark_rc4_hmac_decrypt(const uint8_t key[16], int32_t usage,
     const uint8_t *cipher, size_t cipher_len, uint8_t **out, size_t *out_len) {
     if (cipher_len < 16 + 8) return 0;
     const uint8_t *checksum = cipher;

@@ -5,12 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "erebus/modules.h"
+#include "ark/modules.h"
 
 #define MOD_CMD_MAX_CAPTURE 65536
 #define MOD_CMD_TIMEOUT_MS  120000
 
-int erebus_mod_run_cmd(const char *cmdline, char **stdout_out, char **stderr_out, int32_t *exit_code) {
+int ark_mod_run_cmd(const char *cmdline, char **stdout_out, char **stderr_out, int32_t *exit_code) {
     SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, TRUE };
     HANDLE rd_out = NULL, wr_out = NULL, rd_err = NULL, wr_err = NULL;
     CreatePipe(&rd_out, &wr_out, &sa, 0);
@@ -103,7 +103,7 @@ int erebus_mod_run_cmd(const char *cmdline, char **stdout_out, char **stderr_out
     DWORD code = 1;
     GetExitCodeProcess(pi.hProcess, &code);
     if (timed_out) {
-        const char *msg = "\r\n[erebus] module command timeout (120s), process killed\r\n";
+        const char *msg = "\r\n[ark] module command timeout (120s), process killed\r\n";
         size_t mlen = strlen(msg);
         if (err_len + mlen < MOD_CMD_MAX_CAPTURE - 1) {
             memcpy(err_buf + err_len, msg, mlen);
@@ -123,7 +123,7 @@ int erebus_mod_run_cmd(const char *cmdline, char **stdout_out, char **stderr_out
     return 1;
 }
 
-uint32_t erebus_mod_find_pid(const char *name) {
+uint32_t ark_mod_find_pid(const char *name) {
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snap == INVALID_HANDLE_VALUE) return 0;
 
@@ -142,7 +142,7 @@ uint32_t erebus_mod_find_pid(const char *name) {
     return 0;
 }
 
-void erebus_mod_domain_to_base_dn(const char *domain, char *out, size_t out_cap) {
+void ark_mod_domain_to_base_dn(const char *domain, char *out, size_t out_cap) {
     char tmp[256];
     strncpy(tmp, domain, sizeof(tmp) - 1);
     tmp[sizeof(tmp) - 1] = '\0';

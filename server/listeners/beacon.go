@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	zcrypto "github.com/KKingZero/erebus-exploit-framwork/pkg/crypto"
-	pb "github.com/KKingZero/erebus-exploit-framwork/pkg/pb"
-	"github.com/KKingZero/erebus-exploit-framwork/server/sessions"
+	zcrypto "github.com/KKingZero/ARK/pkg/crypto"
+	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/sessions"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -80,7 +80,7 @@ func HandleRegister(h *BeaconHandler, reg *pb.Register, protocol, remoteAddr str
 	}
 	if h.ReplayCache != nil {
 		if err := h.ReplayCache.CheckAndRecord(reg.ImplantId, reg.Timestamp); err != nil {
-			log.Printf("[register] replay reject implant=%s: %v", reg.ImplantId, err)
+			log.Printf("[register] replay reject implant=%s: %v (hint: ark op replay-clear %s)", reg.ImplantId, err, reg.ImplantId)
 			return nil, authFail("replay", err.Error())
 		}
 	}
@@ -148,7 +148,7 @@ func HandleBeacon(h *BeaconHandler, beacon *pb.Beacon) (*pb.BeaconResponse, erro
 	}
 	if h.ReplayCache != nil {
 		if err := h.ReplayCache.CheckAndRecord(beacon.ImplantId, beacon.Timestamp); err != nil {
-			log.Printf("[beacon] replay reject implant=%s: %v", beacon.ImplantId, err)
+			log.Printf("[beacon] replay reject implant=%s: %v (hint: ark op replay-clear %s)", beacon.ImplantId, err, beacon.ImplantId)
 			return nil, authFail("replay", err.Error())
 		}
 	}

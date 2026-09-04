@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/KKingZero/erebus-exploit-framwork/pkg/ldapcli"
+	"github.com/KKingZero/ARK/pkg/ldapcli"
 )
 
 // samrSetPassword uses Samba `net rpc password` (what worked on DanglingTree
@@ -19,7 +19,7 @@ func samrSetPassword(opts ldapcli.Options, target, newPass string) error {
 	if opts.Username == "" || opts.Password == "" {
 		return fmt.Errorf("SAMR fallback needs --user and password (not hash)")
 	}
-	dir, err := os.MkdirTemp("", "erebus-samr-")
+	dir, err := os.MkdirTemp("", "ark-samr-")
 	if err != nil {
 		return err
 	}
