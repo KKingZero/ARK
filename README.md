@@ -1,7 +1,7 @@
 # ARK
 
 <p align="center">
-  <img src="docs/brand/ark-identity.png" alt="ARK C2 by Zypheron" width="720">
+  <img src="docs/brand/ark-lockup.png" alt="ARK C2 by Zypheron — Speed · Stealth · Control" width="880">
 </p>
 
 **ARK C2 by Zypheron** — Speed · Stealth · Control
