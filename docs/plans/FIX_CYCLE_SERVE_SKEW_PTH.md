@@ -2,7 +2,7 @@
 
 **Scope:** `ark serve` stdin close → clock skew handling → WinRM PTH parity vs pypsrp  
 **Solo. Re-test gate: same 9-box HTB corpus + c-linux-peer.**  
-**Baseline:** `reports/ARK_HTB_CORPUS_SCORECARD.md`  
+**Baseline:** `docs/private/reports/ARK_HTB_CORPUS_SCORECARD.md`  
 **Rule:** no new modules, no ADCS/Kerberos, no RBCD/DCSync, no inbound-C2-by-default, no “while I’m in here.”
 
 Sequencing is the original cycle. Adjustments are OPSEC/speed and acceptance tests only. Inbound C2 stays the **next** sprint.

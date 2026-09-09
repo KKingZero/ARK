@@ -141,10 +141,10 @@ func TestForACLVerbs(t *testing.T) {
 		},
 	})
 	joined := strings.Join(actions, "\n")
-	if !strings.Contains(joined, "ad password --target jake.h") {
+	if !strings.Contains(joined, "host_ad_password --target jake.h") {
 		t.Fatalf("want password verb: %v", actions)
 	}
-	if !strings.Contains(joined, "rbcd write --to DC$") {
+	if !strings.Contains(joined, "host_rbcd_write --to DC$") {
 		t.Fatalf("want rbcd verb: %v", actions)
 	}
 	if strings.Contains(joined, "BloodHound") || strings.Contains(joined, "review ") {

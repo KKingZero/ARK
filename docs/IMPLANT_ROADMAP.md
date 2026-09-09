@@ -1,7 +1,7 @@
 # ARK Implant Roadmap
 
 **Status:** v0.1.0 lab / research  
-**Last updated:** 2026-09-04 (docs pass: C primary both OS; Go Linux archived; host ADCS/RBCD/shadow; PKINIT still incomplete)  
+**Last updated:** 2026-09-09 (native PKINIT UnPAC in `pkg/krb`; C primary both OS; Go Linux archived)  
 **Audience:** maintainers planning the next implant sprint(s)
 
 This document inventories **what the implant can do today**, **what is left**, and **how a possible Zig implant branch fits**. It does not authorize use against unauthorized targets — authorized labs and engagements only.
@@ -57,7 +57,7 @@ All implants should eventually honor the same task enum. Current coverage:
 | `TASK_KEYLOG_*` | Windows | Windows | Stub on non-Windows Go |
 | `TASK_INJECT` | Windows | Windows | Method matrix incomplete |
 | `TASK_PE_LOAD` / `PE_LOAD_EXEC` | Windows | Windows | Stub on non-Windows Go |
-| `TASK_SOCKS_START` / `STOP` | Yes | Linux yes; Windows stub | Windows C `socks_api_stub.c` fail-closed |
+| `TASK_SOCKS_START` / `STOP` | Yes | Yes | Reverse agent both OS; teamserver is the SOCKS5 hub |
 | `TASK_EXIT` / sleep handling | Yes | Yes | Sleep updates via server/checkin |
 | `TASK_MODULE` | Yes | Yes | Dispatches to module registry |
 | `TASK_LDAP_ENUM` | Yes | Partial | C: basic LDAP |
@@ -135,7 +135,7 @@ Many modules have `_stub.go` (`//go:build !windows`) and return clear “not sup
 
 - Beacon, HTTPS + DNS, HMAC + AES-GCM  
 - Shell, file (+ path jail), process, network  
-- Screenshot, keylog, SOCKS, inject, PE load  
+- Screenshot, keylog, reverse SOCKS over beacon, inject, PE load; Windows EXE/DLL/shellcode  
 - Modules: shell, LDAP (basic), cloud, creds (partial), persist/privesc (partial)  
 - Lateral **WMI** + WinRM password (WSMan); Kerberoast wire (RC4 MVP)  
 - Indirect syscall scaffolding  
@@ -148,7 +148,7 @@ Many modules have `_stub.go` (`//go:build !windows`) and return clear “not sup
 - Windows post-ex / AD / lateral hard-fail with explicit strings  
 - Reverse SOCKS is Linux-native; screenshot/keylog/inject/PE-load remain explicit unsupported tasks  
 - Host unit tests: path jail, pb-copy, kerberoast-pb, ntlm-parse; smoke: `scripts/c_linux_e2e_smoke.sh`  
-- Sign-off: `reports/htb-c-linux-peer/SIGN_OFF.md` · plan: `docs/plans/SPRINT_L_C_LINUX.md`  
+- Sign-off: `docs/private/reports/htb-c-linux-peer/SIGN_OFF.md` · plan: `docs/plans/SPRINT_L_C_LINUX.md`  
 
 ---
 
@@ -165,11 +165,11 @@ Many modules have `_stub.go` (`//go:build !windows`) and return clear “not sup
 | C5 | **Lateral DCOM** | MMC20 ExecuteShellCommand (password) |
 | C6 | **TLS pinning** | **Makefile/builder PEM→DER b64**; empty CA fail-closed at build + runtime |
 | C7 | **Module depth** | Linux: unsupported modules return explicit error strings |
-| C8 | **Output formats** | PE EXE only (no shellcode/DLL pipeline) |
+| C8 | **Output formats** | Windows PE EXE + DLL + shellcode (`PE2Shellcode`); Linux EXE only |
 | C9 | **Tests** | Host: pathjail, pb-copy, kerberoast-pb, **ntlm-parse**; no Windows integration CI |
 | C10 | **Beacon timestamps** | **Unix ms** (was seconds → same-second replay on SLEEP_MS=500) |
 | C11 | **Auth observability** | Server logs `unknown_implant|hmac|skew|replay` on drop; wire still 404 |
-| C12 | **Linux drop UX** | Tunnel + smoke scripts done; reverse SOCKS → Sprint L M4c (`SPRINT_L_C_LINUX.md`) |
+| C12 | **Linux drop UX** | Tunnel + smoke scripts done; reverse SOCKS coded (live HTB optional) |
 
 ### Policy (locked)
 
@@ -282,7 +282,7 @@ Locked product intent:
 |-----|------|
 | [README.md](../README.md) | Public v0.1 status |
 | [SECURITY.md](../SECURITY.md) | Authorized use + vuln reporting |
-| [ARCHITECTURE_DECISIONS.md](../ARCHITECTURE_DECISIONS.md) | Historical design decisions |
+| [ARCHITECTURE_DECISIONS.md](private/ARCHITECTURE_DECISIONS.md) | Historical design decisions |
 | [GOLDEN_DEMO.md](GOLDEN_DEMO.md) | Lab demo script (sprint success metric) |
 | [HTB_NEXT_RUNBOOK.md](HTB_NEXT_RUNBOOK.md) | Engagement runbook |
 
@@ -345,7 +345,7 @@ Order: **0B (C Kerberoast + LDAP)** → **0C (5× Auto on C session)**.
 |------|------------|
 | Lab checklist filled | Domain, DC, listener, LLM |
 | Dual-control approvals | LDAP/Kerberoast approvable |
-| 5 consecutive runs logged | Table in `reports/` or runbook appendix |
+| 5 consecutive runs logged | Table in `docs/private/reports/` or runbook appendix |
 | Failures captured | Error text saved |
 
 **Exit Sprint 0:** metric green, or written "deferred until C Kerberoast."

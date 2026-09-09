@@ -91,3 +91,15 @@ func TestBuild_GoRejectsCDNDomain(t *testing.T) {
 		t.Fatalf("expected CDNDomain error, got: %v", err)
 	}
 }
+
+func TestBuildC_LinuxDLLRejected(t *testing.T) {
+	_, err := BuildC(&BuildRequest{
+		Language: "c",
+		OS:       "linux",
+		Arch:     "amd64",
+		Format:   FormatDLL,
+	})
+	if err == nil || !strings.Contains(err.Error(), "exe") {
+		t.Fatalf("want linux C dll rejected, got %v", err)
+	}
+}

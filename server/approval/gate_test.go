@@ -8,6 +8,82 @@ import (
 	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
+func TestRequestHostApprovalApprove(t *testing.T) {
+	g := NewGate(nil)
+	done := make(chan bool, 1)
+	go func() {
+		ok, err := g.RequestHostApproval(context.Background(), "host_rbcd_write", "to DC$", "critical", "requester-a")
+		if err != nil {
+			t.Errorf("request: %v", err)
+			done <- false
+			return
+		}
+		done <- ok
+	}()
+	time.Sleep(50 * time.Millisecond)
+	if !g.HasPendingHost() {
+		t.Fatal("expected pending host write")
+	}
+	pending := g.ListPending()
+	if len(pending) != 1 || pending[0].SessionId != HostSessionID {
+		t.Fatalf("pending=%v", pending)
+	}
+	if err := g.Approve(pending[0].Id, "approver-b"); err != nil {
+		t.Fatal(err)
+	}
+	if !<-done {
+		t.Fatal("expected approval")
+	}
+}
+
+func TestRequestHostApprovalSerial(t *testing.T) {
+	g := NewGate(nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		_, _ = g.RequestHostApproval(ctx, "host_ad_password", "jake.h", "critical", "requester-a")
+	}()
+	time.Sleep(50 * time.Millisecond)
+	_, err := g.RequestHostApproval(context.Background(), "host_rbcd_write", "DC$", "critical", "requester-a")
+	if err == nil {
+		t.Fatal("second host write should fail while first is pending")
+	}
+}
+
+func TestRequestHostApprovalUnknownOp(t *testing.T) {
+	g := NewGate(nil)
+	_, err := g.RequestHostApproval(context.Background(), "not_a_verb", "x", "low", "requester-a")
+	if err == nil {
+		t.Fatal("expected unknown host op")
+	}
+}
+
+func TestRequestHostApprovalIgnoresClientRisk(t *testing.T) {
+	g := NewGate(nil)
+	done := make(chan string, 1)
+	go func() {
+		_, err := g.RequestHostApproval(context.Background(), "host_rbcd_write", "to DC$ from ATTACK$", "low", "requester-a")
+		if err != nil {
+			done <- err.Error()
+			return
+		}
+		done <- "ok"
+	}()
+	time.Sleep(50 * time.Millisecond)
+	pending := g.ListPending()
+	if len(pending) != 1 {
+		t.Fatalf("pending=%v", pending)
+	}
+	if pending[0].RiskLevel != "critical" {
+		t.Fatalf("risk %q (client said low)", pending[0].RiskLevel)
+	}
+	if pending[0].TaskDescription != "host_rbcd_write: to DC$ from ATTACK$" {
+		t.Fatalf("desc %q", pending[0].TaskDescription)
+	}
+	_ = g.Approve(pending[0].Id, "approver-b")
+	<-done
+}
+
 func TestRequestApprovalApprove(t *testing.T) {
 	g := NewGate(nil)
 	done := make(chan bool, 1)

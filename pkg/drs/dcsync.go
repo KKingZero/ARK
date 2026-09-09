@@ -40,8 +40,13 @@ func ReplicateObject(s *smbcli.Session, dn string) (Result, error) {
 	if len(key) == 0 {
 		return out, fmt.Errorf("dcsync needs a Kerberos SMB session key (ark kerberos asktgt, then --ticket)")
 	}
+	pipe, err := s.OpenPipe("drsuapi")
+	if err != nil {
+		return out, err
+	}
+	defer pipe.Close()
 	bind := dcerpcBind(1, drsUUID, drsVersion)
-	ack, err := s.PipeTransceive("drsuapi", bind)
+	ack, err := pipe.Transceive(bind)
 	if err != nil {
 		return out, fmt.Errorf("drsuapi bind: %w", err)
 	}
@@ -49,7 +54,7 @@ func ReplicateObject(s *smbcli.Session, dn string) (Result, error) {
 		return out, fmt.Errorf("drsuapi bind ack type=%d", bAt(ack, 2))
 	}
 	req := encodeGetNCChanges(2, dn)
-	resp, err := s.PipeTransceive("drsuapi", req)
+	resp, err := pipe.Transceive(req)
 	if err != nil {
 		return out, fmt.Errorf("DsGetNCChanges: %w", err)
 	}

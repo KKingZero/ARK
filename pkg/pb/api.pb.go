@@ -1423,6 +1423,118 @@ func (x *ListPendingApprovalsResponse) GetApprovals() []*ApprovalRequest {
 	return nil
 }
 
+type HostApprovalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OpName        string                 `protobuf:"bytes,1,opt,name=op_name,json=opName,proto3" json:"op_name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	RiskLevel     string                 `protobuf:"bytes,3,opt,name=risk_level,json=riskLevel,proto3" json:"risk_level,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HostApprovalRequest) Reset() {
+	*x = HostApprovalRequest{}
+	mi := &file_api_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HostApprovalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostApprovalRequest) ProtoMessage() {}
+
+func (x *HostApprovalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostApprovalRequest.ProtoReflect.Descriptor instead.
+func (*HostApprovalRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *HostApprovalRequest) GetOpName() string {
+	if x != nil {
+		return x.OpName
+	}
+	return ""
+}
+
+func (x *HostApprovalRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *HostApprovalRequest) GetRiskLevel() string {
+	if x != nil {
+		return x.RiskLevel
+	}
+	return ""
+}
+
+type HostApprovalResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Approved      bool                   `protobuf:"varint,1,opt,name=approved,proto3" json:"approved,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HostApprovalResponse) Reset() {
+	*x = HostApprovalResponse{}
+	mi := &file_api_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HostApprovalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostApprovalResponse) ProtoMessage() {}
+
+func (x *HostApprovalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostApprovalResponse.ProtoReflect.Descriptor instead.
+func (*HostApprovalResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *HostApprovalResponse) GetApproved() bool {
+	if x != nil {
+		return x.Approved
+	}
+	return false
+}
+
+func (x *HostApprovalResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 type Event struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Type          EventType              `protobuf:"varint,1,opt,name=type,proto3,enum=erebus.c2.EventType" json:"type,omitempty"`
@@ -1437,7 +1549,7 @@ type Event struct {
 
 func (x *Event) Reset() {
 	*x = Event{}
-	mi := &file_api_proto_msgTypes[26]
+	mi := &file_api_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1449,7 +1561,7 @@ func (x *Event) String() string {
 func (*Event) ProtoMessage() {}
 
 func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[26]
+	mi := &file_api_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1462,7 +1574,7 @@ func (x *Event) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Event.ProtoReflect.Descriptor instead.
 func (*Event) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{26}
+	return file_api_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *Event) GetType() EventType {
@@ -1515,7 +1627,7 @@ type SubscribeRequest struct {
 
 func (x *SubscribeRequest) Reset() {
 	*x = SubscribeRequest{}
-	mi := &file_api_proto_msgTypes[27]
+	mi := &file_api_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1527,7 +1639,7 @@ func (x *SubscribeRequest) String() string {
 func (*SubscribeRequest) ProtoMessage() {}
 
 func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[27]
+	mi := &file_api_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1540,7 +1652,7 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{27}
+	return file_api_proto_rawDescGZIP(), []int{29}
 }
 
 type GenerateImplantRequest struct {
@@ -1563,7 +1675,7 @@ type GenerateImplantRequest struct {
 
 func (x *GenerateImplantRequest) Reset() {
 	*x = GenerateImplantRequest{}
-	mi := &file_api_proto_msgTypes[28]
+	mi := &file_api_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1575,7 +1687,7 @@ func (x *GenerateImplantRequest) String() string {
 func (*GenerateImplantRequest) ProtoMessage() {}
 
 func (x *GenerateImplantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[28]
+	mi := &file_api_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1588,7 +1700,7 @@ func (x *GenerateImplantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateImplantRequest.ProtoReflect.Descriptor instead.
 func (*GenerateImplantRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{28}
+	return file_api_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GenerateImplantRequest) GetOs() string {
@@ -1689,7 +1801,7 @@ type GenerateImplantResponse struct {
 
 func (x *GenerateImplantResponse) Reset() {
 	*x = GenerateImplantResponse{}
-	mi := &file_api_proto_msgTypes[29]
+	mi := &file_api_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1701,7 +1813,7 @@ func (x *GenerateImplantResponse) String() string {
 func (*GenerateImplantResponse) ProtoMessage() {}
 
 func (x *GenerateImplantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[29]
+	mi := &file_api_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1714,7 +1826,7 @@ func (x *GenerateImplantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateImplantResponse.ProtoReflect.Descriptor instead.
 func (*GenerateImplantResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{29}
+	return file_api_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GenerateImplantResponse) GetSuccess() bool {
@@ -1771,7 +1883,7 @@ type RegisterImplantSecretRequest struct {
 
 func (x *RegisterImplantSecretRequest) Reset() {
 	*x = RegisterImplantSecretRequest{}
-	mi := &file_api_proto_msgTypes[30]
+	mi := &file_api_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1783,7 +1895,7 @@ func (x *RegisterImplantSecretRequest) String() string {
 func (*RegisterImplantSecretRequest) ProtoMessage() {}
 
 func (x *RegisterImplantSecretRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[30]
+	mi := &file_api_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1796,7 +1908,7 @@ func (x *RegisterImplantSecretRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterImplantSecretRequest.ProtoReflect.Descriptor instead.
 func (*RegisterImplantSecretRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{30}
+	return file_api_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *RegisterImplantSecretRequest) GetImplantId() string {
@@ -1830,7 +1942,7 @@ type RegisterImplantSecretResponse struct {
 
 func (x *RegisterImplantSecretResponse) Reset() {
 	*x = RegisterImplantSecretResponse{}
-	mi := &file_api_proto_msgTypes[31]
+	mi := &file_api_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1842,7 +1954,7 @@ func (x *RegisterImplantSecretResponse) String() string {
 func (*RegisterImplantSecretResponse) ProtoMessage() {}
 
 func (x *RegisterImplantSecretResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[31]
+	mi := &file_api_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1855,7 +1967,7 @@ func (x *RegisterImplantSecretResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterImplantSecretResponse.ProtoReflect.Descriptor instead.
 func (*RegisterImplantSecretResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{31}
+	return file_api_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *RegisterImplantSecretResponse) GetSuccess() bool {
@@ -1881,7 +1993,7 @@ type ClearReplayRequest struct {
 
 func (x *ClearReplayRequest) Reset() {
 	*x = ClearReplayRequest{}
-	mi := &file_api_proto_msgTypes[32]
+	mi := &file_api_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1893,7 +2005,7 @@ func (x *ClearReplayRequest) String() string {
 func (*ClearReplayRequest) ProtoMessage() {}
 
 func (x *ClearReplayRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[32]
+	mi := &file_api_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1906,7 +2018,7 @@ func (x *ClearReplayRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearReplayRequest.ProtoReflect.Descriptor instead.
 func (*ClearReplayRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{32}
+	return file_api_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ClearReplayRequest) GetImplantId() string {
@@ -1927,7 +2039,7 @@ type ClearReplayResponse struct {
 
 func (x *ClearReplayResponse) Reset() {
 	*x = ClearReplayResponse{}
-	mi := &file_api_proto_msgTypes[33]
+	mi := &file_api_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1939,7 +2051,7 @@ func (x *ClearReplayResponse) String() string {
 func (*ClearReplayResponse) ProtoMessage() {}
 
 func (x *ClearReplayResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[33]
+	mi := &file_api_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1952,7 +2064,7 @@ func (x *ClearReplayResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearReplayResponse.ProtoReflect.Descriptor instead.
 func (*ClearReplayResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{33}
+	return file_api_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ClearReplayResponse) GetSuccess() bool {
@@ -1990,7 +2102,7 @@ type LootItem struct {
 
 func (x *LootItem) Reset() {
 	*x = LootItem{}
-	mi := &file_api_proto_msgTypes[34]
+	mi := &file_api_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2002,7 +2114,7 @@ func (x *LootItem) String() string {
 func (*LootItem) ProtoMessage() {}
 
 func (x *LootItem) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[34]
+	mi := &file_api_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2015,7 +2127,7 @@ func (x *LootItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LootItem.ProtoReflect.Descriptor instead.
 func (*LootItem) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{34}
+	return file_api_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *LootItem) GetId() string {
@@ -2069,7 +2181,7 @@ type ListLootRequest struct {
 
 func (x *ListLootRequest) Reset() {
 	*x = ListLootRequest{}
-	mi := &file_api_proto_msgTypes[35]
+	mi := &file_api_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2081,7 +2193,7 @@ func (x *ListLootRequest) String() string {
 func (*ListLootRequest) ProtoMessage() {}
 
 func (x *ListLootRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[35]
+	mi := &file_api_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2094,7 +2206,7 @@ func (x *ListLootRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLootRequest.ProtoReflect.Descriptor instead.
 func (*ListLootRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{35}
+	return file_api_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ListLootRequest) GetSessionId() string {
@@ -2113,7 +2225,7 @@ type ListLootResponse struct {
 
 func (x *ListLootResponse) Reset() {
 	*x = ListLootResponse{}
-	mi := &file_api_proto_msgTypes[36]
+	mi := &file_api_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2125,7 +2237,7 @@ func (x *ListLootResponse) String() string {
 func (*ListLootResponse) ProtoMessage() {}
 
 func (x *ListLootResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[36]
+	mi := &file_api_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2138,7 +2250,7 @@ func (x *ListLootResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLootResponse.ProtoReflect.Descriptor instead.
 func (*ListLootResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{36}
+	return file_api_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ListLootResponse) GetItems() []*LootItem {
@@ -2157,7 +2269,7 @@ type GetLootRequest struct {
 
 func (x *GetLootRequest) Reset() {
 	*x = GetLootRequest{}
-	mi := &file_api_proto_msgTypes[37]
+	mi := &file_api_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2169,7 +2281,7 @@ func (x *GetLootRequest) String() string {
 func (*GetLootRequest) ProtoMessage() {}
 
 func (x *GetLootRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[37]
+	mi := &file_api_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2182,7 +2294,7 @@ func (x *GetLootRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLootRequest.ProtoReflect.Descriptor instead.
 func (*GetLootRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{37}
+	return file_api_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *GetLootRequest) GetId() string {
@@ -2201,7 +2313,7 @@ type GetLootResponse struct {
 
 func (x *GetLootResponse) Reset() {
 	*x = GetLootResponse{}
-	mi := &file_api_proto_msgTypes[38]
+	mi := &file_api_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2213,7 +2325,7 @@ func (x *GetLootResponse) String() string {
 func (*GetLootResponse) ProtoMessage() {}
 
 func (x *GetLootResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_msgTypes[38]
+	mi := &file_api_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2226,7 +2338,7 @@ func (x *GetLootResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLootResponse.ProtoReflect.Descriptor instead.
 func (*GetLootResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_rawDescGZIP(), []int{38}
+	return file_api_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *GetLootResponse) GetItem() *LootItem {
@@ -2330,7 +2442,15 @@ const file_api_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x1d\n" +
 	"\x1bListPendingApprovalsRequest\"X\n" +
 	"\x1cListPendingApprovalsResponse\x128\n" +
-	"\tapprovals\x18\x01 \x03(\v2\x1a.erebus.c2.ApprovalRequestR\tapprovals\"\xb5\x01\n" +
+	"\tapprovals\x18\x01 \x03(\v2\x1a.erebus.c2.ApprovalRequestR\tapprovals\"o\n" +
+	"\x13HostApprovalRequest\x12\x17\n" +
+	"\aop_name\x18\x01 \x01(\tR\x06opName\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1d\n" +
+	"\n" +
+	"risk_level\x18\x03 \x01(\tR\triskLevel\"H\n" +
+	"\x14HostApprovalResponse\x12\x1a\n" +
+	"\bapproved\x18\x01 \x01(\bR\bapproved\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"\xb5\x01\n" +
 	"\x05Event\x12(\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x14.erebus.c2.EventTypeR\x04type\x12\x1c\n" +
 	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x12\x1d\n" +
@@ -2405,7 +2525,7 @@ const file_api_proto_rawDesc = "" +
 	"\x12EVENT_SESSION_LOST\x10\x02\x12\x15\n" +
 	"\x11EVENT_TASK_RESULT\x10\x03\x12\r\n" +
 	"\tEVENT_LOG\x10\x04\x12\x1b\n" +
-	"\x17EVENT_APPROVAL_REQUIRED\x10\x052\x94\v\n" +
+	"\x17EVENT_APPROVAL_REQUIRED\x10\x052\xec\v\n" +
 	"\bErebusC2\x12R\n" +
 	"\rStartListener\x12\x1f.erebus.c2.StartListenerRequest\x1a .erebus.c2.StartListenerResponse\x12O\n" +
 	"\fStopListener\x12\x1e.erebus.c2.StopListenerRequest\x1a\x1f.erebus.c2.StopListenerResponse\x12R\n" +
@@ -2425,7 +2545,8 @@ const file_api_proto_rawDesc = "" +
 	"\aGetLoot\x12\x19.erebus.c2.GetLootRequest\x1a\x1a.erebus.c2.GetLootResponse\x12g\n" +
 	"\x14ListPendingApprovals\x12&.erebus.c2.ListPendingApprovalsRequest\x1a'.erebus.c2.ListPendingApprovalsResponse\x12@\n" +
 	"\aApprove\x12\x19.erebus.c2.ApproveRequest\x1a\x1a.erebus.c2.ApproveResponse\x127\n" +
-	"\x04Deny\x12\x16.erebus.c2.DenyRequest\x1a\x17.erebus.c2.DenyResponseB!Z\x1fgithub.com/KKingZero/ARK/pkg/pbb\x06proto3"
+	"\x04Deny\x12\x16.erebus.c2.DenyRequest\x1a\x17.erebus.c2.DenyResponse\x12V\n" +
+	"\x13RequestHostApproval\x12\x1e.erebus.c2.HostApprovalRequest\x1a\x1f.erebus.c2.HostApprovalResponseB!Z\x1fgithub.com/KKingZero/ARK/pkg/pbb\x06proto3"
 
 var (
 	file_api_proto_rawDescOnce sync.Once
@@ -2440,7 +2561,7 @@ func file_api_proto_rawDescGZIP() []byte {
 }
 
 var file_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_api_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_api_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_api_proto_goTypes = []any{
 	(EventType)(0),                        // 0: erebus.c2.EventType
 	(*SessionInfo)(nil),                   // 1: erebus.c2.SessionInfo
@@ -2469,40 +2590,42 @@ var file_api_proto_goTypes = []any{
 	(*DenyResponse)(nil),                  // 24: erebus.c2.DenyResponse
 	(*ListPendingApprovalsRequest)(nil),   // 25: erebus.c2.ListPendingApprovalsRequest
 	(*ListPendingApprovalsResponse)(nil),  // 26: erebus.c2.ListPendingApprovalsResponse
-	(*Event)(nil),                         // 27: erebus.c2.Event
-	(*SubscribeRequest)(nil),              // 28: erebus.c2.SubscribeRequest
-	(*GenerateImplantRequest)(nil),        // 29: erebus.c2.GenerateImplantRequest
-	(*GenerateImplantResponse)(nil),       // 30: erebus.c2.GenerateImplantResponse
-	(*RegisterImplantSecretRequest)(nil),  // 31: erebus.c2.RegisterImplantSecretRequest
-	(*RegisterImplantSecretResponse)(nil), // 32: erebus.c2.RegisterImplantSecretResponse
-	(*ClearReplayRequest)(nil),            // 33: erebus.c2.ClearReplayRequest
-	(*ClearReplayResponse)(nil),           // 34: erebus.c2.ClearReplayResponse
-	(*LootItem)(nil),                      // 35: erebus.c2.LootItem
-	(*ListLootRequest)(nil),               // 36: erebus.c2.ListLootRequest
-	(*ListLootResponse)(nil),              // 37: erebus.c2.ListLootResponse
-	(*GetLootRequest)(nil),                // 38: erebus.c2.GetLootRequest
-	(*GetLootResponse)(nil),               // 39: erebus.c2.GetLootResponse
-	(*ListenerConfig)(nil),                // 40: erebus.c2.ListenerConfig
-	(*ListenerStatus)(nil),                // 41: erebus.c2.ListenerStatus
-	(TaskType)(0),                         // 42: erebus.c2.TaskType
-	(*TaskResult)(nil),                    // 43: erebus.c2.TaskResult
-	(*Task)(nil),                          // 44: erebus.c2.Task
+	(*HostApprovalRequest)(nil),           // 27: erebus.c2.HostApprovalRequest
+	(*HostApprovalResponse)(nil),          // 28: erebus.c2.HostApprovalResponse
+	(*Event)(nil),                         // 29: erebus.c2.Event
+	(*SubscribeRequest)(nil),              // 30: erebus.c2.SubscribeRequest
+	(*GenerateImplantRequest)(nil),        // 31: erebus.c2.GenerateImplantRequest
+	(*GenerateImplantResponse)(nil),       // 32: erebus.c2.GenerateImplantResponse
+	(*RegisterImplantSecretRequest)(nil),  // 33: erebus.c2.RegisterImplantSecretRequest
+	(*RegisterImplantSecretResponse)(nil), // 34: erebus.c2.RegisterImplantSecretResponse
+	(*ClearReplayRequest)(nil),            // 35: erebus.c2.ClearReplayRequest
+	(*ClearReplayResponse)(nil),           // 36: erebus.c2.ClearReplayResponse
+	(*LootItem)(nil),                      // 37: erebus.c2.LootItem
+	(*ListLootRequest)(nil),               // 38: erebus.c2.ListLootRequest
+	(*ListLootResponse)(nil),              // 39: erebus.c2.ListLootResponse
+	(*GetLootRequest)(nil),                // 40: erebus.c2.GetLootRequest
+	(*GetLootResponse)(nil),               // 41: erebus.c2.GetLootResponse
+	(*ListenerConfig)(nil),                // 42: erebus.c2.ListenerConfig
+	(*ListenerStatus)(nil),                // 43: erebus.c2.ListenerStatus
+	(TaskType)(0),                         // 44: erebus.c2.TaskType
+	(*TaskResult)(nil),                    // 45: erebus.c2.TaskResult
+	(*Task)(nil),                          // 46: erebus.c2.Task
 }
 var file_api_proto_depIdxs = []int32{
-	40, // 0: erebus.c2.StartListenerRequest.config:type_name -> erebus.c2.ListenerConfig
-	41, // 1: erebus.c2.StartListenerResponse.status:type_name -> erebus.c2.ListenerStatus
-	41, // 2: erebus.c2.ListListenersResponse.listeners:type_name -> erebus.c2.ListenerStatus
+	42, // 0: erebus.c2.StartListenerRequest.config:type_name -> erebus.c2.ListenerConfig
+	43, // 1: erebus.c2.StartListenerResponse.status:type_name -> erebus.c2.ListenerStatus
+	43, // 2: erebus.c2.ListListenersResponse.listeners:type_name -> erebus.c2.ListenerStatus
 	1,  // 3: erebus.c2.ListSessionsResponse.sessions:type_name -> erebus.c2.SessionInfo
 	1,  // 4: erebus.c2.GetSessionResponse.session:type_name -> erebus.c2.SessionInfo
-	42, // 5: erebus.c2.ExecuteTaskRequest.task_type:type_name -> erebus.c2.TaskType
-	43, // 6: erebus.c2.ExecuteTaskResponse.result:type_name -> erebus.c2.TaskResult
-	43, // 7: erebus.c2.GetTaskResultResponse.result:type_name -> erebus.c2.TaskResult
-	44, // 8: erebus.c2.ListTasksResponse.tasks:type_name -> erebus.c2.Task
-	42, // 9: erebus.c2.ApprovalRequest.task_type:type_name -> erebus.c2.TaskType
+	44, // 5: erebus.c2.ExecuteTaskRequest.task_type:type_name -> erebus.c2.TaskType
+	45, // 6: erebus.c2.ExecuteTaskResponse.result:type_name -> erebus.c2.TaskResult
+	45, // 7: erebus.c2.GetTaskResultResponse.result:type_name -> erebus.c2.TaskResult
+	46, // 8: erebus.c2.ListTasksResponse.tasks:type_name -> erebus.c2.Task
+	44, // 9: erebus.c2.ApprovalRequest.task_type:type_name -> erebus.c2.TaskType
 	20, // 10: erebus.c2.ListPendingApprovalsResponse.approvals:type_name -> erebus.c2.ApprovalRequest
 	0,  // 11: erebus.c2.Event.type:type_name -> erebus.c2.EventType
-	35, // 12: erebus.c2.ListLootResponse.items:type_name -> erebus.c2.LootItem
-	35, // 13: erebus.c2.GetLootResponse.item:type_name -> erebus.c2.LootItem
+	37, // 12: erebus.c2.ListLootResponse.items:type_name -> erebus.c2.LootItem
+	37, // 13: erebus.c2.GetLootResponse.item:type_name -> erebus.c2.LootItem
 	2,  // 14: erebus.c2.ErebusC2.StartListener:input_type -> erebus.c2.StartListenerRequest
 	4,  // 15: erebus.c2.ErebusC2.StopListener:input_type -> erebus.c2.StopListenerRequest
 	6,  // 16: erebus.c2.ErebusC2.ListListeners:input_type -> erebus.c2.ListListenersRequest
@@ -2512,35 +2635,37 @@ var file_api_proto_depIdxs = []int32{
 	14, // 20: erebus.c2.ErebusC2.ExecuteTask:input_type -> erebus.c2.ExecuteTaskRequest
 	16, // 21: erebus.c2.ErebusC2.GetTaskResult:input_type -> erebus.c2.GetTaskResultRequest
 	18, // 22: erebus.c2.ErebusC2.ListTasks:input_type -> erebus.c2.ListTasksRequest
-	28, // 23: erebus.c2.ErebusC2.Subscribe:input_type -> erebus.c2.SubscribeRequest
-	29, // 24: erebus.c2.ErebusC2.GenerateImplant:input_type -> erebus.c2.GenerateImplantRequest
-	31, // 25: erebus.c2.ErebusC2.RegisterImplantSecret:input_type -> erebus.c2.RegisterImplantSecretRequest
-	33, // 26: erebus.c2.ErebusC2.ClearReplay:input_type -> erebus.c2.ClearReplayRequest
-	36, // 27: erebus.c2.ErebusC2.ListLoot:input_type -> erebus.c2.ListLootRequest
-	38, // 28: erebus.c2.ErebusC2.GetLoot:input_type -> erebus.c2.GetLootRequest
+	30, // 23: erebus.c2.ErebusC2.Subscribe:input_type -> erebus.c2.SubscribeRequest
+	31, // 24: erebus.c2.ErebusC2.GenerateImplant:input_type -> erebus.c2.GenerateImplantRequest
+	33, // 25: erebus.c2.ErebusC2.RegisterImplantSecret:input_type -> erebus.c2.RegisterImplantSecretRequest
+	35, // 26: erebus.c2.ErebusC2.ClearReplay:input_type -> erebus.c2.ClearReplayRequest
+	38, // 27: erebus.c2.ErebusC2.ListLoot:input_type -> erebus.c2.ListLootRequest
+	40, // 28: erebus.c2.ErebusC2.GetLoot:input_type -> erebus.c2.GetLootRequest
 	25, // 29: erebus.c2.ErebusC2.ListPendingApprovals:input_type -> erebus.c2.ListPendingApprovalsRequest
 	21, // 30: erebus.c2.ErebusC2.Approve:input_type -> erebus.c2.ApproveRequest
 	23, // 31: erebus.c2.ErebusC2.Deny:input_type -> erebus.c2.DenyRequest
-	3,  // 32: erebus.c2.ErebusC2.StartListener:output_type -> erebus.c2.StartListenerResponse
-	5,  // 33: erebus.c2.ErebusC2.StopListener:output_type -> erebus.c2.StopListenerResponse
-	7,  // 34: erebus.c2.ErebusC2.ListListeners:output_type -> erebus.c2.ListListenersResponse
-	9,  // 35: erebus.c2.ErebusC2.ListSessions:output_type -> erebus.c2.ListSessionsResponse
-	11, // 36: erebus.c2.ErebusC2.GetSession:output_type -> erebus.c2.GetSessionResponse
-	13, // 37: erebus.c2.ErebusC2.KillSession:output_type -> erebus.c2.KillSessionResponse
-	15, // 38: erebus.c2.ErebusC2.ExecuteTask:output_type -> erebus.c2.ExecuteTaskResponse
-	17, // 39: erebus.c2.ErebusC2.GetTaskResult:output_type -> erebus.c2.GetTaskResultResponse
-	19, // 40: erebus.c2.ErebusC2.ListTasks:output_type -> erebus.c2.ListTasksResponse
-	27, // 41: erebus.c2.ErebusC2.Subscribe:output_type -> erebus.c2.Event
-	30, // 42: erebus.c2.ErebusC2.GenerateImplant:output_type -> erebus.c2.GenerateImplantResponse
-	32, // 43: erebus.c2.ErebusC2.RegisterImplantSecret:output_type -> erebus.c2.RegisterImplantSecretResponse
-	34, // 44: erebus.c2.ErebusC2.ClearReplay:output_type -> erebus.c2.ClearReplayResponse
-	37, // 45: erebus.c2.ErebusC2.ListLoot:output_type -> erebus.c2.ListLootResponse
-	39, // 46: erebus.c2.ErebusC2.GetLoot:output_type -> erebus.c2.GetLootResponse
-	26, // 47: erebus.c2.ErebusC2.ListPendingApprovals:output_type -> erebus.c2.ListPendingApprovalsResponse
-	22, // 48: erebus.c2.ErebusC2.Approve:output_type -> erebus.c2.ApproveResponse
-	24, // 49: erebus.c2.ErebusC2.Deny:output_type -> erebus.c2.DenyResponse
-	32, // [32:50] is the sub-list for method output_type
-	14, // [14:32] is the sub-list for method input_type
+	27, // 32: erebus.c2.ErebusC2.RequestHostApproval:input_type -> erebus.c2.HostApprovalRequest
+	3,  // 33: erebus.c2.ErebusC2.StartListener:output_type -> erebus.c2.StartListenerResponse
+	5,  // 34: erebus.c2.ErebusC2.StopListener:output_type -> erebus.c2.StopListenerResponse
+	7,  // 35: erebus.c2.ErebusC2.ListListeners:output_type -> erebus.c2.ListListenersResponse
+	9,  // 36: erebus.c2.ErebusC2.ListSessions:output_type -> erebus.c2.ListSessionsResponse
+	11, // 37: erebus.c2.ErebusC2.GetSession:output_type -> erebus.c2.GetSessionResponse
+	13, // 38: erebus.c2.ErebusC2.KillSession:output_type -> erebus.c2.KillSessionResponse
+	15, // 39: erebus.c2.ErebusC2.ExecuteTask:output_type -> erebus.c2.ExecuteTaskResponse
+	17, // 40: erebus.c2.ErebusC2.GetTaskResult:output_type -> erebus.c2.GetTaskResultResponse
+	19, // 41: erebus.c2.ErebusC2.ListTasks:output_type -> erebus.c2.ListTasksResponse
+	29, // 42: erebus.c2.ErebusC2.Subscribe:output_type -> erebus.c2.Event
+	32, // 43: erebus.c2.ErebusC2.GenerateImplant:output_type -> erebus.c2.GenerateImplantResponse
+	34, // 44: erebus.c2.ErebusC2.RegisterImplantSecret:output_type -> erebus.c2.RegisterImplantSecretResponse
+	36, // 45: erebus.c2.ErebusC2.ClearReplay:output_type -> erebus.c2.ClearReplayResponse
+	39, // 46: erebus.c2.ErebusC2.ListLoot:output_type -> erebus.c2.ListLootResponse
+	41, // 47: erebus.c2.ErebusC2.GetLoot:output_type -> erebus.c2.GetLootResponse
+	26, // 48: erebus.c2.ErebusC2.ListPendingApprovals:output_type -> erebus.c2.ListPendingApprovalsResponse
+	22, // 49: erebus.c2.ErebusC2.Approve:output_type -> erebus.c2.ApproveResponse
+	24, // 50: erebus.c2.ErebusC2.Deny:output_type -> erebus.c2.DenyResponse
+	28, // 51: erebus.c2.ErebusC2.RequestHostApproval:output_type -> erebus.c2.HostApprovalResponse
+	33, // [33:52] is the sub-list for method output_type
+	14, // [14:33] is the sub-list for method input_type
 	14, // [14:14] is the sub-list for extension type_name
 	14, // [14:14] is the sub-list for extension extendee
 	0,  // [0:14] is the sub-list for field type_name
@@ -2559,7 +2684,7 @@ func file_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_rawDesc), len(file_api_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   39,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

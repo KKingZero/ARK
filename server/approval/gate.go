@@ -12,6 +12,9 @@ import (
 
 const defaultApprovalTimeout = 30 * time.Minute
 
+// HostSessionID is ApprovalRequest.SessionId for operator-host writes (no implant).
+const HostSessionID = "host"
+
 // Gate manages pending approval requests for high-risk operations.
 type Gate struct {
 	mu      sync.RWMutex
@@ -48,15 +51,41 @@ func (g *Gate) RequiresModuleApproval(moduleName string) bool {
 
 // RequestApproval queues a task for approval and blocks until approved/denied or ctx expires.
 func (g *Gate) RequestApproval(ctx context.Context, sessionID string, taskType pb.TaskType, description, requesterCN string) (bool, error) {
-	return g.requestApproval(ctx, sessionID, taskType, description, g.policy.RiskLevel(taskType), requesterCN)
+	return g.requestApproval(ctx, sessionID, taskType, description, g.policy.RiskLevel(taskType), requesterCN, false)
 }
 
 // RequestModuleApproval queues a high-risk module for approval with the module risk level.
 func (g *Gate) RequestModuleApproval(ctx context.Context, sessionID, moduleName, description, requesterCN string) (bool, error) {
-	return g.requestApproval(ctx, sessionID, pb.TaskType_TASK_MODULE, description, g.policy.ModuleRiskLevel(moduleName), requesterCN)
+	return g.requestApproval(ctx, sessionID, pb.TaskType_TASK_MODULE, description, g.policy.ModuleRiskLevel(moduleName), requesterCN, false)
 }
 
-func (g *Gate) requestApproval(ctx context.Context, sessionID string, taskType pb.TaskType, description, riskLevel, requesterCN string) (bool, error) {
+// HasPendingHost reports an in-flight host write (one critical at a time).
+func (g *Gate) HasPendingHost() bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	for _, p := range g.pending {
+		if p != nil && p.Request != nil && p.Request.SessionId == HostSessionID {
+			return true
+		}
+	}
+	return false
+}
+
+// RequestHostApproval queues an operator-host write (session_id=host).
+// riskLevel from the client is ignored; the allowlist supplies risk.
+func (g *Gate) RequestHostApproval(ctx context.Context, opName, description, _, requesterCN string) (bool, error) {
+	risk, ok := HostOpAllowed(opName)
+	if !ok {
+		return false, fmt.Errorf("unknown host op %q", opName)
+	}
+	desc := opName
+	if description != "" {
+		desc = opName + ": " + description
+	}
+	return g.requestApproval(ctx, HostSessionID, pb.TaskType_TASK_UNKNOWN, desc, risk, requesterCN, true)
+}
+
+func (g *Gate) requestApproval(ctx context.Context, sessionID string, taskType pb.TaskType, description, riskLevel, requesterCN string, hostExclusive bool) (bool, error) {
 	id, err := crypto.RandomID(8)
 	if err != nil {
 		return false, err
@@ -74,6 +103,14 @@ func (g *Gate) requestApproval(ctx context.Context, sessionID string, taskType p
 	resultCh := make(chan bool, 1)
 
 	g.mu.Lock()
+	if hostExclusive {
+		for _, p := range g.pending {
+			if p != nil && p.Request != nil && p.Request.SessionId == HostSessionID {
+				g.mu.Unlock()
+				return false, fmt.Errorf("host write already pending; approve or deny it before another critical write")
+			}
+		}
+	}
 	g.pending[id] = &PendingApproval{
 		Request:     req,
 		ResultCh:    resultCh,

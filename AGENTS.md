@@ -41,9 +41,9 @@ Bare Makefile C builds do **not** register the HMAC secret. Use `op generate`, `
 
 ## Honest gaps (do not claim otherwise)
 
-- Native PKINIT UnPAC: `ark kerberos pkinit` loads the PFX then errors — PA-PK-AS-REQ is not assembled. Use Certipy for that last hop.
+- Native PKINIT UnPAC: `ark kerberos pkinit` assembles PA-PK-AS-REQ (CMS AuthPack + DH) and UnPACs the NT hash. Live DC still required; Certipy remains a fallback if the KDC rejects the request.
 - ADCS ESC2–11 / web enroll / golden cert: out of scope. Dangling ESC1 template create/grant/req/auto **is** `ark adcs`.
-- Windows C reverse SOCKS over beacon is still a fail-closed stub. Linux C reverse SOCKS is implemented.
+- Windows C reverse SOCKS over beacon is implemented (same reverse-agent wire as Linux C / Go). Live Windows proof still open. Linux C reverse SOCKS is implemented.
 - Go PsExec from a non-Windows implant still cannot create the remote service.
 - No malleable C2 profiles, no sleep mask, no multi-teamserver.
 

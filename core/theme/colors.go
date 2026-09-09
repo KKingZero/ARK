@@ -2,34 +2,43 @@ package theme
 
 import "github.com/charmbracelet/lipgloss"
 
-// Crimson is used for UI accents only (borders, chrome, active states).
-const Crimson = "#DC143C"
+// Cyan is the ARK UI accent (prompt, active state, branding).
+const Cyan = "#00C8E0"
 
-// ANSICrimson accents the ark prompt in the plain REPL.
+// Deep is a darker cyan for secondary chrome.
+const Deep = "#0891B2"
+
 const (
-	ANSIReset   = "\033[0m"
-	ANSICrimson = "\033[1;38;5;196m"
+	ANSIReset  = "\033[0m"
+	ANSIAccent = "\033[1;38;5;51m"
+	ANSIDeep   = "\033[38;5;45m"
+	ANSIDim    = "\033[38;5;245m"
 )
 
-var (
-	crimson = lipgloss.Color(Crimson)
+// Crimson is a deprecated alias of Cyan (old red accent).
+const Crimson = Cyan
 
-	// Default — terminal foreground, no override.
+// ANSICrimson is a deprecated alias of ANSIAccent.
+const ANSICrimson = ANSIAccent
+
+var (
+	cyan = lipgloss.Color(Cyan)
+	deep = lipgloss.Color(Deep)
+	mute = lipgloss.Color("240")
+
 	Default = lipgloss.NewStyle()
 
-	// Accent — crimson for headers, labels, prompts inside the TUI.
-	Accent = lipgloss.NewStyle().Foreground(crimson).Bold(true)
+	Accent      = lipgloss.NewStyle().Foreground(cyan).Bold(true)
+	AccentPlain = lipgloss.NewStyle().Foreground(cyan)
+	DeepStyle   = lipgloss.NewStyle().Foreground(deep)
+	Dim         = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 
-	AccentPlain = lipgloss.NewStyle().Foreground(crimson)
-
-	// Border accents only.
-	Border = lipgloss.NewStyle().BorderForeground(crimson)
-
-	Box = lipgloss.NewStyle().
+	Border = lipgloss.NewStyle().BorderForeground(mute)
+	Box    = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(crimson).
+		BorderForeground(mute).
 		Padding(0, 1)
 
 	Active   = Accent
-	Inactive = Default
+	Inactive = Dim
 )

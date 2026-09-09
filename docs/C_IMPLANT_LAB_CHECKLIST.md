@@ -73,7 +73,7 @@ loot
 
 **Lab status:** _fill after run_ — verified on: [ ] GOAD  [ ] HTB  
 
-**Unsupported surfaces:** Windows C reverse SOCKS over beacon is still fail-closed via `socks_api_stub.c`. Linux C hard-fails Windows-only task surfaces and AD/lateral modules with explicit operator-facing messages.  
+**Unsupported surfaces:** Linux C hard-fails Windows-only task surfaces and AD/lateral modules with explicit operator-facing messages. Windows C reverse SOCKS is a reverse agent (no listen stub); live Windows proof still open.  
 
 ---
 
@@ -128,7 +128,7 @@ Notes:
 ## 6. Linux C peer — baseline gate (Sprint L / M4a)
 
 **Default Linux implant is C** (`make implant-c-linux` / `generate --language c --os linux`).  
-Plan: `docs/plans/SPRINT_L_C_LINUX.md` · Sign-off: `reports/htb-c-linux-peer/SIGN_OFF.md`
+Plan: `docs/plans/SPRINT_L_C_LINUX.md` · Sign-off: `docs/private/reports/htb-c-linux-peer/SIGN_OFF.md`
 
 ```bash
 # Host smoke (build + unit tests; no HTB required)
@@ -160,7 +160,7 @@ ssh user@TARGET 'chmod +x /tmp/implant_c_linux && /tmp/implant_c_linux'
 | Empty CA HTTPS build fails closed | **PASS** 2026-08-09 |
 | Register + shell (local or tunnel) | Open — live eng |
 | File / process / ifconfig | Open — live eng |
-| Unsupported tasks (socks, kerberoast) return **explicit** errors | Open — live eng (stubs present) |
+| Unsupported tasks (screenshot/keylog/inject/PE-load) return **explicit** errors | Open — live eng |
 | SOCKS / localhost pivot | **Code landed** (async OPEN, 8s dial timeout, gen FD, `[ipv6]:port`); live lab proof open |
 
 **Pivot policy:** Prefer C Linux for shell/files/net. Reverse SOCKS over beacon is **implemented** (`socks start` on Linux C session); prove live (M4c eng gate). Fallback: `scripts/htb_reverse_tunnel.sh` / Ligolo.

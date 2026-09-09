@@ -8,7 +8,7 @@
 | **Objective** | User + root flags **and** exercise ARK **Linux** implant / operator path |
 | **Outcome** | **Box solved** (flags) · ARK used as **post-root C2 plane**, not as engagement plane |
 | **Operator C2** | `tun0` `10.10.14.15` · teamserver HTTPS `:8443` · gRPC `127.0.0.1:50051` |
-| **Related** | `reports/htb-darkzeroreturns/PENTEST_REPORT.md` · Logging after-action for Windows comparison |
+| **Related** | `docs/private/reports/htb-darkzeroreturns/PENTEST_REPORT.md` · Logging after-action for Windows comparison |
 
 ---
 

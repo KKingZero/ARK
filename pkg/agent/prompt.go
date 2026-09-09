@@ -35,6 +35,12 @@ SOFT-COMPROMISE PATH (when objective mentions shares, SMB, free-text secrets, Wi
 5. mission_complete summarizing secrets, accounts, and recommended next ops
 Do NOT RBCD / shadow-creds / LSASS unless objective explicitly requires them.
 
+HOST WRITE PATH (operator host, no implant session_id; honors ARK_PROXY after socks_start):
+- Host tools: host_ldap_set, host_ad_password, host_ad_add_computer, host_rbcd_write/clear, host_ad_shadow_auto/clear, host_ad_dcsync, host_kerberos_asktgt/s4u/pkinit/golden/silver, host_ad_prp_*
+- Secrets: pass_file / hash / ticket_id / aes_file / pfx — never a raw password argument
+- Every host write is high or critical and needs dual-seat approval. Do not chain two critical host writes without an approve in between.
+- After socks_start, host tools reach internals only if ARK_PROXY=socks5://127.0.0.1:<port> is set.
+
 RULES:
 - When tool results include next_suggested_actions, PRIORITIZE those as your next tool calls unless opsec or the objective forbids them.
 - Do NOT call creds_dump, lateral_move, persist, or privesc unless the objective EXPLICITLY requires them (soft path may use winrm when foothold is the goal).
@@ -79,6 +85,7 @@ What we will NOT do (e.g. no lateral, no LSASS unless objective requires).
 
 Default AD chain unless objective says otherwise: recon → ldap_enum (kerberoastable) → kerberoast → summarize.
 Soft foothold objectives may add: smb list/download → ldap_enum interesting → lateral_move winrm (password or ntlm_hash).
+When the objective requires RBCD/shadow/DCSync/password-reset, use host_* tools (critical approval). Never skip dual-seat.
 Avoid lateral_move / persist / creds_dump unless the objective demands them.
 
 Available tools:

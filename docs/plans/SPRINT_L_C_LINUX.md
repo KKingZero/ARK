@@ -38,7 +38,7 @@
 | L.0.1 | `./scripts/c_linux_e2e_smoke.sh` host + empty-CA fail | Done 2026-08-09 |
 | L.0.2 | Local live session task matrix (shell/file/process/net) | Pending teamserver eng |
 | L.0.3 | HTB FireFlow-class re-run C-only | Pending VPN/box |
-| L.0.4 | Fill checklist §6 + `reports/htb-c-linux-peer/SIGN_OFF.md` | Partial (host) |
+| L.0.4 | Fill checklist §6 + `docs/private/reports/htb-c-linux-peer/SIGN_OFF.md` | Partial (host) |
 
 ### Phase 1 — Habitual use
 
@@ -101,5 +101,5 @@
 ## Related
 
 - Checklist: `docs/C_IMPLANT_LAB_CHECKLIST.md` §6–7  
-- Sign-off: `reports/htb-c-linux-peer/SIGN_OFF.md`  
+- Sign-off: `docs/private/reports/htb-c-linux-peer/SIGN_OFF.md`  
 - Windows lateral (parallel): `docs/plans/SPRINT_1_C_LATERAL.md`  

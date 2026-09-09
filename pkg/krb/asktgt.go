@@ -5,24 +5,39 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/jcmturner/gokrb5/v8/messages"
 )
 
-// AskTGTOptions is a password AS-REQ for an AES TGT.
+// AskTGTOptions is a password AS-REQ for an AES TGT, or NT-hash overpass (RC4).
 type AskTGTOptions struct {
 	Domain   string
 	Username string
 	Password string
+	Hash     string // 32-hex NT or LM:NT — overpass etype 23
 	KDC      string
 	Dir      string
 }
 
-// AskTGT requests an AES TGT and stores it as a ccache loot object.
-// NT-hash overpass is not implemented (gokrb5 has no NewWithHash); RC4 is not offered.
+// AskTGT requests a TGT and stores it as a ccache loot object.
+// Password path is AES-only. --hash is NT-hash overpass (RC4-HMAC).
 func AskTGT(opts AskTGTOptions) (TicketMeta, error) {
-	if opts.Domain == "" || opts.Username == "" || opts.Password == "" || opts.KDC == "" {
-		return TicketMeta{}, fmt.Errorf("--domain --user --pass-file --dc required")
+	if opts.Domain == "" || opts.Username == "" || opts.KDC == "" {
+		return TicketMeta{}, fmt.Errorf("--domain --user --dc required")
 	}
-	asRep, err := asExchange(opts.KDC, opts.Domain, opts.Username, opts.Password)
+	if opts.Password != "" && opts.Hash != "" {
+		return TicketMeta{}, fmt.Errorf("asktgt: --pass-file and --hash are mutually exclusive")
+	}
+	if opts.Password == "" && opts.Hash == "" {
+		return TicketMeta{}, fmt.Errorf("--pass-file or --hash required")
+	}
+	var asRep messages.ASRep
+	var err error
+	if opts.Hash != "" {
+		asRep, err = asExchangeHash(opts.KDC, opts.Domain, opts.Username, opts.Hash)
+	} else {
+		asRep, err = asExchange(opts.KDC, opts.Domain, opts.Username, opts.Password)
+	}
 	if err != nil {
 		return TicketMeta{}, fmt.Errorf("AS-REQ: %w", err)
 	}

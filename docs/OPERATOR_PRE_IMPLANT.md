@@ -9,11 +9,12 @@ Authorized **HTB / owned lab** helpers that run **without** a C2 session or team
 | `ark inbound …` | tun0 / listeners / SOCKS env / SSH reverse tunnel / TCP redirector |
 | `ark ldap …` | Host-side LDAPS bind / enum / dangling ADCS template names |
 | `ark smb …` | Host-side SMB shares / ls / get (NTLM or `--ticket` native Kerberos; Impacket wrap: `ARK_SMB_IMPACKET=1`) |
-| `ark adcs …` | Dangling ESC1 template create / grant / WCCE req / auto (no Certipy). PKINIT UnPAC is **not** native yet |
+| `ark adcs …` | Dangling ESC1 template create / grant / WCCE req / auto. Then `ark kerberos pkinit --pfx` |
 | `ark rbcd …` | Host-side RBCD write / clear / show |
-| `ark kerberos …` | Skew, AES asktgt, S4U, keylist, golden/silver, ticket import. `pkinit` loads PFX then errors (PA-PK-AS-REQ not assembled) |
-| `ark ad password …` | ForceChangePassword via LDAPS `unicodePwd` |
-| `ark ad add-computer …` | LDAP Add, then Impacket `addcomputer.py -method SAMR` on `WILL_NOT_PERFORM` |
+| `ark kerberos …` | Skew, AES asktgt (or `--hash` NT overpass), S4U, keylist, golden/silver, ticket import, PKINIT UnPAC (`pkinit --pfx`) |
+| `ark ad password …` | ForceChangePassword via LDAPS `unicodePwd`, then native SAMR |
+| `ark ad add-computer …` | LDAP Add, then native SAMR on `WILL_NOT_PERFORM` |
+| `ark ad prp …` | RODC PRP: clear NeverReveal / add RevealOnDemand |
 | `ark ad shadow auto …` | KeyCredentialLink write + PFX |
 | `ark winrm …` | Host-side PSRP (pypsrp; needs repo `scripts/` or `ARK_ROOT`) |
 | `ark mssql …` | Host-side MSSQL query / xp_cmdshell (impacket; SOCKS) |

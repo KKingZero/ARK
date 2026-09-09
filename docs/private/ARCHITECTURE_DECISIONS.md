@@ -157,7 +157,7 @@ Phase 3: Cloud Expansion
 - Single wire protocol (`c2.proto`) and shared DNS chunking (`pkg/dnstransport/`) keep both implants on one teamserver
 - `GenerateImplant` empty `language` defaults to **`c`**. `language: "go"` is Windows-only; `language: "go"` + Linux/darwin fails closed
 
-**C implant scope (2026-09):** Beacon loop, HTTPS/DNS, HMAC + AES-GCM, path-jailed files, shell/process/network. Windows: screenshot/keylog/inject/PE-load, LDAP, Kerberoast/AS-REP (real hashes, lab-verify still open), WinRM (password + PTH), PsExec (password + SCM), WMI, DCOM. Linux: reverse SOCKS, creds/persist/privesc enum. Windows C reverse SOCKS is still a fail-closed stub.
+**C implant scope (2026-09):** Beacon loop, HTTPS/DNS, HMAC + AES-GCM, path-jailed files, shell/process/network. Windows: screenshot/keylog/inject/PE-load, LDAP, Kerberoast/AS-REP (real hashes, lab-verify still open), WinRM (password + PTH), PsExec (password + SCM), WMI, DCOM, reverse SOCKS over beacon, EXE/DLL/shellcode packaging. Linux: reverse SOCKS, creds/persist/privesc enum.
 
 **Toolchain:** llvm-mingw via `scripts/setup_c_toolchain.sh`, or Fedora `mingw64-gcc` + `mingw64-cpp` (provides `cc1`). Linux C: gcc + libcurl + openssl.
 
@@ -165,7 +165,7 @@ Phase 3: Cloud Expansion
 
 ### EVASION-2: Implant Execution Model — EXE, Shellcode, and DLL
 
-**Decision:** Three output formats supported for the **Go** implant: standalone EXE (default), shellcode (via go-donut), and reflective DLL (c-shared buildmode). The C implant currently builds PE EXE only (`build/implant_c.exe`).
+**Decision:** Three output formats for Windows implants. Go: EXE, shellcode (via go-donut / `PE2Shellcode`), reflective DLL (c-shared). C: EXE, DLL (`DllMain` beacon thread), shellcode (`PE2Shellcode` on the C PE). Linux C is EXE only.
 
 **Rationale:**
 - EXE is simplest for testing and direct execution

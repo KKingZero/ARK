@@ -91,6 +91,18 @@ func krbErrorName(code int32) string {
 		return "KDC_ERR_BADOPTION"
 	case errorcode.KDC_ERR_POLICY:
 		return "KDC_ERR_POLICY"
+	case errorcode.KDC_ERR_PADATA_TYPE_NOSUPP:
+		return "KDC_ERR_PADATA_TYPE_NOSUPP"
+	case errorcode.KDC_ERR_CLIENT_NAME_MISMATCH:
+		return "KDC_ERR_CLIENT_NAME_MISMATCH"
+	case errorcode.KDC_ERR_WRONG_REALM:
+		return "KDC_ERR_WRONG_REALM"
+	case errorcode.KDC_ERR_CERTIFICATE_MISMATCH:
+		return "KDC_ERR_CERTIFICATE_MISMATCH"
+	case errorcode.KDC_ERROR_INVALID_SIG:
+		return "KDC_ERR_INVALID_SIG"
+	case kdcErrInconsistentKeyPurpose:
+		return "KDC_ERR_INCONSISTENT_KEY_PURPOSE"
 	default:
 		return fmt.Sprintf("%d", code)
 	}

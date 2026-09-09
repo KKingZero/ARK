@@ -6,7 +6,7 @@
 **Bar:** same 9 HTB boxes + `c-linux-peer`. A primitive that only demos on GOAD does not count.  
 **Consumer:** agent executes, human sees and approves. Dual-seat stays.  
 **Authorized labs only.**  
-**Baseline:** `reports/ARK_HTB_CORPUS_SCORECARD.md`
+**Baseline:** `docs/private/reports/ARK_HTB_CORPUS_SCORECARD.md`
 
 Related: `SPRINT_B_AD.md`, `SPRINT_E_ADCS.md`, `FIX_CYCLE_SERVE_SKEW_PTH.md`, `docs/AD_ENGAGEMENT.md`.
 
@@ -110,8 +110,9 @@ Every write is **critical** approval. Do not let Plan/Auto chain two critical wr
 - [ ] AskTGT AES + S4U AES + RBCD write lab-green or HTB-green (Pirate asktgt AES green; `s4u` PAC-OPTIONS + `--altservice` coded, not live-reproved; `rbcd write` coded)
 - [x] Soft set: scriptPath + addcomputer; password already shipped (host verbs; live DC still required)
 - [x] KeyList wire: RODC AES TGT forge + KERB-KEY-LIST-REQ/REP (etype 23 NT); live RODC still required
+- [x] PKINIT UnPAC wire (`ark kerberos pkinit`); live DC still required
 - [ ] At least two of: shadow, KeyList live, dangling ESC1, DCSync — live on corpus or recorded fixture + one live
 - [ ] Golden **or** silver from a key obtained in-ARK
-- [ ] Agent can propose each write; human must approve
+- [x] Agent catalog host writes (`host_rbcd_write`, `host_ad_password`, …) + `RequestHostApproval` (`session_id=host`); live Auto still required
 - [ ] C did not gain a Kerberos stack
 - [ ] Corpus table updated; claim only boxes whose critical path ran in ARK

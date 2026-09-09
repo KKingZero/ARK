@@ -53,8 +53,13 @@ func RequestCert(opts RequestOptions) ([]byte, error) {
 	if opts.Template != "" {
 		attribs = "CertificateTemplate:" + opts.Template + "\n"
 	}
+	pipe, err := s.OpenPipe("cert")
+	if err != nil {
+		return nil, err
+	}
+	defer pipe.Close()
 	bind := dcerpcBind(1, icertRequestDUUID, icertRequestDVer)
-	ack, err := s.PipeTransceive("cert", bind)
+	ack, err := pipe.Transceive(bind)
 	if err != nil {
 		return nil, fmt.Errorf("cert pipe bind: %w", err)
 	}
@@ -62,7 +67,7 @@ func RequestCert(opts RequestOptions) ([]byte, error) {
 		return nil, fmt.Errorf("cert pipe bind ack type=%d (want 12)", bAt(ack, 2))
 	}
 	req := encodeICertRequest(2, opts.CA, attribs, opts.CSR)
-	resp, err := s.PipeTransceive("cert", req)
+	resp, err := pipe.Transceive(req)
 	if err != nil {
 		return nil, fmt.Errorf("ICertRequestD.Request: %w", err)
 	}

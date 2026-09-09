@@ -126,11 +126,11 @@ python3 -c 'open("svc_pass.txt","w").write(r"Em3rg3ncyPa$$2026")'
 | Config | `~/.ark/server.yaml` |
 | Certs | `~/.ark/certs/` |
 | Eng workdir | `~/htb-<machine>/` |
-| Reports | `reports/htb-<machine>/` |
+| Reports | `docs/private/reports/htb-<machine>/` |
 | Runbook | `docs/HTB_NEXT_RUNBOOK.md` |
 | Inbound / auth logs | `docs/OPERATOR_INBOUND.md` |
 | AD cookbook | `docs/AD_ENGAGEMENT.md` |
 | Sprint B plan | `docs/plans/SPRINT_B_AD.md` |
 | Sprint 1 C lateral | `docs/plans/SPRINT_1_C_LATERAL.md` |
 | Sprint L C Linux | `docs/plans/SPRINT_L_C_LINUX.md` |
-| C Linux sign-off | `reports/htb-c-linux-peer/SIGN_OFF.md` |
+| C Linux sign-off | `docs/private/reports/htb-c-linux-peer/SIGN_OFF.md` |

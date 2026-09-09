@@ -285,7 +285,7 @@ Usage:
   ark operator      Connect to teamserver REPL
   ark op            One-shot operator commands (sessions/shell/generate/...)
   ark ldap          Host-side LDAP (LDAPS, enum, dangling templates)
-  ark adcs          Dangling ESC1 template + WCCE req (no Certipy)
+  ark adcs          Dangling ESC1 template + WCCE req
   ark smb           Host-side SMB list/get (no implant)
   ark ad            Host-side AD writes (password, dcsync, shadow)
   ark rbcd          Host-side RBCD write/clear/show

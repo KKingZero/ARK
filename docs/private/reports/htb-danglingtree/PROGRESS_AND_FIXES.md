@@ -6,7 +6,7 @@
 | Target | `10.129.87.77` |
 | Domain | `danglingtree.htb` / `dc.danglingtree.htb` |
 | Status | **Solved — user + root 2026-08-15** |
-| Report | `reports/htb-danglingtree/PENTEST_REPORT.md` |
+| Report | `docs/private/reports/htb-danglingtree/PENTEST_REPORT.md` |
 
 Previous spawn `10.129.8.47` was fully filtered (free VPN vs Season/VIP). This session used a reachable instance.
 
@@ -28,4 +28,4 @@ Previous spawn `10.129.8.47` was fully filtered (free VPN vs Season/VIP). This s
 
 Teamserver up (`ark teamserver`). At the time of this eng, `serve` died on stdin close and ADCS / ForceChangePassword / PKINIT were gaps (report §7).
 
-**Later (2026-09):** `ark serve` EOF no longer stops C2. Host `ark ad password`, `ark adcs` dangling ESC1 template+req, and `ark rbcd` shipped. Native PKINIT UnPAC is still not assembled.
+**Later (2026-09):** `ark serve` EOF no longer stops C2. Host `ark ad password`, `ark adcs` dangling ESC1 template+req, and `ark rbcd` shipped. Native PKINIT UnPAC (`ark kerberos pkinit`) is assembled; live DC still required.

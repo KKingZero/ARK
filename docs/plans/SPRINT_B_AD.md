@@ -57,11 +57,11 @@
 | **B.7a** | **RBCD write** (`msDS-AllowedToActOnBehalfOfOtherIdentity`) | Host `ark rbcd write/clear/show` (`pkg/ldapcli/rbcd.go`). Live DC read-back still required. | Unit SD + SID round-trip |
 | **B.7b** | **S4U2Self + S4U2Proxy** with **AES** machine password (RC4 = clear fail) | Host `ark kerberos s4u` (`pkg/krb/s4u.go`). Live ST still required. | Unit PA-FOR-USER + option checks |
 | **B.8a** | Set allowlisted attrs (at least `scriptPath`) | `ark ldap set` (host) | Unit allowlist; lab verify |
-| **B.8b** | ForceChangePassword (no old password when ACL allows) | **Host-side shipped** (`ark ad password`, LDAPS unicodePwd). SAMR fallback still open. | Unit prefix/encoding; lab |
+| **B.8b** | ForceChangePassword (no old password when ACL allows) | **Host-side shipped** (`ark ad password`, LDAPS unicodePwd then native SAMR). | Unit prefix/encoding; lab |
 | **B.8c** | addcomputer / machine account (MAQ-aware); loot password or NT | `ark ad add-computer` (MAQ refuse at 0) | Unit name/password; lab |
 | **B.9a** | RODC partial TGT forge (AES krbtgt_XXXX, correct kvno/flags/realm) | `pkg/krb` | Unit vs known vectors |
 | **B.9b** | KERB-KEY-LIST → one user NT hash | task + CLI; **critical** | Lab or fixture |
-| **B.9c** | PRP helpers: NeverReveal clear / RevealOnDemand add when ACL allows | LDAP set; **critical** | Lab or mock |
+| **B.9c** | PRP helpers: NeverReveal clear / RevealOnDemand add when ACL allows | **Shipped:** `ark ad prp clear-never-reveal` / `add-reveal` (`pkg/ldapcli/prp.go`). Live RODC still required. | Lab or mock |
 | **B.9d** | Loot hash → `lateral winrm --hash` | existing PTH | E2E |
 | **B.10** | Logon-script staging recipe (SYSVOL/NETLOGON, scriptPath, bot wait, markers) | `docs/AD_ENGAGEMENT.md`, skill | Checklist only |
 | **B.11** | Multi-hop ticket recipe (S4U cifs then host for stage/schtasks) | docs unless cheap | Doc |
@@ -220,4 +220,4 @@ Fail closed; no fake success stubs.
 - Plan synthesis: session plan “Sprint B+ Garfield-class”  
 - Implant lateral: `docs/plans/SPRINT_1_C_LATERAL.md`  
 - Runbook: `docs/HTB_NEXT_RUNBOOK.md` §5/§8  
-- Garfield notes: `reports/htb-garfield/PROGRESS.md`  
+- Garfield notes: `docs/private/reports/htb-garfield/PROGRESS.md`  

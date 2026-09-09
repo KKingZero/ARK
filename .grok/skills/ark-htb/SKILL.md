@@ -33,7 +33,7 @@ Read as needed (repo-relative):
 | `docs/AD_ENGAGEMENT.md` | Soft/golden AD operator paths |
 | `docs/GOLDEN_DEMO.md` | AI Auto golden path |
 | `CLAUDE.md` / `AGENTS.md` | Build + architecture |
-| `reports/htb-*/` | Prior eng notes (Support, Logging) |
+| `docs/private/reports/htb-*/` | Prior eng notes (Support, Logging) |
 | `references/commands.md` (this skill) | Command cheat sheet |
 
 ## Session workflow
@@ -127,7 +127,7 @@ Already in-framework (use these first): `ldap enum --type acl|interesting`, `ark
 
 ### 5. Report & cleanup
 
-- Write/update `reports/htb-<machine>/PENTEST_REPORT.md` and/or `PROGRESS_AND_FIXES.md`
+- Write/update `docs/private/reports/htb-<machine>/PENTEST_REPORT.md` and/or `PROGRESS_AND_FIXES.md`
 - Cleanup lab artifacts (machine accounts, RBCD, DNS, local users) if box reused
 - Kill implant; stop SOCKS/listeners; `git status` clean of secrets
 

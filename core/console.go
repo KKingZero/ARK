@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/KKingZero/ARK/core/banner"
+	"github.com/KKingZero/ARK/core/theme"
 	pb "github.com/KKingZero/ARK/pkg/pb"
 	"github.com/chzyer/readline"
 )
@@ -15,18 +17,8 @@ import (
 // Version is the ARK framework version shown at startup.
 const Version = "0.1.0"
 
-const banner = `
-   db    88""Yb 88  dP
-  dPYb   88__dP 88odP
- dP__Yb  88"Yb  88"Yb
-dP""""Yb 88  Yb 88  Yb
-
-        C2  ·  BY ZYPHERON
-    SPEED · STEALTH · CONTROL
-`
-
-const promptDefault = "ark › "
-const promptModuleFmt = "ark (%s) › "
+const promptDefault = theme.ANSIAccent + "ark" + theme.ANSIDim + " › " + theme.ANSIReset
+const promptModuleFmt = theme.ANSIAccent + "ark" + theme.ANSIDim + " (%s) › " + theme.ANSIReset
 
 type Console struct {
 	currentModule string
@@ -55,7 +47,7 @@ func (c *Console) Start() {
 }
 
 func printStartupBanner() {
-	fmt.Print(banner)
+	fmt.Print(banner.Text)
 	fmt.Println("Type 'help' for available commands")
 	fmt.Println()
 }
@@ -195,18 +187,33 @@ func (c *Console) cmdHelp() {
 	}
 
 	var humanMsg strings.Builder
-	humanMsg.WriteString("\nPrimary workflow:\n")
-	humanMsg.WriteString("  1. ark serve          Start teamserver + operator session\n")
-	humanMsg.WriteString("  2. ai                    Open AI TUI — Plan path, Auto execute\n")
-	humanMsg.WriteString("  3. In Auto: [a]/[d]      Approve/deny high-risk tasks in the TUI\n")
-	humanMsg.WriteString("\nCommands:\n")
-	for _, cmd := range commands {
-		humanMsg.WriteString(fmt.Sprintf("  %-24s%s\n", cmd.Command, cmd.Description))
+	sec := func(title string) {
+		humanMsg.WriteString("\n")
+		humanMsg.WriteString(title)
+		humanMsg.WriteString("\n")
 	}
-	humanMsg.WriteString("\nOperator REPL (implant tasks):\n")
-	humanMsg.WriteString("  ark serve / ark operator — shell, ldap-enum, kerberoast, approve\n")
-	humanMsg.WriteString("\nNote: Metasploit-style use/run modules are not wired in this console;\n")
-	humanMsg.WriteString("use `ai` (Auto) or the operator REPL for live tasks.\n")
+	row := func(cmd, desc string) {
+		humanMsg.WriteString(fmt.Sprintf("  %-16s%s\n", cmd, desc))
+	}
+	sec("PRIMARY")
+	row("ark serve", "Start teamserver + operator")
+	row("ai", "Open ARK AI")
+	row("ai <message>", "Ask ARK directly")
+	sec("OPERATIONS")
+	row("sessions", "Active sessions")
+	row("loot", "Captured artifacts")
+	row("workspace", "Engagements")
+	row("report generate", "Generate report")
+	sec("AI")
+	row("ai setup", "Configure provider")
+	row("ai providers", "List providers")
+	row("ai provider", "Change provider")
+	sec("SYSTEM")
+	row("help", "Show this menu")
+	row("clear", "Clear screen")
+	row("exit", "Exit ARK")
+	humanMsg.WriteString("\nImplant tasks: ark operator  (shell, ldap-enum, kerberoast, approve)\n")
+	humanMsg.WriteString("Auto mode: [a] approve  [d] deny\n")
 
 	emit(c.mode, Response{
 		Status:  "ok",

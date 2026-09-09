@@ -23,10 +23,12 @@ typedef struct ark_socks_frame {
 } ark_socks_frame;
 
 /*
- * Reverse SOCKS agent (Linux C implant). Teamserver listens; implant dials.
+ * Reverse SOCKS agent (Windows + Linux C). Teamserver listens; implant dials.
  * Target forms: "host:port", "1.2.3.4:80", "[2001:db8::1]:443".
  * Bare IPv6 without brackets is rejected (ambiguous colons).
  */
+int  ark_socks_parse_host_port(const char *target, char *host, size_t host_cap,
+                               char *port, size_t port_cap);
 int  ark_socks_active(void);
 void ark_socks_drain(ark_socks_frame **out, size_t *count);
 void ark_socks_requeue(ark_socks_frame *frames, size_t count);

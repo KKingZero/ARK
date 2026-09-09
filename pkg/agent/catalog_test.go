@@ -135,4 +135,11 @@ func TestRequiresApproval(t *testing.T) {
 	if RequiresApproval(dl) {
 		t.Fatal("file_download should not require approval")
 	}
+	rbcd, ok := LookupTool("host_rbcd_write")
+	if !ok || !rbcd.Host || rbcd.NeedsSession {
+		t.Fatal("host_rbcd_write must be a host tool")
+	}
+	if !RequiresApproval(rbcd) {
+		t.Fatal("host_rbcd_write should require approval")
+	}
 }

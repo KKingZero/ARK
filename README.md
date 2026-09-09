@@ -44,7 +44,7 @@ Host `ldap` / `smb` / `ad` / `adcs` before an implant
 
 EDR-evasive by default
 
-Native PKINIT UnPAC or full ADCS ESC2–11
+Full ADCS ESC2–11 / web enroll / golden cert
 
 Enterprise support
 
@@ -150,7 +150,7 @@ LDAP (LDAPS first, dangling CA templates). SMB list/get (NTLM or Kerberos ticket
 
 **Labs exercised**
 
-Support, Logging, Ghostlink, DanglingTree, FireFlow, DarkZero, Garfield, and others under `reports/htb-*/`. Skills: `ark-htb`, `htb-pentest`.
+Support, Logging, Ghostlink, DanglingTree, FireFlow, DarkZero, Garfield. Skills: `ark-htb`, `htb-pentest`.
 
 </td>
 </tr>
@@ -160,9 +160,9 @@ Support, Logging, Ghostlink, DanglingTree, FireFlow, DarkZero, Garfield, and oth
 
 | Area | Today |
 | --- | --- |
-| C implant | Windows PE + Linux primary. Kerberoast/AS-REP are real (no placeholder hashes); live GOAD/HTB verify still open. Windows C reverse SOCKS is a fail-closed stub. |
-| ADCS | Dangling ESC1 template create / grant / req / auto: `ark adcs`. Native PKINIT UnPAC (`ark kerberos pkinit`) is **not** assembled — last hop stays Certipy. ESC2–11 out of scope. |
-| Tickets / RBCD / shadow | Host CLI shipped (RBCD, S4U AES, shadow auto → PFX, dMSA, keylist). Native PA-PK-AS-REQ still incomplete. |
+| C implant | Windows PE + Linux primary. Kerberoast/AS-REP are real (no placeholder hashes); live GOAD/HTB verify still open. Windows C reverse SOCKS over beacon is implemented (live Windows proof still open). Windows C `generate --format dll|shellcode` is supported. |
+| ADCS | Dangling ESC1 template create / grant / req / auto: `ark adcs`. Native PKINIT UnPAC: `ark kerberos pkinit` (PA-PK-AS-REQ + PAC UnPAC). ESC2–11 out of scope. |
+| Tickets / RBCD / shadow | Host CLI shipped (RBCD, S4U AES, shadow auto → PFX, dMSA, keylist, pkinit). |
 | `ark serve` | Teamserver + operator REPL. Stdin/REPL EOF does **not** stop C2. Prefer `ark teamserver` as the daemon. |
 | Default HTTPS port | Fresh config listens on **1750** (Fedora 1714–1764). Existing `~/.ark/server.yaml` is not rewritten. `inbound status` flags firewalld mismatch. |
 | PsExec | C Windows: ADMIN$ + SCM with a password (no hash/PTH). Go from a non-Windows implant: stage over SMB, service create incomplete. |

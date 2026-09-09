@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/KKingZero/ARK/core/banner"
+	"github.com/KKingZero/ARK/core/theme"
 	pb "github.com/KKingZero/ARK/pkg/pb"
 	"github.com/chzyer/readline"
 )
@@ -31,7 +33,7 @@ func NewREPL(client pb.ErebusC2Client, approverClient pb.ErebusC2Client) (*REPL,
 	}
 
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:          "ark > ",
+		Prompt:          theme.ANSIAccent + "ark" + theme.ANSIDim + " › " + theme.ANSIReset,
 		AutoComplete:    readline.NewPrefixCompleter(items...),
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
@@ -49,7 +51,7 @@ func NewREPL(client pb.ErebusC2Client, approverClient pb.ErebusC2Client) (*REPL,
 func (r *REPL) Run() error {
 	defer r.rl.Close()
 
-	fmt.Println("ARK C2 Operator Console")
+	fmt.Print(banner.Text)
 	fmt.Println("Type 'help' for available commands")
 	fmt.Println()
 
@@ -58,7 +60,11 @@ func (r *REPL) Run() error {
 	for {
 		// Update prompt with active session
 		if r.cmds.sessionID != "" {
-			r.rl.SetPrompt(fmt.Sprintf("ark [%s] > ", r.cmds.sessionID[:8]))
+			sid := r.cmds.sessionID
+			if len(sid) > 8 {
+				sid = sid[:8]
+			}
+			r.rl.SetPrompt(fmt.Sprintf("%sark%s [%s] › %s", theme.ANSIAccent, theme.ANSIDim, sid, theme.ANSIReset))
 		}
 
 		line, err := r.rl.Readline()

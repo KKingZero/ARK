@@ -11,7 +11,7 @@
 | **Execution** | Implement in this repo with operator |
 | **Sprint C** | Docs / skill / ESC17–WSUS recipe only (no new modules) |
 
-Related: `reports/htb-logging/ARK_AFTER_ACTION.md`, `docs/HTB_NEXT_RUNBOOK.md`, `docs/AD_ENGAGEMENT.md`.
+Related: `docs/private/reports/htb-logging/ARK_AFTER_ACTION.md`, `docs/HTB_NEXT_RUNBOOK.md`, `docs/AD_ENGAGEMENT.md`.
 
 ---
 

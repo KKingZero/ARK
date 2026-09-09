@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	pb "github.com/KKingZero/ARK/pkg/pb"
 	"github.com/KKingZero/ARK/server/approval"
@@ -368,10 +369,10 @@ func (s *GRPCService) GenerateImplant(ctx context.Context, req *pb.GenerateImpla
 	// H11: Extract operator identity from mTLS context
 	operator := operatorFromContext(ctx)
 
-	if language == "c" && format != builder.FormatEXE {
+	if language == "c" && format != builder.FormatEXE && format != builder.FormatDLL && format != builder.FormatShellcode {
 		return &pb.GenerateImplantResponse{
 			Success: false,
-			Error:   "C implant only supports exe format",
+			Error:   "C implant supports exe, dll, shellcode (Windows amd64); Linux C is exe only",
 		}, nil
 	}
 	if language == "c" && targetArch != "amd64" {
@@ -391,19 +392,19 @@ func (s *GRPCService) GenerateImplant(ctx context.Context, req *pb.GenerateImpla
 		operator, targetOS, targetArch, transport, language)
 
 	buildReq := &builder.BuildRequest{
-		Language:    language,
-		OS:          targetOS,
-		Arch:        targetArch,
-		Transport:   transport,
-		Callbacks:   req.Callbacks,
-		SleepMs:     req.SleepMs,
-		JitterPct:   req.JitterPct,
-		Garble:      req.Garble,
-		CDNDomain:   req.CdnDomain,
-		DNSDomain:   req.DnsDomain,
-		DNSServer:   req.DnsServer,
-		Format:      format,
-		Operator:    operator,
+		Language:  language,
+		OS:        targetOS,
+		Arch:      targetArch,
+		Transport: transport,
+		Callbacks: req.Callbacks,
+		SleepMs:   req.SleepMs,
+		JitterPct: req.JitterPct,
+		Garble:    req.Garble,
+		CDNDomain: req.CdnDomain,
+		DNSDomain: req.DnsDomain,
+		DNSServer: req.DnsServer,
+		Format:    format,
+		Operator:  operator,
 		// Unique per-implant secret is generated inside Build; do not inject fleet PSK.
 		ProjectRoot: projectRoot,
 	}
@@ -557,4 +558,21 @@ func (s *GRPCService) Deny(ctx context.Context, req *pb.DenyRequest) (*pb.DenyRe
 		return &pb.DenyResponse{Success: false}, err
 	}
 	return &pb.DenyResponse{Success: true}, nil
+}
+
+func (s *GRPCService) RequestHostApproval(ctx context.Context, req *pb.HostApprovalRequest) (*pb.HostApprovalResponse, error) {
+	op := strings.TrimSpace(req.GetOpName())
+	if op == "" {
+		return &pb.HostApprovalResponse{Error: "op_name required"}, nil
+	}
+	requester := operatorFromContext(ctx)
+	log.Printf("[audit] op=RequestHostApproval operator=%q host_op=%q risk=%q", requester, op, req.GetRiskLevel())
+	ok, err := s.ts.Approval.RequestHostApproval(ctx, op, req.GetDescription(), req.GetRiskLevel(), requester)
+	if err != nil {
+		return &pb.HostApprovalResponse{Approved: false, Error: err.Error()}, nil
+	}
+	if !ok {
+		return &pb.HostApprovalResponse{Approved: false, Error: "denied"}, nil
+	}
+	return &pb.HostApprovalResponse{Approved: true}, nil
 }

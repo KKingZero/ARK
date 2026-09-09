@@ -23,6 +23,7 @@ type ToolDef struct {
 	TaskType     pb.TaskType
 	ModuleName   string // for TASK_MODULE tools
 	NeedsSession bool
+	Host         bool // operator-host verb (no implant TaskType)
 	BuildData    func(args map[string]any) ([]byte, error)
 }
 
@@ -286,6 +287,21 @@ func Catalog() []ToolDef {
 			NeedsSession: true,
 			BuildData:    buildPrivesc,
 		},
+		hostTool("host_ldap_set", "Host LDAP set allowlisted attr (scriptPath|servicePrincipalName). Args: dc, domain, user, pass_file|hash|ticket_id, target, attr, value", "high"),
+		hostTool("host_ad_password", "Host ForceChangePassword (LDAPS unicodePwd, SAMR fallback). Args: dc, domain, user, pass_file|hash|ticket_id, target, new_pass_file", "critical"),
+		hostTool("host_ad_add_computer", "Host add computer (LDAP Add, native SAMR on WILL_NOT_PERFORM). Args: dc, domain, user, pass_file, name, computer_pass_file, out", "high"),
+		hostTool("host_rbcd_write", "Host RBCD write msDS-AllowedToActOnBehalfOfOtherIdentity. Args: dc, domain, user, pass_file, to, from", "critical"),
+		hostTool("host_rbcd_clear", "Host RBCD clear. Args: dc, domain, user, pass_file, to, from", "critical"),
+		hostTool("host_ad_shadow_auto", "Host shadow creds write + PFX + PKINIT UnPAC. Args: dc, domain, user, pass_file|hash, target, out", "critical"),
+		hostTool("host_ad_shadow_clear", "Host shadow creds clear. Args: dc, domain, user, pass_file, target", "critical"),
+		hostTool("host_ad_dcsync", "Host DCSync one object (Kerberos SMB). Args: dc, domain, user, pass_file|ticket_id, target", "critical"),
+		hostTool("host_kerberos_asktgt", "Host AskTGT AES password or NT-hash overpass. Args: dc, domain, user, pass_file|hash", "high"),
+		hostTool("host_kerberos_s4u", "Host S4U2Self+S4U2Proxy AES. Args: dc, domain, user, pass_file, impersonate, spn", "critical"),
+		hostTool("host_kerberos_pkinit", "Host PKINIT UnPAC. Args: dc, domain, user, pfx", "critical"),
+		hostTool("host_kerberos_golden", "Host golden ticket from krbtgt AES. Args: domain, user, sid, aes_file", "critical"),
+		hostTool("host_kerberos_silver", "Host silver ticket from service AES. Args: domain, user, sid, spn, aes_file", "critical"),
+		hostTool("host_ad_prp_clear_never_reveal", "Host clear msDS-NeverRevealGroup on RODC. Args: dc, domain, user, pass_file, rodc", "critical"),
+		hostTool("host_ad_prp_add_reveal", "Host add msDS-RevealOnDemandGroup member. Args: dc, domain, user, pass_file, rodc, group", "critical"),
 	}
 }
 
@@ -301,6 +317,9 @@ func LookupTool(name string) (ToolDef, bool) {
 
 // RequiresApproval mirrors server policy for task types and module tools.
 func RequiresApproval(tool ToolDef) bool {
+	if tool.Host {
+		return tool.Risk == "high" || tool.Risk == "critical"
+	}
 	if tool.ModuleName != "" {
 		return policy.RequiresModuleApproval(tool.ModuleName)
 	}

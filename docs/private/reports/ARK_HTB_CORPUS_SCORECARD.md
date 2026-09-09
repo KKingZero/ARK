@@ -10,17 +10,17 @@ This file is the baseline for `docs/plans/FIX_CYCLE_SERVE_SKEW_PTH.md`. The fix 
 
 | Dir | Kind | Box solved? | ARK on critical path? |
 |---|---|---|---|
-| `reports/htb-bedside/` | HTB Linux | yes | no |
-| `reports/htb-c-linux-peer/` | local C Linux QA | n/a | n/a (host QA) |
-| `reports/htb-danglingtree/` | HTB Windows/AD | yes | flags re-read via C implant after DA |
-| `reports/htb-darkzeroreturns/` | HTB Linux→AD | yes | post-root Go implant only |
-| `reports/htb-fireflow/` | HTB Linux + C2 QA | yes | Go+C implant after root |
-| `reports/htb-garfield/` | HTB Windows/AD | yes | no |
-| `reports/htb-ghostlink/` | HTB Windows/AD | yes | no (MQTT/relay later shipped) |
-| `reports/htb-logging/` | HTB Windows/AD | yes | local C2 demo only |
-| `reports/htb-nimbus/` | HTB Linux/cloud | yes | no |
-| `reports/htb-support/` | HTB Windows/AD | yes | unused (retired; noted as future QA) |
-| `reports/lab-perf/` | local recon | n/a | implant portscan+shell vs Zypheron nikto |
+| `docs/private/reports/htb-bedside/` | HTB Linux | yes | no |
+| `docs/private/reports/htb-c-linux-peer/` | local C Linux QA | n/a | n/a (host QA) |
+| `docs/private/reports/htb-danglingtree/` | HTB Windows/AD | yes | flags re-read via C implant after DA |
+| `docs/private/reports/htb-darkzeroreturns/` | HTB Linux→AD | yes | post-root Go implant only |
+| `docs/private/reports/htb-fireflow/` | HTB Linux + C2 QA | yes | Go+C implant after root |
+| `docs/private/reports/htb-garfield/` | HTB Windows/AD | yes | no |
+| `docs/private/reports/htb-ghostlink/` | HTB Windows/AD | yes | no (MQTT/relay later shipped) |
+| `docs/private/reports/htb-logging/` | HTB Windows/AD | yes | local C2 demo only |
+| `docs/private/reports/htb-nimbus/` | HTB Linux/cloud | yes | no |
+| `docs/private/reports/htb-support/` | HTB Windows/AD | yes | unused (retired; noted as future QA) |
+| `docs/private/reports/lab-perf/` | local recon | n/a | implant portscan+shell vs Zypheron nikto |
 
 `lab-perf` and `c-linux-peer` are local QA, not HTB kill chains.
 

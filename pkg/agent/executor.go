@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/approval"
 )
 
 // ApprovalAction tells the executor how to handle a high-risk task gate.
@@ -85,6 +86,29 @@ func (e *Executor) RunTool(ctx context.Context, name, argsJSON string, defaultSe
 			fmt.Fprintf(&b, "- %s type=%s source=%s bytes=%d\n", item.Id, item.Type, item.Source, len(item.Data))
 		}
 		return b.String(), nil
+	}
+
+	if tool.Host {
+		if RequiresApproval(tool) {
+			desc := hostApprovalDesc(name, args)
+			done := make(chan struct{})
+			e.watchApproval(ctx, approval.HostSessionID, done)
+			resp, err := e.Client.RequestHostApproval(ctx, &pb.HostApprovalRequest{
+				OpName:      name,
+				Description: desc,
+			})
+			close(done)
+			if err != nil {
+				return "", err
+			}
+			if resp.GetError() != "" && !resp.GetApproved() {
+				return "", fmt.Errorf("host approval: %s", resp.GetError())
+			}
+			if !resp.GetApproved() {
+				return "", fmt.Errorf("host write denied: %s", name)
+			}
+		}
+		return runHostTool(name, args)
 	}
 
 	sessionID := str(args, "session_id")

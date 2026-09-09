@@ -631,7 +631,7 @@ func (m *model) currentProvider() providerOption {
 
 func (m *model) View() string {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("ARK AI Setup") + "\n\n")
+	b.WriteString(titleStyle.Render("◈  ARK  //  SETUP") + "\n\n")
 	m.renderCompleted(&b)
 
 	if m.cancelled {

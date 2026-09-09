@@ -37,6 +37,7 @@ const (
 	ErebusC2_ListPendingApprovals_FullMethodName  = "/erebus.c2.ErebusC2/ListPendingApprovals"
 	ErebusC2_Approve_FullMethodName               = "/erebus.c2.ErebusC2/Approve"
 	ErebusC2_Deny_FullMethodName                  = "/erebus.c2.ErebusC2/Deny"
+	ErebusC2_RequestHostApproval_FullMethodName   = "/erebus.c2.ErebusC2/RequestHostApproval"
 )
 
 // ErebusC2Client is the client API for ErebusC2 service.
@@ -68,6 +69,7 @@ type ErebusC2Client interface {
 	ListPendingApprovals(ctx context.Context, in *ListPendingApprovalsRequest, opts ...grpc.CallOption) (*ListPendingApprovalsResponse, error)
 	Approve(ctx context.Context, in *ApproveRequest, opts ...grpc.CallOption) (*ApproveResponse, error)
 	Deny(ctx context.Context, in *DenyRequest, opts ...grpc.CallOption) (*DenyResponse, error)
+	RequestHostApproval(ctx context.Context, in *HostApprovalRequest, opts ...grpc.CallOption) (*HostApprovalResponse, error)
 }
 
 type erebusC2Client struct {
@@ -267,6 +269,16 @@ func (c *erebusC2Client) Deny(ctx context.Context, in *DenyRequest, opts ...grpc
 	return out, nil
 }
 
+func (c *erebusC2Client) RequestHostApproval(ctx context.Context, in *HostApprovalRequest, opts ...grpc.CallOption) (*HostApprovalResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostApprovalResponse)
+	err := c.cc.Invoke(ctx, ErebusC2_RequestHostApproval_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ErebusC2Server is the server API for ErebusC2 service.
 // All implementations must embed UnimplementedErebusC2Server
 // for forward compatibility.
@@ -296,6 +308,7 @@ type ErebusC2Server interface {
 	ListPendingApprovals(context.Context, *ListPendingApprovalsRequest) (*ListPendingApprovalsResponse, error)
 	Approve(context.Context, *ApproveRequest) (*ApproveResponse, error)
 	Deny(context.Context, *DenyRequest) (*DenyResponse, error)
+	RequestHostApproval(context.Context, *HostApprovalRequest) (*HostApprovalResponse, error)
 	mustEmbedUnimplementedErebusC2Server()
 }
 
@@ -359,6 +372,9 @@ func (UnimplementedErebusC2Server) Approve(context.Context, *ApproveRequest) (*A
 }
 func (UnimplementedErebusC2Server) Deny(context.Context, *DenyRequest) (*DenyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Deny not implemented")
+}
+func (UnimplementedErebusC2Server) RequestHostApproval(context.Context, *HostApprovalRequest) (*HostApprovalResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestHostApproval not implemented")
 }
 func (UnimplementedErebusC2Server) mustEmbedUnimplementedErebusC2Server() {}
 func (UnimplementedErebusC2Server) testEmbeddedByValue()                  {}
@@ -698,6 +714,24 @@ func _ErebusC2_Deny_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ErebusC2_RequestHostApproval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HostApprovalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ErebusC2Server).RequestHostApproval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ErebusC2_RequestHostApproval_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ErebusC2Server).RequestHostApproval(ctx, req.(*HostApprovalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ErebusC2_ServiceDesc is the grpc.ServiceDesc for ErebusC2 service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -772,6 +806,10 @@ var ErebusC2_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Deny",
 			Handler:    _ErebusC2_Deny_Handler,
+		},
+		{
+			MethodName: "RequestHostApproval",
+			Handler:    _ErebusC2_RequestHostApproval_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

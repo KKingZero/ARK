@@ -163,8 +163,8 @@ func ForACL(r *pb.LDAPEnumResult) []string {
 	}
 	if r.TotalResults == 0 && len(r.Entries) == 0 {
 		return Cap([]string{
-			"host: ark ldap enum --type interesting",
-			"host: ark ldap enum --type rbcd",
+			"ldap_enum query_type=interesting",
+			"host_rbcd_write --to HOST$ --from ATTACK$",
 		})
 	}
 	var out []string
@@ -195,21 +195,21 @@ func ForACL(r *pb.LDAPEnumResult) []string {
 			return false
 		}
 		if has("ForceChangePassword") {
-			add(fmt.Sprintf("host: ark ad password --target %s --new-pass-file ./new.txt --yes", sam))
+			add(fmt.Sprintf("host_ad_password --target %s --new-pass-file ./new.txt --yes", sam))
 		}
 		if has("AllowedToAct") || ((has("GenericAll") || has("WriteDacl")) && strings.Contains(cat, "computer")) {
-			add(fmt.Sprintf("host: ark rbcd write --to %s --from ATTACK$", sam))
+			add(fmt.Sprintf("host_rbcd_write --to %s --from ATTACK$", sam))
 		}
 		if (has("GenericAll") || has("GenericWrite")) && (cat == "" || strings.Contains(cat, "user") || strings.Contains(cat, "person")) {
-			add(fmt.Sprintf("host: ark ldap set %s scriptPath <value>", sam))
-			add(fmt.Sprintf("host: ark ad password --target %s --new-pass-file ./new.txt --yes", sam))
+			add(fmt.Sprintf("host_ldap_set %s scriptPath <value>", sam))
+			add(fmt.Sprintf("host_ad_password --target %s --new-pass-file ./new.txt --yes", sam))
 		}
 		if (has("GenericAll") || has("GenericWrite") || has("WriteSPN")) && strings.Contains(cat, "computer") {
-			add(fmt.Sprintf("host: ark ldap set --target %s servicePrincipalName <SPN> --yes", sam))
+			add(fmt.Sprintf("host_ldap_set --target %s servicePrincipalName <SPN>", sam))
 		}
 	}
 	if len(out) == 0 {
-		add("host: ark ldap enum --type interesting")
+		add("host_ldap_set / ldap enum interesting")
 	}
 	return Cap(out)
 }

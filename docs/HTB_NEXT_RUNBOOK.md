@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | **Audience** | Operator + ARK developer |
-| **Labs covered so far** | Support, Logging, Ghostlink, DanglingTree, FireFlow, DarkZero, Garfield, plus later reports under `reports/htb-*/` |
+| **Labs covered so far** | Support, Logging, Ghostlink, DanglingTree, FireFlow, DarkZero, Garfield, plus later reports under `docs/private/reports/htb-*/` |
 | **ARK P0 shipped** | WinRM PTH, LDAP hash/`interesting`, remote SMB client; **Sprint D** MQTT + HTTP NTLM relay; host `adcs` / `rbcd` / shadow / AES tickets |
-| **Related** | `docs/AD_ENGAGEMENT.md`, `docs/plans/FILL_AD_SKELETON.md`, `docs/OPERATOR_PRE_IMPLANT.md`, `docs/OPERATOR_INBOUND.md`, `reports/htb-*/` |
+| **Related** | `docs/AD_ENGAGEMENT.md`, `docs/plans/FILL_AD_SKELETON.md`, `docs/OPERATOR_PRE_IMPLANT.md`, `docs/OPERATOR_INBOUND.md`, `docs/private/reports/htb-*/` |
 | **Last updated** | 2026-09-04 |
 
 Authorized HTB / lab use only. Do not use against systems without permission.
@@ -18,7 +18,7 @@ Authorized HTB / lab use only. Do not use against systems without permission.
 
 1. **Exercise ARK on the critical path** (host AD tools + C implant), not as a victory-lap shell after Impacket.
 2. **QA P0 features** on a real Windows/AD target (SMB → LDAP interesting → WinRM PTH, host `adcs` / `rbcd` / shadow where the box needs them).
-3. **Drive remaining gaps** with machines that need native PKINIT UnPAC, DNS write, ATSVC deploy, or Windows C SOCKS.
+3. **Drive remaining gaps** with machines that need live PKINIT UnPAC proof, DNS write, ATSVC deploy, or Windows C SOCKS.
 4. **Keep OPSEC and lab hygiene** consistent so reports and framework QA stay trustworthy.
 
 ---
@@ -28,8 +28,8 @@ Authorized HTB / lab use only. Do not use against systems without permission.
 | Machine | Difficulty | Status | Flags | ARK use so far |
 | --- | --- | --- | --- | --- |
 | **Support** | Easy (Win/AD) | Solved | user + root | Mostly external tools; good first implant-drop target |
-| **Logging** | Medium (Win/AD) | **Solved** | user + root | C2 local implant OK; AD chain mostly external — see `reports/htb-logging/ARK_AFTER_ACTION.md` |
-| **Ghostlink** | Hard (Win/AD) | **Solved** | user + root | Drove Sprint D pre-implant toolkit; report `reports/htb-ghostlink/` |
+| **Logging** | Medium (Win/AD) | **Solved** | user + root | C2 local implant OK; AD chain mostly external — see `docs/private/reports/htb-logging/ARK_AFTER_ACTION.md` |
+| **Ghostlink** | Hard (Win/AD) | **Solved** | user + root | Drove Sprint D pre-implant toolkit; report `docs/private/reports/htb-ghostlink/` |
 | **DanglingTree** | Medium (Win/AD) | **Solved** | user + root | Host LDAP/SMB/AD password; dangling ESC1 now `ark adcs` (PKINIT still Certipy) |
 | Lab-perf (Juice/Meta) | N/A | Passed | N/A | Implant recon only |
 
@@ -43,9 +43,9 @@ Order is intentional: in-framework critical path → validate P0 on Easy AD → 
 
 ### Priority 0 — In-framework critical path
 
-Logging is **solved** (notes in `reports/htb-logging/`). Do not treat it as open work.
+Logging is **solved** (notes in `docs/private/reports/htb-logging/`). Do not treat it as open work.
 
-Next session: pick a current Easy/Medium AD box and run the **host tools + C implant** path from `docs/AD_ENGAGEMENT.md` before falling back to Impacket/Certipy. Scorecard: `reports/ARK_HTB_CORPUS_SCORECARD.md`.
+Next session: pick a current Easy/Medium AD box and run the **host tools + C implant** path from `docs/AD_ENGAGEMENT.md` before falling back to Impacket/Certipy. Scorecard: `docs/private/reports/ARK_HTB_CORPUS_SCORECARD.md`.
 
 ### Priority 1 — Validate ARK soft-compromise path (Easy AD)
 
@@ -125,13 +125,13 @@ Full inbound / auth / firewall / tunnel checklist: **`docs/OPERATOR_INBOUND.md`*
 ### 4.3 Report locations
 
 ```text
-reports/htb-<machine>/
+docs/private/reports/htb-<machine>/
   PENTEST_REPORT.md          # findings-oriented (target issues)
   PROGRESS_AND_FIXES.md      # if incomplete / tooling notes
 ```
 
-Support template: `reports/htb-support/PENTEST_REPORT.md`.  
-Logging template: `reports/htb-logging/PROGRESS_AND_FIXES.md`.
+Support template: `docs/private/reports/htb-support/PENTEST_REPORT.md`.  
+Logging template: `docs/private/reports/htb-logging/PROGRESS_AND_FIXES.md`.
 
 ### 4.4 ARK soft path (after foothold)
 
@@ -216,7 +216,7 @@ AI: `ai` → Plan with soft-compromise objective → Auto with approvals.
 | --- | --- |
 | Shell expansion | Never put passwords with `$` in double-quoted bash (`$$` → PID). Write to file via Python/`printf` |
 | Files | Store secrets under `~/htb-<machine>/` with mode `600`; do not commit to git |
-| Reports | Prefer redaction in public commits; lab-only flags/creds OK in private `reports/` if repo is private |
+| Reports | Prefer redaction in public commits; lab-only flags/creds stay under `docs/private/reports/` |
 | Loot | ARK loot DB under `~/.ark/` — treat as sensitive |
 | Logs | Do not paste full NT hashes/passwords into public issues/PRs |
 
@@ -343,8 +343,8 @@ Adjust to your HTB rank path; keep the **finish open → QA P0 → code P1 → M
 - `docs/AD_ENGAGEMENT.md` — operator AD cookbook  
 - `docs/GOLDEN_DEMO.md` — Sprint 1 Auto path  
 - `docs/GOAD_LAB.md` — offline AD lab alternative  
-- `reports/htb-support/PENTEST_REPORT.md` — Support findings  
-- `reports/htb-logging/PROGRESS_AND_FIXES.md` — Logging progress + root checklist  
+- `docs/private/reports/htb-support/PENTEST_REPORT.md` — Support findings  
+- `docs/private/reports/htb-logging/PROGRESS_AND_FIXES.md` — Logging progress + root checklist  
 - Plan (product): soft compromise → ACL/RBCD → shadow/tickets  
 
 ---

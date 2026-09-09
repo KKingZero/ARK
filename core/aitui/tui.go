@@ -114,22 +114,21 @@ type approvalNeededMsg struct {
 
 var (
 	headerStyle     = theme.Accent
-	subheadStyle    = theme.Default
-	footerStyle     = theme.Default
+	subheadStyle    = theme.Dim
+	footerStyle     = theme.Dim
 	modeActive      = theme.Active.Padding(0, 1)
 	modeInactive    = theme.Inactive.Padding(0, 1)
 	inputBoxStyle   = theme.Box
 	userLabel       = theme.Accent
-	aiLabel         = theme.Accent
-	systemLabel     = theme.Default
-	stepLabel       = theme.AccentPlain
+	aiLabel         = theme.Default
+	systemLabel     = theme.Dim
+	stepLabel       = theme.Dim
 	errLabel        = theme.Accent
 	bodyStyle       = theme.Default
-	errBody         = theme.Accent
-	separatorStyle  = theme.Default
-	pickerBoxStyle  = theme.Border.Border(lipgloss.NormalBorder()).Padding(0, 2)
+	errBody         = theme.Default
+	separatorStyle  = theme.Dim
 	pickerSelected  = theme.Active
-	pickerItemStyle = theme.Default
+	pickerItemStyle = theme.Dim
 	approvalStyle   = theme.Accent
 )
 
@@ -147,8 +146,8 @@ func Run(opts Options) (QuitMode, error) {
 
 func newModel(opts Options) model {
 	ti := textinput.New()
-	ti.Placeholder = "Ask ARK..."
-	ti.Prompt = "› "
+	ti.Placeholder = "query ARK…"
+	ti.Prompt = "◈ "
 	ti.CharLimit = 4096
 	ti.TextStyle = theme.Default
 	ti.PromptStyle = theme.Accent
@@ -169,7 +168,7 @@ func newModel(opts Options) model {
 			Content: llm.ArkSystemPrompt,
 		}},
 	}
-	m.appendSystem("ARK AI ready. Tab = model · Shift+Tab = mode (Normal / Plan / Auto).")
+	m.appendSystem("ARK C2 link up. Tab = model · Shift+Tab = mode (Normal / Plan / Auto).")
 	if opts.AgentCfg != nil {
 		m.appendSystem("Teamserver connected — use Auto mode to run the agent. Approvals happen in this TUI ([a]/[d]).")
 	} else {
@@ -459,7 +458,7 @@ func (m model) View() string {
 	if m.opts.AgentCfg != nil {
 		backend = "teamserver"
 	}
-	header := headerStyle.Render(" ARK AI ")
+	header := headerStyle.Render("◈  ARK  C2") + theme.Dim.Render("  //  uplink")
 	subhead := subheadStyle.Render(fmt.Sprintf(" %s / %s · %s · %s ",
 		m.opts.LLMCfg.Provider, m.opts.LLMCfg.Model, backend, sessionModes[m.modeIdx].Hint))
 
@@ -502,17 +501,39 @@ func formatApprovalBanner(id, risk, desc string) string {
 }
 
 func (m model) renderModelPicker() string {
-	var lines []string
-	for i, choice := range pickerModels {
-		line := "  " + choice.Label
-		if i == m.modelPickerIdx {
-			line = pickerSelected.Render("→ " + choice.Label)
-		} else {
-			line = pickerItemStyle.Render("  " + choice.Label)
-		}
-		lines = append(lines, line)
+	const inner = 22
+	title := " PROVIDER "
+	dash := inner - len([]rune(title)) - 1
+	if dash < 1 {
+		dash = 1
 	}
-	return pickerBoxStyle.Render(strings.Join(lines, "\n"))
+	top := "┌─" + title + strings.Repeat("─", dash) + "┐"
+	bot := "└" + strings.Repeat("─", inner) + "┘"
+	var b strings.Builder
+	b.WriteString(theme.Dim.Render(top))
+	b.WriteByte('\n')
+	for i, choice := range pickerModels {
+		label := choice.Label
+		if choice.Provider == "ollama" {
+			label = "local"
+		}
+		prefix := "  "
+		style := pickerItemStyle
+		if i == m.modelPickerIdx {
+			prefix = "→ "
+			style = pickerSelected
+		}
+		pad := inner - 2 - len([]rune(prefix+label))
+		if pad < 0 {
+			pad = 0
+		}
+		b.WriteString(theme.Dim.Render("│"))
+		b.WriteString(style.Render(prefix + label + strings.Repeat(" ", pad)))
+		b.WriteString(theme.Dim.Render("│"))
+		b.WriteByte('\n')
+	}
+	b.WriteString(theme.Dim.Render(bot))
+	return b.String()
 }
 
 func (m model) applyModelChoice(idx int) (tea.Model, tea.Cmd) {

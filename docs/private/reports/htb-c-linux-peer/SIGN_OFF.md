@@ -38,7 +38,7 @@
 | Register via tunnel if needed | **Pending** | `scripts/htb_reverse_tunnel.sh` |
 | Shell + file + process + net | **Pending** | |
 
-Historical: FireFlow eng already proved C Linux shell via reverse tunnel (`reports/htb-fireflow/PENTEST_REPORT.md`) — formal §6 re-run still required for C-only + full task matrix.
+Historical: FireFlow eng already proved C Linux shell via reverse tunnel (`docs/private/reports/htb-fireflow/PENTEST_REPORT.md`) — formal §6 re-run still required for C-only + full task matrix.
 
 ## Pivot policy
 
