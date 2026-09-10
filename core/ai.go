@@ -69,7 +69,7 @@ func (c *Console) tryAgentLoop(ctx context.Context, objective string, llmCfg llm
 	emit(c.mode, Response{
 		Status:  "info",
 		Command: "ai",
-		Message: fmt.Sprintf("> Starting autonomous agent (%s / %s) for: %s\n> High-risk actions require `ark serve` + approve in another terminal",
+		Message: fmt.Sprintf("> Starting autonomous agent (%s / %s) for: %s\n> High-risk actions pause for approval in the AI view",
 			llmCfg.Provider, llmCfg.Model, objective),
 		Data: map[string]string{
 			"objective": objective,

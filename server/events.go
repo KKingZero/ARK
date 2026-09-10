@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	eventBufferSize     = 256
+	eventBufferSize      = 256
 	importantPublishWait = 2 * time.Second
 )
 
@@ -38,7 +38,9 @@ func (eb *EventBus) Subscribe() (<-chan *pb.Event, func()) {
 		eb.mu.Lock()
 		defer eb.mu.Unlock()
 		delete(eb.subscribers, id)
-		close(ch)
+		// Do not close(ch): Publish may still hold a snapshot of this
+		// channel. Dropping the map entry is enough; in-flight sends
+		// hit a buffer or the default branch.
 	}
 	return ch, unsub
 }

@@ -10,24 +10,26 @@ import (
 
 	"github.com/KKingZero/ARK/core/banner"
 	"github.com/KKingZero/ARK/core/theme"
+	"github.com/KKingZero/ARK/pkg/arkcli"
 	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server"
 	"github.com/chzyer/readline"
 )
 
 // Version is the ARK framework version shown at startup.
 const Version = "0.1.0"
 
-const promptDefault = theme.ANSIAccent + "ark" + theme.ANSIDim + " › " + theme.ANSIReset
-const promptModuleFmt = theme.ANSIAccent + "ark" + theme.ANSIDim + " (%s) › " + theme.ANSIReset
+const promptDefault = theme.ANSIAccent + "ark" + theme.ANSIDim + "[%s] › " + theme.ANSIReset
 
 type Console struct {
-	currentModule string
-	workspace     string
-	session       string
-	running       bool
-	mode          OutputMode
-	team          TeamClient
-	teamBanner    bool
+	workspace  string
+	session    string
+	running    bool
+	mode       OutputMode
+	team       TeamClient
+	teamBanner bool
+	online     bool
+	ownedTS    *arkcli.TeamserverHandle
 }
 
 func NewConsole(jsonMode bool) *Console {
@@ -39,11 +41,29 @@ func NewConsole(jsonMode bool) *Console {
 }
 
 func (c *Console) Start() {
+	c.StartWith("")
+}
+
+// StartWith runs an optional first command (e.g. "ai") then the REPL.
+func (c *Console) StartWith(boot string) {
+	defer c.stopOwnedTeamserver()
+	c.online = c.probeOnline()
 	if c.mode == OutputJSON {
+		if boot != "" {
+			c.handleCommand(boot)
+		}
 		c.startJSON()
 		return
 	}
-	c.startInteractive()
+	c.startInteractive(boot)
+}
+
+func (c *Console) probeOnline() bool {
+	cfg, err := server.LoadConfig(server.ConfigPath())
+	if err != nil {
+		cfg = server.DefaultConfig()
+	}
+	return arkcli.GRPCReachable(cfg.GRPCAddr)
 }
 
 func printStartupBanner() {
@@ -53,14 +73,21 @@ func printStartupBanner() {
 }
 
 // startInteractive runs the human-friendly readline REPL
-func (c *Console) startInteractive() {
+func (c *Console) startInteractive(boot string) {
 	printStartupBanner()
+	if boot != "" {
+		c.handleCommand(boot)
+		if !c.running {
+			return
+		}
+	}
 
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:          c.prompt(),
 		HistoryFile:     arkHistoryPath(),
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
+		AutoComplete:    consoleCompleter(),
 	})
 	if err != nil {
 		panic(err)
@@ -82,6 +109,37 @@ func (c *Console) startInteractive() {
 			scrubLastHistoryEntry(arkHistoryPath())
 		}
 	}
+}
+
+func consoleCompleter() *readline.PrefixCompleter {
+	return readline.NewPrefixCompleter(
+		readline.PcItem("help"),
+		readline.PcItem("?"),
+		readline.PcItem("serve"),
+		readline.PcItem("status"),
+		readline.PcItem("ai",
+			readline.PcItem("setup"),
+			readline.PcItem("provider"),
+			readline.PcItem("models"),
+			readline.PcItem("providers"),
+			readline.PcItem("config"),
+			readline.PcItem("help"),
+		),
+		readline.PcItem("sessions"),
+		readline.PcItem("loot"),
+		readline.PcItem("engagements",
+			readline.PcItem("new"),
+			readline.PcItem("list"),
+		),
+		readline.PcItem("workspace",
+			readline.PcItem("new"),
+			readline.PcItem("list"),
+		),
+		readline.PcItem("report", readline.PcItem("generate")),
+		readline.PcItem("clear"),
+		readline.PcItem("exit"),
+		readline.PcItem("quit"),
+	)
 }
 
 // startJSON runs a line-oriented JSON mode for AI/programmatic control.
@@ -107,47 +165,39 @@ func (c *Console) startJSON() {
 }
 
 func (c *Console) prompt() string {
-	if c.currentModule != "" {
-		return fmt.Sprintf(promptModuleFmt, c.currentModule)
-	}
-	return promptDefault
+	return fmt.Sprintf(promptDefault, promptTag(c.online, c.workspace))
 }
 
 func (c *Console) handleCommand(input string) {
-	parts := strings.Fields(input)
-	cmd := parts[0]
-	args := parts[1:]
+	cmd, args := parseLine(input)
+	if cmd == "" {
+		return
+	}
 
-	switch cmd {
-	case "help":
-		c.cmdHelp()
+	switch strings.ToLower(cmd) {
+	case "help", "?":
+		c.cmdHelp(args)
+	case "serve":
+		c.cmdServe()
+	case "status":
+		c.cmdStatus()
 	case "clear":
 		if c.mode == OutputHuman {
 			fmt.Print("\033[H\033[2J")
 			printStartupBanner()
 		}
-	case "use":
-		c.cmdUse(args)
-	case "back":
-		c.cmdBack()
-	case "search":
-		c.cmdSearch(args)
 	case "sessions":
 		c.cmdSessions(args)
-	case "workspace":
-		c.cmdWorkspace(args)
-	case "options":
-		c.cmdOptions()
-	case "info":
-		c.cmdInfo()
-	case "run", "exploit":
-		c.cmdRun()
+	case "engagements", "workspace":
+		c.cmdEngagements(args)
 	case "loot":
 		c.cmdLoot()
 	case "report":
 		c.cmdReport(args)
 	case "ai":
 		c.cmdAI(args)
+	case "ark":
+		emitError(c.mode, "ark", "You're already in the ARK shell. Type `serve`, not `ark serve`.")
 	case "exit", "quit":
 		emit(c.mode, Response{
 			Status:  "ok",
@@ -156,117 +206,32 @@ func (c *Console) handleCommand(input string) {
 		})
 		c.running = false
 	default:
-		emitError(c.mode, cmd, fmt.Sprintf("Unknown command: %s", cmd))
+		emitError(c.mode, cmd, fmt.Sprintf("Unknown command: %s (try help)", cmd))
 	}
 }
 
-func (c *Console) cmdHelp() {
-	type HelpEntry struct {
-		Command     string `json:"command"`
-		Description string `json:"description"`
+func (c *Console) cmdHelp(args []string) {
+	if len(args) > 0 {
+		topic := strings.Join(args, " ")
+		msg := commandHelp(topic)
+		if msg == "" {
+			emitError(c.mode, "help", fmt.Sprintf("No help for %q. Type help.", topic))
+			return
+		}
+		emit(c.mode, Response{
+			Status:  "ok",
+			Command: "help",
+			Message: "\n" + msg + "\n",
+			Data:    map[string]string{"topic": topic},
+		})
+		return
 	}
-	type CategoryEntry struct {
-		Path        string `json:"path"`
-		Description string `json:"description"`
-	}
-
-	commands := []HelpEntry{
-		{"help", "Show this menu"},
-		{"ai", "Open AI chat TUI (Normal / Plan / Auto)"},
-		{"ai <message>", "Open TUI and send first message"},
-		{"ai setup", "Interactive provider / API key / model wizard"},
-		{"ai providers", "List LLM providers"},
-		{"ai provider <name>", "Switch active LLM provider"},
-		{"sessions", "List active sessions (needs teamserver)"},
-		{"sessions -i <id>", "Show session details"},
-		{"loot", "Show captured loot"},
-		{"workspace <new|list>", "Manage engagements"},
-		{"report generate", "Generate pentest report"},
-		{"clear", "Clear screen"},
-		{"exit", "Exit ARK"},
-	}
-
-	var humanMsg strings.Builder
-	sec := func(title string) {
-		humanMsg.WriteString("\n")
-		humanMsg.WriteString(title)
-		humanMsg.WriteString("\n")
-	}
-	row := func(cmd, desc string) {
-		humanMsg.WriteString(fmt.Sprintf("  %-16s%s\n", cmd, desc))
-	}
-	sec("PRIMARY")
-	row("ark serve", "Start teamserver + operator")
-	row("ai", "Open ARK AI")
-	row("ai <message>", "Ask ARK directly")
-	sec("OPERATIONS")
-	row("sessions", "Active sessions")
-	row("loot", "Captured artifacts")
-	row("workspace", "Engagements")
-	row("report generate", "Generate report")
-	sec("AI")
-	row("ai setup", "Configure provider")
-	row("ai providers", "List providers")
-	row("ai provider", "Change provider")
-	sec("SYSTEM")
-	row("help", "Show this menu")
-	row("clear", "Clear screen")
-	row("exit", "Exit ARK")
-	humanMsg.WriteString("\nImplant tasks: ark operator  (shell, ldap-enum, kerberoast, approve)\n")
-	humanMsg.WriteString("Auto mode: [a] approve  [d] deny\n")
-
 	emit(c.mode, Response{
 		Status:  "ok",
 		Command: "help",
-		Message: humanMsg.String(),
+		Message: replHelpText(),
 		Data: map[string]interface{}{
-			"commands": commands,
-		},
-	})
-}
-
-func (c *Console) cmdUse(args []string) {
-	emit(c.mode, Response{
-		Status:  "info",
-		Command: "use",
-		Message: "> Module load is not available in the startup console.\n> Use `ai` (Plan/Auto) or `ark serve` operator REPL for live tasks.",
-		Data: map[string]interface{}{
-			"status": "unavailable",
-			"args":   args,
-		},
-	})
-}
-
-func (c *Console) cmdBack() {
-	if c.currentModule == "" {
-		emitError(c.mode, "back", "No module loaded")
-		return
-	}
-	prev := c.currentModule
-	c.currentModule = ""
-	emit(c.mode, Response{
-		Status:  "ok",
-		Command: "back",
-		Message: fmt.Sprintf("> Unloaded: %s", prev),
-		Data: map[string]string{
-			"unloaded": prev,
-		},
-	})
-}
-
-func (c *Console) cmdSearch(args []string) {
-	if len(args) == 0 {
-		emitError(c.mode, "search", "Usage: search <term> or search cve:<CVE-ID> or search platform:<platform>")
-		return
-	}
-	query := strings.Join(args, " ")
-	emit(c.mode, Response{
-		Status:  "info",
-		Command: "search",
-		Message: fmt.Sprintf("> Module search is not available in the startup console.\n> Use `ai` (Plan mode) or the operator REPL.\n> Query: %s", query),
-		Data: map[string]interface{}{
-			"query":   query,
-			"results": []interface{}{},
+			"layer": "ark-shell",
 		},
 	})
 }
@@ -277,7 +242,7 @@ func (c *Console) cmdSessions(args []string) {
 		emit(c.mode, Response{
 			Status:  "info",
 			Command: "sessions",
-			Message: fmt.Sprintf("> Teamserver unavailable (%v)\n> Start with: ark serve", err),
+			Message: fmt.Sprintf("> Teamserver unavailable (%v)\n> Start with: serve", err),
 			Data: map[string]interface{}{
 				"sessions": []interface{}{},
 				"count":    0,
@@ -356,82 +321,13 @@ func (c *Console) cmdSessions(args []string) {
 	})
 }
 
-func (c *Console) cmdWorkspace(args []string) {
-	if len(args) == 0 {
-		emitError(c.mode, "workspace", "Usage: workspace <new|list> [name]")
-		return
-	}
-	switch args[0] {
-	case "new":
-		if len(args) < 2 {
-			emitError(c.mode, "workspace", "Usage: workspace new <name>")
-			return
-		}
-		c.workspace = args[1]
-		emit(c.mode, Response{
-			Status:  "ok",
-			Command: "workspace",
-			Message: fmt.Sprintf("> Workspace created: %s", c.workspace),
-			Data: map[string]string{
-				"action":    "created",
-				"workspace": c.workspace,
-			},
-		})
-	case "list":
-		emit(c.mode, Response{
-			Status:  "ok",
-			Command: "workspace",
-			Message: fmt.Sprintf("> Active workspace: %s", c.workspace),
-			Data: map[string]string{
-				"action":    "list",
-				"workspace": c.workspace,
-			},
-		})
-	default:
-		emitError(c.mode, "workspace", fmt.Sprintf("Unknown workspace action: %s", args[0]))
-	}
-}
-
-func (c *Console) cmdOptions() {
-	emit(c.mode, Response{
-		Status:  "info",
-		Command: "options",
-		Message: "> Module options are not available in the startup console.\n> Use `ai` (Auto) or `ark serve` operator REPL for live tasks.",
-		Data: map[string]string{
-			"status": "unavailable",
-		},
-	})
-}
-
-func (c *Console) cmdInfo() {
-	emit(c.mode, Response{
-		Status:  "info",
-		Command: "info",
-		Message: "> Module info is not available in the startup console.\n> Use `ai` (Plan mode) for attack-path planning, or the operator REPL.",
-		Data: map[string]string{
-			"status": "unavailable",
-		},
-	})
-}
-
-func (c *Console) cmdRun() {
-	emit(c.mode, Response{
-		Status:  "info",
-		Command: "run",
-		Message: "> Module execution is not available in the startup console.\n> Use `ai` (Auto mode) or `ark serve` operator REPL.",
-		Data: map[string]string{
-			"status": "unavailable",
-		},
-	})
-}
-
 func (c *Console) cmdLoot() {
 	client, addr, err := c.team.connect()
 	if err != nil {
 		emit(c.mode, Response{
 			Status:  "info",
 			Command: "loot",
-			Message: fmt.Sprintf("> Teamserver unavailable (%v)\n> Start with: ark serve", err),
+			Message: fmt.Sprintf("> Teamserver unavailable (%v)\n> Start with: serve", err),
 			Data: map[string]interface{}{
 				"items": []interface{}{},
 				"count": 0,

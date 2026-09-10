@@ -33,7 +33,7 @@ func NewREPL(client pb.ErebusC2Client, approverClient pb.ErebusC2Client) (*REPL,
 	}
 
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:          theme.ANSIAccent + "ark" + theme.ANSIDim + " › " + theme.ANSIReset,
+		Prompt:          theme.ANSIAccent + "ark" + theme.ANSIDim + "[operator] › " + theme.ANSIReset,
 		AutoComplete:    readline.NewPrefixCompleter(items...),
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
@@ -64,7 +64,7 @@ func (r *REPL) Run() error {
 			if len(sid) > 8 {
 				sid = sid[:8]
 			}
-			r.rl.SetPrompt(fmt.Sprintf("%sark%s [%s] › %s", theme.ANSIAccent, theme.ANSIDim, sid, theme.ANSIReset))
+			r.rl.SetPrompt(fmt.Sprintf("%sark%s[%s] › %s", theme.ANSIAccent, theme.ANSIDim, sid, theme.ANSIReset))
 		}
 
 		line, err := r.rl.Readline()

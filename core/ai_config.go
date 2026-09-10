@@ -24,6 +24,8 @@ func (c *Console) cmdAI(args []string) {
 	case "key":
 		// Backward-compatible alias for `ai setup`.
 		c.aiSetup(args[1:])
+	case "models":
+		c.aiModels()
 	case "model":
 		c.aiSetModel(args[1:])
 	case "config":
@@ -41,18 +43,16 @@ func (c *Console) cmdAI(args []string) {
 
 func (c *Console) aiUsage() {
 	msg := `AI commands:
-  ai                               Open AI chat terminal (TUI)
+  ai                               Open AI chat (TUI)
   ai <message>                     Open TUI and send first message
-  ai setup                         Interactive provider / key / model wizard
+  ai setup                         Provider / key / model wizard
   ai providers                     List LLM providers
-  ai provider <name>               Switch active provider (ollama, openai, anthropic, grok, bedrock, kimi, gemini)
+  ai provider <name>               Switch active provider
+  ai models                        List models for the active provider
   ai model <provider> <model>      Set model for a provider
-  ai config                        Show active provider and saved keys (masked)
+  ai config                        Show active provider (keys masked)
 
-In TUI: /back = return to ark ›   /quit = exit ARK   /clear = reset transcript
-Providers: ollama (local), openai, anthropic, grok (xAI), bedrock, kimi, gemini
-Auth: API keys (or env vars) only — no browser OAuth in this release
-OpenAI/Anthropic are Platform API keys with API credits. ChatGPT Plus/Codex and Claude Pro/Claude Code do not apply.`
+Inside AI: /serve /back /quit /clear /mode   Esc back   ? help`
 	emit(c.mode, Response{
 		Status:  "ok",
 		Command: "ai",
@@ -128,6 +128,47 @@ func (c *Console) aiProviders() {
 		Message: b.String(),
 		Data: map[string]interface{}{
 			"active": cfg.Active,
+		},
+	})
+}
+
+func (c *Console) aiModels() {
+	cfg, err := llm.Load(llm.DefaultConfigPath)
+	if err != nil {
+		emitError(c.mode, "ai", err.Error())
+		return
+	}
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("\n%s models", displayProvider(cfg.Provider)))
+	if cfg.Model != "" {
+		b.WriteString(fmt.Sprintf("  (active: %s)", cfg.Model))
+	}
+	b.WriteString("\n")
+	names := llm.SuggestedModels(cfg.Provider)
+	if cfg.Provider == string(llm.ProviderOllama) {
+		if probed, err := llm.ProbeOllama(cfg.BaseURL, cfg.APIKey); err == nil && len(probed) > 0 {
+			names = probed
+		}
+	}
+	if len(names) == 0 {
+		b.WriteString("  (none listed)\n")
+	}
+	for _, n := range names {
+		mark := " "
+		if n == cfg.Model {
+			mark = "*"
+		}
+		b.WriteString(fmt.Sprintf("  %s %s\n", mark, n))
+	}
+	b.WriteString("\nSet: ai model <provider> <id>   or   ai setup\n")
+	emit(c.mode, Response{
+		Status:  "ok",
+		Command: "ai",
+		Message: b.String(),
+		Data: map[string]interface{}{
+			"provider": cfg.Provider,
+			"model":    cfg.Model,
+			"models":   names,
 		},
 	})
 }

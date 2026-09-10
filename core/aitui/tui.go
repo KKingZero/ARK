@@ -38,11 +38,12 @@ const (
 var sessionModes = []struct {
 	ID    SessionMode
 	Label string
+	Sub   string
 	Hint  string
 }{
-	{ModeNormal, "Normal", "Chat and quick guidance"},
-	{ModePlan, "Plan", "Structured attack-path planning"},
-	{ModeAuto, "Auto", "Autonomous agent execution"},
+	{ModeNormal, "NORMAL", "Advisory", "Chat and guidance. No operator actions."},
+	{ModePlan, "PLAN", "Propose", "Structured attack-path planning. You approve before anything runs."},
+	{ModeAuto, "AUTO", "Execute*", "Executes approved actions through the operator. High-risk actions still require approval."},
 }
 
 // Options configures an AI TUI session.
@@ -50,6 +51,8 @@ type Options struct {
 	LLMCfg     llm.Config
 	AgentCfg   *agent.Config
 	InitialMsg string
+	Sessions   int
+	OnServe    func() (*agent.Config, int, error)
 }
 
 type entryKind int
@@ -112,6 +115,12 @@ type approvalNeededMsg struct {
 	reply          chan approvalReply
 }
 
+type serveDoneMsg struct {
+	agent    *agent.Config
+	sessions int
+	err      error
+}
+
 var (
 	headerStyle     = theme.Accent
 	subheadStyle    = theme.Dim
@@ -168,12 +177,6 @@ func newModel(opts Options) model {
 			Content: llm.ArkSystemPrompt,
 		}},
 	}
-	m.appendSystem("ARK C2 link up. Tab = model · Shift+Tab = mode (Normal / Plan / Auto).")
-	if opts.AgentCfg != nil {
-		m.appendSystem("Teamserver connected — use Auto mode to run the agent. Approvals happen in this TUI ([a]/[d]).")
-	} else {
-		m.appendSystem("No teamserver — Normal/Plan chat only. Start with: ark serve")
-	}
 	m.syncViewport()
 	return m
 }
@@ -220,7 +223,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.busy {
 			switch msg.String() {
-			case "ctrl+c":
+			case "ctrl+c", "esc":
 				return m.quit(QuitBack)
 			}
 			return m, nil
@@ -252,8 +255,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.modelPickerOpen = true
 			m.modelPickerIdx = pickerIndexForProvider(m.opts.LLMCfg.Provider)
 			return m, nil
-		case "ctrl+c":
+		case "esc", "ctrl+c":
 			return m.quit(QuitBack)
+		case "up":
+			m.viewport.LineUp(1)
+			return m, nil
+		case "down":
+			m.viewport.LineDown(1)
+			return m, nil
+		case "?":
+			if strings.TrimSpace(m.input.Value()) == "" {
+				m.appendSystem(navHelpText())
+				m.syncViewport()
+				return m, nil
+			}
 		case "enter":
 			text := strings.TrimSpace(m.input.Value())
 			if text == "" {
@@ -281,6 +296,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 			m.appendAI(reply)
 		}
+		m.syncViewport()
+		return m, textinput.Blink
+
+	case serveDoneMsg:
+		m.busy = false
+		if msg.err != nil {
+			m.appendError(msg.err.Error())
+			m.syncViewport()
+			return m, textinput.Blink
+		}
+		m.opts.AgentCfg = msg.agent
+		m.opts.Sessions = msg.sessions
+		m.appendSystem(fmt.Sprintf("● Operator online · %d session(s)", msg.sessions))
 		m.syncViewport()
 		return m, textinput.Blink
 
@@ -352,9 +380,9 @@ func (m model) cycleMode() (tea.Model, tea.Cmd) {
 	m.modeIdx = (m.modeIdx + 1) % len(sessionModes)
 	m.resetChatSystem()
 	mode := sessionModes[m.modeIdx]
-	m.appendSystem(fmt.Sprintf("Mode: %s — %s", mode.Label, mode.Hint))
+	m.appendSystem(fmt.Sprintf("%s  %s\n%s", mode.Label, mode.Sub, mode.Hint))
 	if mode.ID == ModeAuto && m.opts.AgentCfg == nil {
-		m.appendSystem("Auto needs teamserver (ark serve) + operator and approver certs under ~/.ark/certs/.")
+		m.appendSystem("Auto needs a running operator. Start with: /serve")
 	}
 	m.syncViewport()
 	return m, nil
@@ -372,17 +400,25 @@ func (m *model) resetChatSystem() {
 }
 
 func (m model) handleSubmit(text string) (tea.Model, tea.Cmd) {
-	switch strings.ToLower(strings.TrimSpace(text)) {
-	case "/back":
+	lower := strings.ToLower(strings.TrimSpace(text))
+	switch {
+	case lower == "/back":
 		return m.quit(QuitBack)
-	case "/quit":
+	case lower == "/quit":
 		return m.quit(QuitAll)
-	case "/clear":
+	case lower == "/clear":
 		m.entries = nil
 		m.resetChatSystem()
-		m.appendSystem("Transcript cleared.")
 		m.syncViewport()
 		return m, nil
+	case lower == "/help" || lower == "/?":
+		m.appendSystem(navHelpText())
+		m.syncViewport()
+		return m, nil
+	case strings.HasPrefix(lower, "/mode"):
+		return m.handleModeCommand(strings.TrimSpace(text[len("/mode"):]))
+	case lower == "/serve":
+		return m.handleServe()
 	}
 
 	m.appendUser(text)
@@ -390,12 +426,12 @@ func (m model) handleSubmit(text string) (tea.Model, tea.Cmd) {
 	switch m.currentMode() {
 	case ModeAuto:
 		if m.opts.AgentCfg == nil {
-			m.appendError("Auto mode requires teamserver (ark serve) plus operator and approver certs (~/.ark/certs/).")
+			m.appendError("Auto mode needs a running operator. Start with: /serve")
 			m.syncViewport()
 			return m, nil
 		}
 		if m.opts.AgentCfg.ApproverCert == "" || m.opts.AgentCfg.ApproverKey == "" {
-			m.appendError("Auto mode needs approver_cert/approver_key for in-TUI [a]/[d] dual-control. Run ark serve to generate seats.")
+			m.appendError("Auto needs approver certs for in-TUI [a]/[d]. Run serve (generates seats) or `ark certs seats`.")
 			m.syncViewport()
 			return m, nil
 		}
@@ -440,6 +476,87 @@ func (m model) handleSubmit(text string) (tea.Model, tea.Cmd) {
 	}
 }
 
+func (m model) handleServe() (tea.Model, tea.Cmd) {
+	if m.opts.OnServe == nil {
+		m.appendError("Cannot start the operator from this view.")
+		m.syncViewport()
+		return m, nil
+	}
+	if m.opts.AgentCfg != nil {
+		m.appendSystem(fmt.Sprintf("● Operator already online · %d session(s)", m.opts.Sessions))
+		m.syncViewport()
+		return m, nil
+	}
+	m.busy = true
+	m.appendSystem("Starting operator…")
+	m.syncViewport()
+	start := m.opts.OnServe
+	return m, func() tea.Msg {
+		ac, n, err := start()
+		return serveDoneMsg{agent: ac, sessions: n, err: err}
+	}
+}
+
+func (m model) handleModeCommand(arg string) (tea.Model, tea.Cmd) {
+	arg = strings.ToLower(strings.TrimSpace(arg))
+	if arg == "" {
+		return m.cycleMode()
+	}
+	idx := -1
+	switch arg {
+	case "normal", "advisory":
+		idx = 0
+	case "plan", "propose":
+		idx = 1
+	case "auto", "execute":
+		idx = 2
+	}
+	if idx < 0 {
+		m.appendError("Usage: /mode [normal|plan|auto]")
+		m.syncViewport()
+		return m, nil
+	}
+	m.modeIdx = idx
+	m.resetChatSystem()
+	mode := sessionModes[m.modeIdx]
+	m.appendSystem(fmt.Sprintf("%s  %s\n%s", mode.Label, mode.Sub, mode.Hint))
+	if mode.ID == ModeAuto && m.opts.AgentCfg == nil {
+		m.appendSystem("Auto needs a running operator. Start with: /serve")
+	}
+	m.syncViewport()
+	return m, nil
+}
+
+func navHelpText() string {
+	return strings.TrimSpace(`↑↓           scroll
+Enter         send
+Esc           back
+Tab           provider
+⇧Tab          mode
+?             help
+
+/serve /mode /clear /back /quit
+[a] approve  [d] deny   (Auto, when prompted)`)
+}
+
+func emptyState(connected bool) string {
+	if connected {
+		return strings.TrimSpace(`◇ Active operation
+
+Ask ARK to enumerate, plan the next move, or review a technique.
+
+Modes:  NORMAL advisory · PLAN propose · AUTO execute*`)
+	}
+	return strings.TrimSpace(`◇ No active operation
+
+ARK AI can still help you:
+  Ask a security question
+  Plan an engagement
+  Review a command or technique
+
+Start the operator: /serve`)
+}
+
 func (m model) quit(mode QuitMode) (tea.Model, tea.Cmd) {
 	m = m.forceResolvePending(agent.ApprovalDeny, "session quit")
 	m.quitMode = mode
@@ -454,19 +571,22 @@ func (m model) View() string {
 		return "Loading...\n"
 	}
 
-	backend := "advisory"
+	header := headerStyle.Render("◈  ARK C2") + theme.Dim.Render("  //  AI")
+	var statusLine string
 	if m.opts.AgentCfg != nil {
-		backend = "teamserver"
+		statusLine = headerStyle.Render(fmt.Sprintf("● OPERATOR ONLINE · %d SESSIONS", m.opts.Sessions))
+	} else {
+		statusLine = subheadStyle.Render("◇ No active operation")
 	}
-	header := headerStyle.Render("◈  ARK  C2") + theme.Dim.Render("  //  uplink")
-	subhead := subheadStyle.Render(fmt.Sprintf(" %s / %s · %s · %s ",
-		m.opts.LLMCfg.Provider, m.opts.LLMCfg.Model, backend, sessionModes[m.modeIdx].Hint))
+	subhead := subheadStyle.Render(fmt.Sprintf("%s / %s",
+		providerLabel(m.opts.LLMCfg.Provider), m.opts.LLMCfg.Model))
 
 	footer := m.renderFooter()
 	inputArea := m.renderInputArea()
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
+		statusLine,
 		subhead,
 		m.viewport.View(),
 		inputArea,
@@ -591,15 +711,20 @@ func (m model) renderInputBox() string {
 	boxW := max(20, m.width-2)
 
 	var modeBar strings.Builder
+	var subBar strings.Builder
 	for i, mode := range sessionModes {
 		label := " " + mode.Label + " "
+		sub := " " + mode.Sub + " "
 		if i == m.modeIdx {
 			modeBar.WriteString(modeActive.Render(label))
+			subBar.WriteString(modeActive.Render(sub))
 		} else {
 			modeBar.WriteString(modeInactive.Render(label))
+			subBar.WriteString(modeInactive.Render(sub))
 		}
 		if i < len(sessionModes)-1 {
 			modeBar.WriteString(subheadStyle.Render(" │ "))
+			subBar.WriteString(subheadStyle.Render(" │ "))
 		}
 	}
 
@@ -613,11 +738,15 @@ func (m model) renderInputBox() string {
 		inputLine = subheadStyle.Render("› (waiting…)")
 	}
 
-	inner := lipgloss.JoinVertical(lipgloss.Left,
-		modeBar.String(),
+	parts := []string{modeBar.String(), subBar.String()}
+	if m.currentMode() == ModeAuto {
+		parts = append(parts, subheadStyle.Render("Executes approved actions through the operator. High-risk actions still require approval."))
+	}
+	parts = append(parts,
 		separatorStyle.Render(strings.Repeat("─", boxW-4)),
 		inputLine,
 	)
+	inner := lipgloss.JoinVertical(lipgloss.Left, parts...)
 
 	return inputBoxStyle.Width(boxW).Render(inner)
 }
@@ -626,18 +755,17 @@ func (m model) renderFooter() string {
 	if m.pending != nil {
 		return approvalStyle.Render("  High-risk action blocked — [a] approve  [d] deny")
 	}
-	hint := footerStyle.Render("Tab model · ⇧Tab mode")
-	cmds := footerStyle.Render("  /back · /quit · /clear")
+	hint := footerStyle.Render("↑↓ scroll  ·  Tab provider  ·  ⇧Tab mode  ·  Esc back  ·  ? help")
 	status := ""
 	if m.busy {
 		status = footerStyle.Render("  ⣿ working...")
 	}
-	return hint + cmds + status
+	return hint + status
 }
 
 func (m *model) layout() {
-	headerH := 2
-	inputH := 6
+	headerH := 3
+	inputH := 8
 	if m.modelPickerOpen {
 		inputH += len(pickerModels) + 3
 	}
@@ -680,8 +808,8 @@ func (m *model) syncViewport() {
 }
 
 func (m *model) renderTranscript() string {
-	if len(m.entries) == 0 {
-		return subheadStyle.Render("  No messages yet.")
+	if !hasConversation(m.entries) {
+		return subheadStyle.Render(emptyState(m.opts.AgentCfg != nil))
 	}
 	w := max(20, m.viewport.Width-4)
 	var blocks []string
@@ -780,7 +908,7 @@ func runAgent(ctx context.Context, cfg *agent.Config, objective string, ch chan<
 	if cfg.ApproverCert == "" || cfg.ApproverKey == "" {
 		sendAgentMsg(ctx, ch, agentEventMsg{
 			done: true,
-			err:  fmt.Errorf("approver certs required for Auto (run ark serve)"),
+			err:  fmt.Errorf("approver certs required for Auto (run /serve)"),
 		})
 		return
 	}
@@ -820,6 +948,39 @@ func formatStep(step agent.StepOutput) string {
 		return fmt.Sprintf("step %d · %s", step.Step, step.Message)
 	}
 	return ""
+}
+
+func hasConversation(entries []entry) bool {
+	for _, e := range entries {
+		if e.kind == entryUser || e.kind == entryAI {
+			return true
+		}
+	}
+	return false
+}
+
+func providerLabel(id string) string {
+	switch strings.ToLower(id) {
+	case "ollama":
+		return "Ollama"
+	case "openai":
+		return "OpenAI"
+	case "anthropic":
+		return "Anthropic"
+	case "grok":
+		return "Grok"
+	case "gemini":
+		return "Gemini"
+	case "kimi":
+		return "Kimi"
+	case "bedrock":
+		return "Bedrock"
+	default:
+		if id == "" {
+			return "—"
+		}
+		return id
+	}
 }
 
 func truncate(s string, n int) string {

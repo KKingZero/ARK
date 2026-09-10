@@ -118,6 +118,22 @@ func EnsureOperatorCerts(dataDir string) (cert, key, ca string, err error) {
 	return cert, key, ca, nil
 }
 
+// RunCertsSeats ensures operator + approver client certs exist under dataDir.
+func RunCertsSeats(dataDir string) error {
+	if dataDir == "" {
+		dataDir = DataDir()
+	}
+	s, err := EnsureSeatCerts(dataDir)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("operator cert: %s\n", s.OperatorCert)
+	fmt.Printf("approver cert: %s\n", s.ApproverCert)
+	fmt.Printf("ca:            %s\n", s.CA)
+	fmt.Printf("cert dir:      %s\n", filepath.Dir(s.OperatorCert))
+	return nil
+}
+
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil

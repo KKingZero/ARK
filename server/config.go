@@ -159,14 +159,6 @@ func (c *Config) EnsureDirs() error {
 	return os.MkdirAll(c.DataDir, 0700)
 }
 
-func (c *Config) IsOperatorCN(cn string) bool {
-	return containsCN(c.OperatorCNs, cn)
-}
-
-func (c *Config) IsApproverCN(cn string) bool {
-	return containsCN(c.ApproverCNs, cn)
-}
-
 func containsCN(allowed []string, cn string) bool {
 	if cn == "" {
 		return false

@@ -74,6 +74,9 @@ func (c *Commands) Handlers() map[string]CommandHandler {
 		"inbound":         c.cmdInbound,
 		"adcs":            c.cmdADCS,
 		"socks":           c.cmdSocks,
+		"approve-all":     c.cmdApproveAll,
+		"replay-clear":    c.cmdReplayClear,
+		"clear-replay":    c.cmdReplayClear,
 		"exit":            c.cmdExit,
 		"help":            c.cmdHelp,
 	}
@@ -338,20 +341,20 @@ func (c *Commands) cmdSleep(args []string) error {
 	return nil
 }
 
-// cmdGenerate builds an implant via GenerateImplant RPC.
-// usage: generate [--os windows|linux] [--arch amd64] [--format exe|dll|shellcode]
-//
-//	[--sleep ms] [--jitter pct] [--callback URL] [--language c|go] [--out path]
-func (c *Commands) cmdGenerate(args []string) error {
-	osName := "windows"
-	arch := "amd64"
-	format := "exe"
-	sleepMs := int64(500)
-	jitter := int32(10)
-	language := "c"
-	outPath := ""
-	var callbacks []string
+type generateOpts struct {
+	os, arch, format, language, transport string
+	cdnDomain, dnsDomain, dnsServer, out  string
+	sleepMs                               int64
+	jitter                                int32
+	callbacks                             []string
+	help                                  bool
+}
 
+func parseGenerateArgs(args []string) (generateOpts, error) {
+	g := generateOpts{
+		os: "windows", arch: "amd64", format: "exe",
+		language: "c", transport: "https", sleepMs: 500, jitter: 10,
+	}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		need := func(flag string) (string, error) {
@@ -365,61 +368,118 @@ func (c *Commands) cmdGenerate(args []string) error {
 		case "--os", "-os":
 			v, err := need(a)
 			if err != nil {
-				return err
+				return g, err
 			}
-			osName = v
+			g.os = v
 		case "--arch", "-arch":
 			v, err := need(a)
 			if err != nil {
-				return err
+				return g, err
 			}
-			arch = v
+			g.arch = v
 		case "--format", "-format":
 			v, err := need(a)
 			if err != nil {
-				return err
+				return g, err
 			}
-			format = v
+			g.format = v
 		case "--sleep", "-sleep":
 			v, err := need(a)
 			if err != nil {
-				return err
+				return g, err
 			}
 			ms, err := strconv.ParseInt(v, 10, 64)
 			if err != nil {
-				return fmt.Errorf("invalid --sleep: %s", v)
+				return g, fmt.Errorf("invalid --sleep: %s", v)
 			}
-			sleepMs = ms
+			g.sleepMs = ms
 		case "--jitter", "-jitter":
 			v, err := need(a)
 			if err != nil {
-				return err
+				return g, err
 			}
 			j, err := strconv.ParseInt(v, 10, 32)
 			if err != nil {
-				return fmt.Errorf("invalid --jitter: %s", v)
+				return g, fmt.Errorf("invalid --jitter: %s", v)
 			}
-			jitter = int32(j)
+			g.jitter = int32(j)
 		case "--callback", "-callback":
 			v, err := need(a)
 			if err != nil {
-				return err
+				return g, err
 			}
-			callbacks = append(callbacks, v)
+			g.callbacks = append(g.callbacks, v)
 		case "--language", "-language", "--lang":
 			v, err := need(a)
 			if err != nil {
-				return err
+				return g, err
 			}
-			language = v
+			g.language = v
 		case "--out", "-o":
 			v, err := need(a)
 			if err != nil {
-				return err
+				return g, err
 			}
-			outPath = v
+			g.out = v
+		case "--transport":
+			v, err := need(a)
+			if err != nil {
+				return g, err
+			}
+			g.transport = strings.ToLower(v)
+		case "--cdn-domain":
+			v, err := need(a)
+			if err != nil {
+				return g, err
+			}
+			g.cdnDomain = v
+		case "--dns-domain":
+			v, err := need(a)
+			if err != nil {
+				return g, err
+			}
+			g.dnsDomain = v
+		case "--dns-server":
+			v, err := need(a)
+			if err != nil {
+				return g, err
+			}
+			g.dnsServer = v
 		case "-h", "--help":
-			fmt.Println(`usage: generate [options]
+			g.help = true
+			return g, nil
+		default:
+			return g, fmt.Errorf("unknown generate flag %q (use --help)", a)
+		}
+	}
+	if len(g.callbacks) == 0 {
+		g.callbacks = []string{"https://127.0.0.1:443"}
+	}
+	if g.transport != "https" && g.transport != "dns" {
+		return g, fmt.Errorf("--transport must be https or dns")
+	}
+	if g.transport == "dns" && g.dnsDomain == "" {
+		return g, fmt.Errorf("--dns-domain required when --transport dns")
+	}
+	if g.transport != "dns" && (g.dnsDomain != "" || g.dnsServer != "") {
+		return g, fmt.Errorf("--dns-domain/--dns-server require --transport dns")
+	}
+	if g.language == "c" && g.os != "windows" && g.os != "linux" {
+		return g, fmt.Errorf("language c supports windows|linux (got %s)", g.os)
+	}
+	if g.language == "go" && (g.os == "linux" || g.os == "darwin") {
+		return g, fmt.Errorf("go implant on %s is archived; use --language c", g.os)
+	}
+	return g, nil
+}
+
+func (c *Commands) cmdGenerate(args []string) error {
+	g, err := parseGenerateArgs(args)
+	if err != nil {
+		return err
+	}
+	if g.help {
+		fmt.Println(`usage: generate [options]
   --os windows|linux|darwin   target OS (default windows)
   --arch amd64|arm64          target arch (default amd64)
   --format exe|dll|shellcode  output format (default exe; C = exe only)
@@ -428,37 +488,27 @@ func (c *Commands) cmdGenerate(args []string) error {
   --callback URL              C2 callback (repeatable)
   --language c|go             implant language (default c; Windows PE full / Linux basic peer; go for dll/shellcode)
   --out path                  write binary to path (default ./<filename>)`)
-			return nil
-		default:
-			return fmt.Errorf("unknown generate flag %q (use --help)", a)
-		}
-	}
-
-	if len(callbacks) == 0 {
-		callbacks = []string{"https://127.0.0.1:443"}
-	}
-	if language == "c" && osName != "windows" && osName != "linux" {
-		return fmt.Errorf("language c supports windows|linux (got %s)", osName)
-	}
-	if language == "go" && (osName == "linux" || osName == "darwin") {
-		return fmt.Errorf("go implant on %s is archived; use --language c", osName)
+		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
 	fmt.Printf("Building implant language=%s os=%s arch=%s format=%s sleep=%dms …\n",
-		language, osName, arch, format, sleepMs)
+		g.language, g.os, g.arch, g.format, g.sleepMs)
 
 	resp, err := c.client.GenerateImplant(ctx, &pb.GenerateImplantRequest{
-		Os:        osName,
-		Arch:      arch,
-		Transport: "https",
-		Callbacks: callbacks,
-		SleepMs:   sleepMs,
-		JitterPct: jitter,
-		Format:    format,
-		Language:  language,
+		Os:        g.os,
+		Arch:      g.arch,
+		Transport: g.transport,
+		Callbacks: g.callbacks,
+		SleepMs:   g.sleepMs,
+		JitterPct: g.jitter,
+		Format:    g.format,
+		Language:  g.language,
+		CdnDomain: g.cdnDomain,
+		DnsDomain: g.dnsDomain,
+		DnsServer: g.dnsServer,
 	})
 	if err != nil {
 		return err
@@ -466,6 +516,7 @@ func (c *Commands) cmdGenerate(args []string) error {
 	if !resp.Success {
 		return fmt.Errorf("generate failed: %s", resp.Error)
 	}
+	outPath := g.out
 	if outPath == "" {
 		outPath = resp.Filename
 		if outPath == "" {
@@ -477,7 +528,7 @@ func (c *Commands) cmdGenerate(args []string) error {
 	}
 	fmt.Printf("OK build_id=%s format=%s size=%d bytes → %s\n",
 		resp.BuildId, resp.Format, len(resp.Binary), outPath)
-	if language == "go" {
+	if g.language == "go" {
 		fmt.Println("OPSEC: Go implants are large (dev/demo). Default generate language is c for Windows engagement PE.")
 	}
 	return nil

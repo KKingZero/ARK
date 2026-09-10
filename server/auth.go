@@ -70,37 +70,41 @@ func clientIdentityFromContext(ctx context.Context) (string, string) {
 }
 
 func (ts *Teamserver) authorizedClient(role apiRole, cn, fingerprint string) bool {
-	var certFiles []string
+	if fps := ts.allowedFP[role]; len(fps) > 0 {
+		_, ok := fps[fingerprint]
+		return ok
+	}
 	var cns []string
 	switch role {
 	case roleApprover:
-		certFiles = ts.Config.ApproverCertFiles
 		cns = ts.Config.ApproverCNs
 	default:
-		certFiles = ts.Config.OperatorCertFiles
 		cns = ts.Config.OperatorCNs
-	}
-	if len(certFiles) > 0 {
-		return certFileFingerprintAllowed(certFiles, fingerprint)
 	}
 	return containsCN(cns, cn)
 }
 
-func certFileFingerprintAllowed(paths []string, fingerprint string) bool {
-	if fingerprint == "" {
-		return false
+func loadAllowedFingerprints(cfg *Config) map[apiRole]map[string]struct{} {
+	out := map[apiRole]map[string]struct{}{
+		roleOperator: {},
+		roleApprover: {},
 	}
-	for _, path := range paths {
-		cert, err := readCertificate(strings.TrimSpace(path))
-		if err != nil {
-			continue
-		}
-		sum := sha256.Sum256(cert.Raw)
-		if hex.EncodeToString(sum[:]) == fingerprint {
-			return true
+	if cfg == nil {
+		return out
+	}
+	add := func(role apiRole, paths []string) {
+		for _, path := range paths {
+			cert, err := readCertificate(strings.TrimSpace(path))
+			if err != nil {
+				continue
+			}
+			sum := sha256.Sum256(cert.Raw)
+			out[role][hex.EncodeToString(sum[:])] = struct{}{}
 		}
 	}
-	return false
+	add(roleOperator, cfg.OperatorCertFiles)
+	add(roleApprover, cfg.ApproverCertFiles)
+	return out
 }
 
 func readCertificate(path string) (*x509.Certificate, error) {

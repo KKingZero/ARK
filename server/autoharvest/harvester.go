@@ -57,6 +57,9 @@ func (h *AutoHarvester) Start(eventCh <-chan *pb.Event, unsub func(), debug bool
 	h.debug = debug
 	if !h.config.Enabled {
 		log.Printf("[autoharvest] disabled by configuration")
+		if unsub != nil {
+			unsub()
+		}
 		return
 	}
 

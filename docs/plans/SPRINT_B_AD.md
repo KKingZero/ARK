@@ -7,7 +7,7 @@
 | **Duration** | ~4–6 weeks (both Go + C tracks); ~6–8 weeks single-threaded |
 | **Sources** | `SPRINTS_ABC.md` §B, `HTB_NEXT_RUNBOOK.md` §5, Logging + **Garfield** after-action |
 | **Depends on** | A.1 live WinRM PTH QA; soft path SMB/LDAP regression green; inbound slice in `FILL_AD_SKELETON.md` |
-| **Surfaces** | **Track G:** Go modules + operator CLI · **Track C:** C implant WinRM lateral · **Track D:** docs/skill |
+| **Surfaces** | **Track G:** host CLI + agent catalog (live proof = Sprint G) · **Track C:** C implant WinRM/SOCKS · **Track D:** docs/skill |
 
 ---
 

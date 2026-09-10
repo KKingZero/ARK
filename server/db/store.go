@@ -199,18 +199,6 @@ func (s *Store) CreateBuild(row *BuildRow) error {
 	return err
 }
 
-func (s *Store) GetBuildBySecretHash(secretHash string) (*BuildRow, error) {
-	row := &BuildRow{}
-	err := s.db.QueryRow(`SELECT id, created_at, operator, os, arch, transport, callbacks,
-		secret_hash, evasion, garbled FROM builds WHERE secret_hash = ?`, secretHash).Scan(
-		&row.ID, &row.CreatedAt, &row.Operator, &row.OS, &row.Arch, &row.Transport,
-		&row.Callbacks, &row.SecretHash, &row.Evasion, &row.Garbled)
-	if err != nil {
-		return nil, err
-	}
-	return row, nil
-}
-
 // --- Loot ---
 
 func (s *Store) CreateLoot(row *LootRow) error {

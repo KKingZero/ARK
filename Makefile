@@ -58,7 +58,7 @@ LDFLAGS = -s -w \
 
 .PHONY: all proto ark erebus teamserver implant implant-win implant-dll implant-shellcode implant-c operator agent install uninstall clean
 
-all: proto ark teamserver implant operator agent
+all: proto ark teamserver operator agent
 
 install: ark
 	@mkdir -p $(BINDIR)

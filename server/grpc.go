@@ -13,8 +13,6 @@ import (
 	"github.com/KKingZero/ARK/server/approval"
 	"github.com/KKingZero/ARK/server/builder"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
@@ -65,18 +63,8 @@ func resolveProjectRoot() string {
 
 // operatorFromContext extracts the operator identity from the mTLS client certificate.
 func operatorFromContext(ctx context.Context) string {
-	p, ok := peer.FromContext(ctx)
-	if !ok {
-		return ""
-	}
-	tlsInfo, ok := p.AuthInfo.(credentials.TLSInfo)
-	if !ok {
-		return ""
-	}
-	if len(tlsInfo.State.PeerCertificates) > 0 {
-		return tlsInfo.State.PeerCertificates[0].Subject.CommonName
-	}
-	return ""
+	cn, _ := clientIdentityFromContext(ctx)
+	return cn
 }
 
 // GRPCService implements the ErebusC2 gRPC service.

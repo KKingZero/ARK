@@ -33,6 +33,7 @@ const (
 	stepKey
 	stepModel
 	stepCustomModel
+	stepVerify
 	stepDone
 )
 
@@ -83,6 +84,7 @@ type model struct {
 	cancelled  bool
 	savedPath  string
 	result     Result
+	verify     []verifyLine
 	quitting   bool
 }
 
@@ -247,6 +249,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		return m, nil
 
+	case verifyMsg:
+		m.probing = false
+		m.statusMsg = ""
+		m.verify = msg.Lines
+		m.step = stepDone
+		return m, nil
+
 	case ollamaProbeMsg:
 		m.probing = false
 		m.statusMsg = ""
@@ -314,6 +323,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.updateList(msg, n, &m.modelIdx, m.confirmModel)
 		case stepCustomModel:
 			return m, m.updateCustomModel(msg)
+		case stepVerify:
+			return m, nil
 		case stepDone:
 			m.quitting = true
 			return m, tea.Quit
@@ -605,7 +616,6 @@ func (m *model) save() tea.Cmd {
 
 	path := expandHome(llm.DefaultConfigPath)
 	m.savedPath = path
-	m.step = stepDone
 	m.result = Result{
 		Provider: m.provider,
 		Model:    m.modelName,
@@ -613,8 +623,14 @@ func (m *model) save() tea.Cmd {
 		Path:     path,
 		BaseURL:  m.baseURL,
 	}
-	m.quitting = true
-	return tea.Quit
+	m.step = stepVerify
+	m.probing = true
+	m.statusMsg = "Testing inference…"
+	m.errMsg = ""
+	provider, model, base, key := m.provider, m.modelName, m.baseURL, m.apiKey
+	return func() tea.Msg {
+		return runVerify(provider, model, base, key)
+	}
 }
 
 func (m *model) currentProvider() providerOption {
@@ -631,8 +647,14 @@ func (m *model) currentProvider() providerOption {
 
 func (m *model) View() string {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("◈  ARK  //  SETUP") + "\n\n")
-	m.renderCompleted(&b)
+	phase, label := wizardPhase(m.step)
+	b.WriteString(titleStyle.Render("◇  ARK  //  AI SETUP"))
+	b.WriteString(strings.Repeat(" ", 4))
+	b.WriteString(dimStyle.Render(fmt.Sprintf("%d/4  %s", phase, label)))
+	b.WriteString("\n\n")
+	if m.step != stepVerify && m.step != stepDone {
+		m.renderCompleted(&b)
+	}
 
 	if m.cancelled {
 		switch m.step {
@@ -654,15 +676,19 @@ func (m *model) View() string {
 	}
 
 	if m.probing {
-		m.renderActiveHeader(&b, "Connecting to Ollama")
+		title := "Connecting to Ollama"
+		if m.step == stepVerify {
+			title = "Verify"
+		}
+		m.renderActiveHeader(&b, title)
 		b.WriteString("  " + dimStyle.Render(m.statusMsg) + "\n")
-		b.WriteString("\n" + footerStyle.Render("Esc: cancel") + "\n")
+		b.WriteString("\n" + footerStyle.Render("Esc  back") + "\n")
 		return b.String()
 	}
 
 	switch m.step {
 	case stepProvider:
-		m.renderActiveHeader(&b, "Select your AI provider")
+		m.renderActiveHeader(&b, "Provider")
 		m.renderRadio(&b, providerLabels(m.providers), m.provIdx)
 	case stepOllamaMode:
 		m.renderActiveHeader(&b, "Ollama mode")
@@ -699,19 +725,32 @@ func (m *model) View() string {
 	case stepCustomModel:
 		m.renderActiveHeader(&b, "Enter a model ID")
 		b.WriteString("  " + m.modelInput.View() + "\n")
+	case stepVerify:
+		m.renderActiveHeader(&b, "Verify")
+		b.WriteString("  " + dimStyle.Render(m.statusMsg) + "\n")
+		return b.String()
 	case stepDone:
-		b.WriteString(okStyle.Render("◇ Configuration saved to ") + valueStyle.Render(m.savedPath) + "\n")
-		b.WriteString(fmt.Sprintf("  %-10s %s\n", "Provider", m.result.Provider))
-		if m.result.BaseURL != "" {
-			b.WriteString(fmt.Sprintf("  %-10s %s\n", "Base URL", m.result.BaseURL))
+		allOK := true
+		for _, line := range m.verify {
+			mark := okStyle.Render("✓")
+			if !line.OK {
+				mark = errStyle.Render("✗")
+				allOK = false
+			}
+			b.WriteString("  " + mark + " " + line.Text + "\n")
 		}
-		b.WriteString(fmt.Sprintf("  %-10s %s\n", "Model", m.result.Model))
-		if m.result.KeyMask != "" && m.result.KeyMask != "(local/none)" {
-			b.WriteString(fmt.Sprintf("  %-10s %s\n", "Key", m.result.KeyMask))
-		} else if m.provider == string(llm.ProviderOllama) && llm.DetectOllamaMode(m.result.BaseURL) != llm.OllamaModeCloud {
-			b.WriteString(fmt.Sprintf("  %-10s %s\n", "Key", "(not required)"))
+		b.WriteString("\n")
+		b.WriteString(okStyle.Render("✓ ARK AI configured") + "\n\n")
+		loc := locality(m.result.Provider, m.result.BaseURL)
+		b.WriteString(fmt.Sprintf("  %s · %s · %s\n",
+			displayName(m.currentProvider()), m.result.Model, loc))
+		b.WriteString("\n" + dimStyle.Render("details: "+m.savedPath) + "\n")
+		if !allOK {
+			b.WriteString("\n" + dimStyle.Render("Config saved. Fix the failed check, then run ai.") + "\n")
+		} else {
+			b.WriteString("\n" + dimStyle.Render("AI ready.") + "\n")
 		}
-		b.WriteString("\n" + dimStyle.Render("Run `ai` to open the chat terminal.") + "\n")
+		b.WriteString("\n" + footerStyle.Render("Enter  continue") + "\n")
 		return b.String()
 	}
 
@@ -722,7 +761,7 @@ func (m *model) View() string {
 		}
 	}
 
-	b.WriteString("\n" + footerStyle.Render("↑/↓ or j/k  ·  Tab  ·  Enter: confirm  ·  Esc: cancel") + "\n")
+	b.WriteString("\n" + footerStyle.Render("↑↓ / jk  navigate  ·  Enter  select  ·  Esc  back") + "\n")
 	return b.String()
 }
 

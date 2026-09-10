@@ -6,7 +6,7 @@
 | **Labs covered so far** | Support, Logging, Ghostlink, DanglingTree, FireFlow, DarkZero, Garfield, plus later reports under `docs/private/reports/htb-*/` |
 | **ARK P0 shipped** | WinRM PTH, LDAP hash/`interesting`, remote SMB client; **Sprint D** MQTT + HTTP NTLM relay; host `adcs` / `rbcd` / shadow / AES tickets |
 | **Related** | `docs/AD_ENGAGEMENT.md`, `docs/plans/FILL_AD_SKELETON.md`, `docs/OPERATOR_PRE_IMPLANT.md`, `docs/OPERATOR_INBOUND.md`, `docs/private/reports/htb-*/` |
-| **Last updated** | 2026-09-04 |
+| **Last updated** | 2026-09-09 |
 
 Authorized HTB / lab use only. Do not use against systems without permission.
 
@@ -41,11 +41,11 @@ Authorized HTB / lab use only. Do not use against systems without permission.
 
 Order is intentional: in-framework critical path → validate P0 on Easy AD → push Medium techniques that map to remaining gaps.
 
-### Priority 0 — In-framework critical path
+### Priority 0 — Sprint G (in-framework critical path)
 
-Logging is **solved** (notes in `docs/private/reports/htb-logging/`). Do not treat it as open work.
+**Locked:** `docs/plans/SPRINT_G.md`. Logging is solved; do not treat it as open work.
 
-Next session: pick a current Easy/Medium AD box and run the **host tools + C implant** path from `docs/AD_ENGAGEMENT.md` before falling back to Impacket/Certipy. Scorecard: `docs/private/reports/ARK_HTB_CORPUS_SCORECARD.md`.
+Next session: one Easy/Medium AD box (or GOAD Support-class). Host tools first, C implant for SOCKS/WinRM. Impacket/Certipy only after the miss is written down. Scorecard: `docs/private/reports/ARK_HTB_CORPUS_SCORECARD.md`.
 
 ### Priority 1 — Validate ARK soft-compromise path (Easy AD)
 

@@ -66,6 +66,23 @@ func (h *Hub) StartForSession(sessionID string, port uint32) (uint32, error) {
 	return port, nil
 }
 
+// StopAll shuts down every reverse SOCKS listener. Safe on a nil hub.
+func (h *Hub) StopAll() {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	all := make([]*sessionProxy, 0, len(h.bySession))
+	for id, sp := range h.bySession {
+		all = append(all, sp)
+		delete(h.bySession, id)
+	}
+	h.mu.Unlock()
+	for _, sp := range all {
+		sp.shutdown()
+	}
+}
+
 // StopForSession stops the local SOCKS listener and closes tunnels.
 func (h *Hub) StopForSession(sessionID string) error {
 	h.mu.Lock()
@@ -437,4 +454,3 @@ func parseSocksTarget(buf []byte) (string, bool) {
 		return "", false
 	}
 }
-

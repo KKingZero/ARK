@@ -43,6 +43,7 @@ type Teamserver struct {
 	masterKey   []byte // 32-byte at-rest encryption key
 	replayCache *zcrypto.ReplayCache
 	done        chan struct{}
+	allowedFP   map[apiRole]map[string]struct{}
 }
 
 func NewTeamserver(cfg *Config) (*Teamserver, error) {
@@ -122,6 +123,7 @@ func NewTeamserver(cfg *Config) (*Teamserver, error) {
 		masterKey:   masterKey,
 		replayCache: zcrypto.NewReplayCache(60 * time.Second),
 		done:        make(chan struct{}),
+		allowedFP:   loadAllowedFingerprints(cfg),
 	}
 
 	// Recover sessions from DB (Bug 8)
@@ -297,6 +299,9 @@ func (ts *Teamserver) Stop() {
 	if ts.AutoHarvest != nil {
 		ts.AutoHarvest.Stop()
 	}
+	if ts.Socks != nil {
+		ts.Socks.StopAll()
+	}
 	ts.Listeners.StopAll()
 	if ts.grpcServer != nil {
 		ts.grpcServer.GracefulStop()
@@ -358,14 +363,12 @@ func extractHost(addr string) string {
 }
 
 func parseProtocol(s string) pb.ListenerProtocol {
-	switch s {
-	case "https":
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "https", "":
 		return pb.ListenerProtocol_LISTENER_HTTPS
-	case "mtls":
-		return pb.ListenerProtocol_LISTENER_MTLS
 	case "dns":
 		return pb.ListenerProtocol_LISTENER_DNS
 	default:
-		return pb.ListenerProtocol_LISTENER_HTTPS
+		return pb.ListenerProtocol_LISTENER_UNKNOWN
 	}
 }

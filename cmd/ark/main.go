@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/KKingZero/ARK/core"
 	"github.com/KKingZero/ARK/pkg/arkcli"
@@ -20,6 +21,14 @@ func main() {
 	}
 
 	switch os.Args[1] {
+	case "ai":
+		boot := "ai"
+		if len(os.Args) > 2 {
+			boot = "ai " + strings.Join(os.Args[2:], " ")
+		}
+		runConsoleWithBoot(nil, boot)
+	case "status":
+		runConsoleWithBoot(nil, "status")
 	case "serve":
 		// `serve` starts teamserver + operator REPL. Stdin/REPL EOF does not stop C2.
 		// Use `ark teamserver` (or serve --teamserver) for daemon-only (no REPL).
@@ -111,10 +120,14 @@ func main() {
 }
 
 func runConsole(args []string) {
+	runConsoleWithBoot(args, "")
+}
+
+func runConsoleWithBoot(args []string, boot string) {
 	fs := flag.NewFlagSet("console", flag.ExitOnError)
 	jsonMode := fs.Bool("json", false, "Enable JSON output mode for AI/programmatic control")
 	_ = fs.Parse(args)
-	core.NewConsole(*jsonMode).Start()
+	core.NewConsole(*jsonMode).StartWith(boot)
 }
 
 func runTeamserver(args []string) {
@@ -279,6 +292,8 @@ func printUsage() {
 Usage:
   ark              Interactive console (startup UI)
   ark -json         JSON console mode
+  ark ai            Open ARK AI (then the ARK shell on /back)
+  ark status        Print C2 status and enter the ARK shell
   ark serve         Start teamserver + operator REPL (stdin/EOF does not stop C2)
   ark serve --teamserver   Teamserver only (same as ark teamserver)
   ark teamserver    Run teamserver only (preferred daemon / HTB C2)

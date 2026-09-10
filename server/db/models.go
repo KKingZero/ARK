@@ -14,33 +14,23 @@ type SessionRow struct {
 	Transport      string
 	RemoteAddr     string
 	RegisteredAt   time.Time
-	LastCheckin     time.Time
+	LastCheckin    time.Time
 	Alive          bool
 	SessionKey     []byte
 }
 
 type TaskRow struct {
-	TaskID         string
-	SessionID      string
-	TaskType       int32
-	Data           []byte
-	TimeoutMs      int64
-	CreatedAt      time.Time
-	CompletedAt    *time.Time
-	Success        *bool
-	ResultData     []byte
-	ResultError    string
+	TaskID          string
+	SessionID       string
+	TaskType        int32
+	Data            []byte
+	TimeoutMs       int64
+	CreatedAt       time.Time
+	CompletedAt     *time.Time
+	Success         *bool
+	ResultData      []byte
+	ResultError     string
 	ExecutionTimeMs int64
-}
-
-type ListenerRow struct {
-	ID        string
-	Name      string
-	Protocol  int32
-	Host      string
-	Port      uint32
-	Active    bool
-	StartedAt time.Time
 }
 
 type BuildRow struct {

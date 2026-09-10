@@ -2,7 +2,8 @@
 
 Focused **internal AD post-ex** path. Not an MSF replacement.
 
-**Fill-the-skeleton plan:** `docs/plans/FILL_AD_SKELETON.md` (inbound first, then host AD brain, lean C).
+**Fill-the-skeleton plan:** `docs/plans/FILL_AD_SKELETON.md` (inbound first, then host AD brain, lean C).  
+**Current sprint:** `docs/plans/SPRINT_G.md` — live proof, Track G locked. No new features unless a live miss is a one-file fix.
 
 ## 0. Inbound first (every eng)
 

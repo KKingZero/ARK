@@ -13,8 +13,7 @@ go test ./pkg/suggestions/... ./pkg/agent/... ./pkg/dnstransport/... ./pkg/ldapc
 echo "==> Build ark + teamserver + agent"
 make ark teamserver agent
 
-echo "==> Build Go implant (linux amd64)"
-GOOS=linux GOARCH=amd64 go build -o build/implant_linux ./cmd/implant
+echo "==> Skip Go Linux implant (archived; use make implant-c-linux)"
 
 echo "==> C implant host tests + Linux peer smoke"
 SKIP_LIVE=1 bash scripts/c_linux_e2e_smoke.sh

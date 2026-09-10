@@ -67,6 +67,15 @@ func TestPublishImportant_DoesNotHoldLockWhileWaiting(t *testing.T) {
 	}
 }
 
+func TestUnsubscribe_PublishDoesNotPanic(t *testing.T) {
+	eb := NewEventBus()
+	_, unsub := eb.Subscribe()
+	unsub()
+	// In-flight or post-unsub publish must not panic on a closed channel.
+	eb.Publish(&pb.Event{Type: pb.EventType_EVENT_LOG})
+	eb.PublishImportant(&pb.Event{Type: pb.EventType_EVENT_APPROVAL_REQUIRED})
+}
+
 func TestPublish_NonBlocking(t *testing.T) {
 	eb := NewEventBus()
 	_, unsub := eb.Subscribe()
