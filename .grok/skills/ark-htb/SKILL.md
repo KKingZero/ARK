@@ -121,9 +121,9 @@ Use external tools, document:
 | --- | --- | --- |
 ```
 
-Known remaining gaps: native PKINIT UnPAC (`ark kerberos pkinit` loads PFX then errors), ADCS ESC2–11, SMB/ATSVC deploy, DNS write, WSUS MITM, Windows C reverse SOCKS.
+Known remaining gaps: native PKINIT UnPAC live-DC proof, ADCS ESC2–11, SMB/ATSVC deploy, WSUS MITM, named-pipe MSSQL, Windows C reverse SOCKS live proof.
 
-Already in-framework (use these first): `ldap enum --type acl|interesting`, `ark rbcd`, `ark ad shadow auto`, AES asktgt/S4U/keylist, `ark adcs` dangling ESC1 template+req.
+Already in-framework (use these first): `ldap enum --type acl|interesting`, `ark rbcd`, `ark ad shadow auto`, AES asktgt/S4U/keylist, `ark adcs` dangling ESC1 template+req, `ark http` NTLM GET/POST, `ark dns add`, `ark ldap spray` / `enable`.
 
 ### 5. Report & cleanup
 

@@ -25,6 +25,12 @@ type RuntimeStatus struct {
 	Approval   string
 }
 
+// PrintRuntimeStatus writes the one-shot C2 picture used by `ark status`.
+func PrintRuntimeStatus() {
+	c := NewConsole(false)
+	fmt.Print(formatStatus(c.snapshot()))
+}
+
 func (c *Console) snapshot() RuntimeStatus {
 	cfg, err := server.LoadConfig(server.ConfigPath())
 	if err != nil {

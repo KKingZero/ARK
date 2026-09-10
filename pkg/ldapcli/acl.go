@@ -56,18 +56,40 @@ type ObjectACL struct {
 	Findings []ACEFinding
 }
 
+// ACLQuery is a host-side DACL search.
+type ACLQuery struct {
+	SAM                string
+	Trustee            string
+	IncludePrivileged  bool
+	IncludeDefaultACEs bool
+}
+
+// ACLSearchFilter is the LDAP filter for an ACL walk (exported for tests).
+func ACLSearchFilter(sam string) string {
+	sam = strings.TrimSpace(sam)
+	if sam != "" {
+		return fmt.Sprintf("(sAMAccountName=%s)", ldap.EscapeFilter(sam))
+	}
+	return `(|(&(objectCategory=person)(objectClass=user))(objectCategory=computer)(objectCategory=group))`
+}
+
 // SearchACL enumerates user/computer/group objects and returns those with
 // dangerous DACL rights. Expected privileged trustees (DA/EA/BA/SYSTEM) are
 // omitted unless includePrivileged is set.
 func SearchACL(conn *ldap.Conn, base string, includePrivileged bool) ([]ObjectACL, error) {
+	return SearchACLQuery(conn, base, ACLQuery{IncludePrivileged: includePrivileged})
+}
+
+// SearchACLQuery is SearchACL with --sam / --trustee / default-ACE filters.
+func SearchACLQuery(conn *ldap.Conn, base string, q ACLQuery) ([]ObjectACL, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("ldap conn required")
 	}
 	if base == "" {
 		return nil, fmt.Errorf("base DN required")
 	}
-	filter := `(|(&(objectCategory=person)(objectClass=user))(objectCategory=computer)(objectCategory=group))`
-	attrs := []string{"sAMAccountName", "distinguishedName", "objectCategory", "objectClass", "nTSecurityDescriptor"}
+	filter := ACLSearchFilter(q.SAM)
+	attrs := []string{"sAMAccountName", "distinguishedName", "objectCategory", "objectClass", "objectSid", "nTSecurityDescriptor"}
 	req := ldap.NewSearchRequest(
 		base,
 		ldap.ScopeWholeSubtree,
@@ -81,6 +103,12 @@ func SearchACL(conn *ldap.Conn, base string, includePrivileged bool) ([]ObjectAC
 	if err != nil {
 		return nil, fmt.Errorf("LDAP ACL search: %w", err)
 	}
+	wantTrustee := strings.TrimSpace(q.Trustee)
+	if wantTrustee != "" && !strings.HasPrefix(strings.ToUpper(wantTrustee), "S-") {
+		if sid, err := samToSID(conn, base, wantTrustee); err == nil {
+			wantTrustee = sid
+		}
+	}
 	var out []ObjectACL
 	for _, e := range sr.Entries {
 		raw := e.GetRawAttributeValue("nTSecurityDescriptor")
@@ -91,8 +119,14 @@ func SearchACL(conn *ldap.Conn, base string, includePrivileged bool) ([]ObjectAC
 		if err != nil {
 			continue
 		}
-		if !includePrivileged {
+		if !q.IncludePrivileged {
 			findings = FilterExpectedTrustees(findings)
+		}
+		if !q.IncludeDefaultACEs {
+			findings = FilterDefaultACEs(findings)
+		}
+		if wantTrustee != "" {
+			findings = FilterTrustee(findings, wantTrustee)
 		}
 		if len(findings) == 0 {
 			continue
@@ -106,6 +140,19 @@ func SearchACL(conn *ldap.Conn, base string, includePrivileged bool) ([]ObjectAC
 		})
 	}
 	return out, nil
+}
+
+func samToSID(conn *ldap.Conn, base, sam string) (string, error) {
+	e, err := lookupSAM(conn, base, sam)
+	if err != nil {
+		return "", err
+	}
+	raw := e.GetRawAttributeValue("objectSid")
+	if len(raw) == 0 {
+		return "", fmt.Errorf("objectSid missing on %s", sam)
+	}
+	sid, _, err := parseSID(raw, 0)
+	return sid, err
 }
 
 // ParseSecurityDescriptor reads a self-relative Windows SD and returns owner SID + interesting ACEs.
@@ -249,6 +296,54 @@ func FilterExpectedTrustees(in []ACEFinding) []ACEFinding {
 		out = append(out, f)
 	}
 	return out
+}
+
+// FilterDefaultACEs drops SELF/Everyone/Authenticated Users/Domain Users
+// when the only classified right is generic WriteProperty.
+func FilterDefaultACEs(in []ACEFinding) []ACEFinding {
+	var out []ACEFinding
+	for _, f := range in {
+		if isLowValueTrustee(f.TrusteeSID) && writePropertyOnly(f.Rights) {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+// FilterTrustee keeps ACEs whose trustee SID or name matches want (SID or sAM).
+func FilterTrustee(in []ACEFinding, want string) []ACEFinding {
+	want = strings.TrimSpace(want)
+	if want == "" {
+		return in
+	}
+	var out []ACEFinding
+	for _, f := range in {
+		if strings.EqualFold(f.TrusteeSID, want) || strings.EqualFold(f.Trustee, want) {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func isLowValueTrustee(sid string) bool {
+	switch sid {
+	case "S-1-5-10", "S-1-1-0", "S-1-5-11":
+		return true
+	}
+	return strings.HasSuffix(sid, "-513")
+}
+
+func writePropertyOnly(rights []string) bool {
+	if len(rights) == 0 {
+		return true
+	}
+	for _, r := range rights {
+		if r != "WriteProperty" {
+			return false
+		}
+	}
+	return true
 }
 
 // IsExpectedPrivilegedSID reports built-in / domain-admin class trustees.

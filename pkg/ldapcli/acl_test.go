@@ -104,6 +104,35 @@ func TestSearchACLNilConn(t *testing.T) {
 	}
 }
 
+func TestACLSearchFilter(t *testing.T) {
+	got := ACLSearchFilter("")
+	if !strings.Contains(got, "objectCategory=person") {
+		t.Fatalf("full walk filter: %s", got)
+	}
+	got = ACLSearchFilter("m.carter")
+	if got != "(sAMAccountName=m.carter)" {
+		t.Fatalf("sam filter: %s", got)
+	}
+	if strings.Contains(got, "objectCategory=person") {
+		t.Fatal("sam filter must not walk the forest")
+	}
+}
+
+func TestFilterDefaultACEs(t *testing.T) {
+	in := []ACEFinding{
+		{TrusteeSID: "S-1-5-11", Trustee: "Authenticated Users", Rights: []string{"WriteProperty"}},
+		{TrusteeSID: "S-1-5-11", Trustee: "Authenticated Users", Rights: []string{"GenericAll"}},
+		{TrusteeSID: "S-1-5-21-1-2-3-1105", Rights: []string{"WriteProperty"}},
+	}
+	got := FilterDefaultACEs(in)
+	if len(got) != 2 {
+		t.Fatalf("len %d: %+v", len(got), got)
+	}
+	if got[0].Rights[0] != "GenericAll" {
+		t.Fatalf("kept wrong ACE: %+v", got[0])
+	}
+}
+
 func containsRight(rs []string, want string) bool {
 	for _, r := range rs {
 		if r == want {

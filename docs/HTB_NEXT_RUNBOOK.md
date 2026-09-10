@@ -18,7 +18,7 @@ Authorized HTB / lab use only. Do not use against systems without permission.
 
 1. **Exercise ARK on the critical path** (host AD tools + C implant), not as a victory-lap shell after Impacket.
 2. **QA P0 features** on a real Windows/AD target (SMB → LDAP interesting → WinRM PTH, host `adcs` / `rbcd` / shadow where the box needs them).
-3. **Drive remaining gaps** with machines that need live PKINIT UnPAC proof, DNS write, ATSVC deploy, or Windows C SOCKS.
+3. **Drive remaining gaps** with machines that need live PKINIT UnPAC proof, ATSVC deploy, named-pipe MSSQL, or Windows C SOCKS.
 4. **Keep OPSEC and lab hygiene** consistent so reports and framework QA stay trustworthy.
 
 ---
@@ -328,7 +328,7 @@ Adjust to your HTB rank path; keep the **finish open → QA P0 → code P1 → M
 
 | Gap | Severity | Workaround used | Wanted module/fix |
 | --- | --- | --- | --- |
-| e.g. no DNS write | medium | bloodyAD | ad_dns module |
+| e.g. no named-pipe MSSQL | medium | Impacket | mssql --pipe |
 | e.g. no shadow creds | high | certipy | shadow_creds |
 
 ## What worked in-framework

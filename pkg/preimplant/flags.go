@@ -8,6 +8,17 @@ import (
 	"github.com/KKingZero/ARK/pkg/netproxy"
 )
 
+// boolFlags are switches. The next token is never consumed as their value
+// (so `--ps whoami` leaves whoami in bare). `--` still dumps the rest to bare.
+var boolFlags = map[string]struct{}{
+	"anon": {}, "anonymous": {}, "guest": {},
+	"yes": {}, "ps": {}, "cmd": {}, "ssl": {},
+	"windows": {}, "windows-auth": {},
+	"all": {}, "tls-verify": {}, "verify-tls": {},
+	"insecure": {}, "forest": {}, "ntlm": {}, "no-ntlm": {},
+	"include-default-aces": {}, "noisy": {},
+}
+
 // ParseFlags splits --key value / --bool flags. Bare args returned separately.
 func ParseFlags(args []string) (map[string]string, []string) {
 	out := map[string]string{}
@@ -20,6 +31,10 @@ func ParseFlags(args []string) (map[string]string, []string) {
 		}
 		if strings.HasPrefix(a, "--") {
 			key := strings.TrimPrefix(a, "--")
+			if _, isBool := boolFlags[key]; isBool {
+				out[key] = "1"
+				continue
+			}
 			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
 				out[key] = args[i+1]
 				i++

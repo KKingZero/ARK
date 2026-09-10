@@ -18,6 +18,29 @@ func TestRunWinRMRequiresHostUser(t *testing.T) {
 	}
 }
 
+func TestWinRMArgvPSCommand(t *testing.T) {
+	argv, err := winrmArgv([]string{"--host", "h", "--user", "u", "--pass-file", "p", "--ps", "whoami"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(argv, " ")
+	if !strings.Contains(joined, "whoami") {
+		t.Fatalf("command missing: %v", argv)
+	}
+	if argv[len(argv)-1] != "whoami" {
+		t.Fatalf("positional command last: %v", argv)
+	}
+	sawPS := false
+	for _, a := range argv {
+		if a == "--ps" {
+			sawPS = true
+		}
+	}
+	if !sawPS {
+		t.Fatalf("missing --ps: %v", argv)
+	}
+}
+
 func TestRunMSSQLXPRequiresYes(t *testing.T) {
 	err := RunMSSQL([]string{"xp", "--host", "127.0.0.1", "--user", "sa", "--pass", "x", "--cmd", "whoami"})
 	if err == nil || err.Error() == "" {

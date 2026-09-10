@@ -31,8 +31,11 @@ const smbUsage = `ark smb — operator-host SMB (no implant)
   ark smb shares --host H [--anon | --user U --pass-file P --domain D]
   ark smb ls --host H --share IT [--path .]
   ark smb get --host H --share C$ --path Users\\a\\Desktop\\user.txt --out user.txt
+  ark smb ls --host 10.1.2.3 --hostname dc.lab.htb --share SYSVOL --ticket ID
 
 Hash: --hash 32hex-NT. Ticket: --ticket ID|path (store via ark kerberos ticket import / s4u).
+Kerberos: --hostname sets cifs/ SPN when --host is an IP; --kdc / --spn optional.
+--anon is a Guest session (empty password). Signing-required DCs reject Guest.
 Kerberos SMB is native (cifs/ TGS + SMB2). Impacket wrap: ARK_SMB_IMPACKET=1.
 Honors ARK_PROXY / ALL_PROXY (SOCKS5).
 Lab-only. See docs/OPERATOR_PRE_IMPLANT.md
@@ -43,7 +46,10 @@ func smbOpts(f map[string]string) (smbcli.Options, error) {
 		Host:      first(f, "host", "dc"),
 		Domain:    f["domain"],
 		Username:  first(f, "user", "username"),
-		Anonymous: flagBool(f, "anon", "anonymous"),
+		Anonymous: flagBool(f, "anon", "anonymous", "guest"),
+		Hostname:  first(f, "hostname", "name"),
+		SPN:       first(f, "spn"),
+		KDC:       first(f, "kdc", "dc-ip"),
 	}
 	pass, err := readSecret(f, "pass", "pass-file")
 	if err != nil {

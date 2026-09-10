@@ -1,6 +1,7 @@
 package ldapcli
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -63,7 +64,7 @@ func WriteShadow(conn *ldap.Conn, baseDN, sam string, blob []byte) (ShadowState,
 		return ShadowState{}, err
 	}
 	mod := ldap.NewModifyRequest(e.DN, nil)
-	mod.Replace(AttrKeyCredential, []string{string(blob)})
+	mod.Replace(AttrKeyCredential, []string{EncodeDNBinary(blob, e.DN)})
 	if err := conn.Modify(mod); err != nil {
 		return ShadowState{}, fmt.Errorf("write %s on %s: %w", AttrKeyCredential, e.DN, err)
 	}
@@ -75,6 +76,13 @@ func WriteShadow(conn *ldap.Conn, baseDN, sam string, blob []byte) (ShadowState,
 		return st, fmt.Errorf("shadow write read-back empty on %s", st.TargetSAM)
 	}
 	return st, nil
+}
+
+// EncodeDNBinary formats a raw blob as LDAP DN-Binary (Object(DN-Binary)).
+// msDS-KeyCredentialLink requires B:<hexlen>:<hex>:<DN>, not raw bytes.
+func EncodeDNBinary(blob []byte, dn string) string {
+	h := hex.EncodeToString(blob)
+	return fmt.Sprintf("B:%d:%s:%s", len(h), h, dn)
 }
 
 // ShadowSAM is exported for tests that only check the attr name.

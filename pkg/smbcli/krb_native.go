@@ -22,15 +22,16 @@ func DialKerberos(opts Options) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	host := hostWithoutPort(opts.Host)
-	kdc := host
+	plan, err := kerberosPlan(opts)
+	if err != nil {
+		return nil, err
+	}
 	if opts.Domain == "" {
 		opts.Domain = auth.realm
 	}
-	spn := "cifs/" + host
-	ct, err := krb.ServiceTicketFromCCache(auth.ccache, spn, opts.Domain, kdc)
+	ct, err := krb.ServiceTicketFromCCache(auth.ccache, plan.SPN, opts.Domain, plan.KDC)
 	if err != nil {
-		return nil, fmt.Errorf("cifs ticket %s: %w", spn, err)
+		return nil, fmt.Errorf("cifs ticket %s: %w", plan.SPN, err)
 	}
 	token, err := spnegoAPReq(ct)
 	if err != nil {
@@ -41,7 +42,7 @@ func DialKerberos(opts Options) (*Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("smb connect %s: %w", addr, err)
 	}
-	ks, err := smb2KerberosSession(conn, host, token, ct.SessionKey)
+	ks, err := smb2KerberosSession(conn, hostWithoutPort(opts.Host), token, ct.SessionKey)
 	if err != nil {
 		conn.Close()
 		return nil, err
@@ -64,6 +65,32 @@ func spnegoAPReq(ct krb.CachedTicket) ([]byte, error) {
 	}
 	tok := spnego.SPNEGOToken{Init: true, NegTokenInit: neg}
 	return tok.Marshal()
+}
+
+// kerberosDialPlan splits TCP target, CIFS SPN, and KDC.
+type kerberosDialPlan struct {
+	SPN string
+	KDC string
+}
+
+func kerberosPlan(opts Options) (kerberosDialPlan, error) {
+	if strings.TrimSpace(opts.Host) == "" {
+		return kerberosDialPlan{}, fmt.Errorf("host required")
+	}
+	host := hostWithoutPort(opts.Host)
+	name := strings.TrimSpace(opts.Hostname)
+	if name == "" {
+		name = host
+	}
+	spn := strings.TrimSpace(opts.SPN)
+	if spn == "" {
+		spn = "cifs/" + name
+	}
+	kdc := strings.TrimSpace(opts.KDC)
+	if kdc == "" {
+		kdc = host
+	}
+	return kerberosDialPlan{SPN: spn, KDC: kdc}, nil
 }
 
 func ticketNativeEnabled() bool {

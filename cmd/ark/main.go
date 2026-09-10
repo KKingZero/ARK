@@ -28,7 +28,7 @@ func main() {
 		}
 		runConsoleWithBoot(nil, boot)
 	case "status":
-		runConsoleWithBoot(nil, "status")
+		core.PrintRuntimeStatus()
 	case "serve":
 		// `serve` starts teamserver + operator REPL. Stdin/REPL EOF does not stop C2.
 		// Use `ark teamserver` (or serve --teamserver) for daemon-only (no REPL).
@@ -96,6 +96,16 @@ func main() {
 	case "winrm":
 		if err := preimplant.RunWinRM(os.Args[2:]); err != nil {
 			fmt.Fprintf(os.Stderr, "ark winrm: %v\n", err)
+			os.Exit(1)
+		}
+	case "http":
+		if err := preimplant.RunHTTP(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "ark http: %v\n", err)
+			os.Exit(1)
+		}
+	case "dns":
+		if err := preimplant.RunDNS(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "ark dns: %v\n", err)
 			os.Exit(1)
 		}
 	case "mssql":
@@ -293,7 +303,7 @@ Usage:
   ark              Interactive console (startup UI)
   ark -json         JSON console mode
   ark ai            Open ARK AI (then the ARK shell on /back)
-  ark status        Print C2 status and enter the ARK shell
+  ark status        Print C2 status and exit
   ark serve         Start teamserver + operator REPL (stdin/EOF does not stop C2)
   ark serve --teamserver   Teamserver only (same as ark teamserver)
   ark teamserver    Run teamserver only (preferred daemon / HTB C2)
@@ -307,6 +317,8 @@ Usage:
   ark kerberos      Skew, AES asktgt, golden/silver, keylist, pkinit
   ark inbound       tun0 / drop / httpdrop / through (SOCKS+env)
   ark winrm         Host-side WinRM/PSRP (pypsrp, SOCKS)
+  ark http          Host-side HTTP GET/POST (NTLM, lab TLS)
+  ark dns           Host-side ADIDNS add/delete (LDAP)
   ark mssql         Host-side MSSQL query / xp_cmdshell (impacket, SOCKS)
   ark mqtt          Pre-implant MQTT sub/pub/healthcheck-hijack (no teamserver)
   ark relay         Pre-implant HTTP NTLM relay + held session GET (no teamserver)
@@ -323,6 +335,8 @@ Pre-implant lab helpers (authorized labs only):
   ark kerberos help
   ark inbound help
   ark winrm help
+  ark http help
+  ark dns help
   ark mssql help
   ark mqtt help
   ark relay help

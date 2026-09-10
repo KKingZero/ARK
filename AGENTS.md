@@ -20,7 +20,7 @@ ark operator        REPL
 ark op              one-shot (sessions / shell / generate / …)
 ark certs seats     operator + approver mTLS certs
 ark inbound …       tun0 / drop / httpdrop / redirector / SOCKS env
-ark ldap / smb / ad / adcs / rbcd / kerberos / winrm / mssql / mqtt / relay
+ark ldap / smb / ad / adcs / rbcd / kerberos / winrm / http / dns / mssql / mqtt / relay
 ```
 
 Data dir: `~/.ark/` (`ARK_HOME` overrides; populated `~/.erebus` is still accepted as a legacy tree).

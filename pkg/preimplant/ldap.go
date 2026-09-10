@@ -29,6 +29,12 @@ func RunLDAP(args []string) error {
 		return ldapDangling(args[1:])
 	case "set":
 		return ldapSet(args[1:])
+	case "enable":
+		return ldapEnableDisable(args[1:], false)
+	case "disable":
+		return ldapEnableDisable(args[1:], true)
+	case "spray":
+		return ldapSpray(args[1:])
 	default:
 		return fmt.Errorf("unknown ldap command %q\n%s", args[0], ldapUsage)
 	}
@@ -40,16 +46,21 @@ const ldapUsage = `ark ldap — operator-host LDAP (no implant)
   ark ldap enum --dc H --domain D --user U --pass-file P --type interesting
   ark ldap dangling --dc H --domain D --user U --pass-file P
   ark ldap enum --type maq --dc H --domain D --user U --pass-file P
-  ark ldap enum --type acl --dc H --domain D --user U --pass-file P [--all]
+  ark ldap enum --type acl --dc H --domain D --user U --pass-file P [--sam SAM] [--trustee SID|SAM] [--all]
   ark ldap set --dc H --domain D --user U --pass-file P --target SAM scriptPath VALUE --yes
   ark ldap set --dc H --domain D --user U --pass-file P --target DC01$ servicePrincipalName HTTP/web.domain.htb --yes
+  ark ldap enable --dc H --domain D --user U --pass-file P --target m.carter --yes
+  ark ldap disable --dc H --domain D --user U --pass-file P --target m.carter --yes
+  ark ldap spray --dc H --domain D --user-file users.txt --pass-file P --delay 2s --yes
   ark ldap bind --dc H --domain D --ticket ID   # GSSAPI from imported ccache
 
 Uses LDAPS first (lab self-signed OK). Honors ARK_PROXY / ALL_PROXY (SOCKS5).
 Types: acl, asrep_roastable (alias asrep), computers, constrained_delegation, dangling,
 dcs, domain_admins, gpos, groups, interesting, kerberoastable (alias spn), maq,
 rbcd, secrets, shadow (alias keycred), trusts, unconstrained_delegation, users, admins.
-acl is host-only (parses nTSecurityDescriptor). Default hides DA/EA/BA/SYSTEM trustees; --all includes them.
+acl is host-only (parses nTSecurityDescriptor). Default hides DA/EA/BA/SYSTEM and
+SELF/Everyone/Authenticated Users WriteProperty-only; --all includes privileged
+trustees; --include-default-aces keeps the low-value WriteProperty ACEs.
 
 Lab-only. See docs/OPERATOR_PRE_IMPLANT.md
 `
@@ -132,7 +143,12 @@ func ldapEnum(args []string) error {
 		return printMAQ(conn, base)
 	}
 	if q == "acl" {
-		return printACL(conn, base, flagBool(f, "all"))
+		return printACL(conn, base, ldapcli.ACLQuery{
+			SAM:                first(f, "sam", "target"),
+			Trustee:            first(f, "trustee"),
+			IncludePrivileged:  flagBool(f, "all"),
+			IncludeDefaultACEs: flagBool(f, "include-default-aces", "noisy"),
+		})
 	}
 	filter, err := ldapcli.FilterFor(q, base)
 	if err != nil {
@@ -195,12 +211,12 @@ func ldapDangling(args []string) error {
 	return nil
 }
 
-func printACL(conn *ldap.Conn, base string, includePrivileged bool) error {
-	objs, err := ldapcli.SearchACL(conn, base, includePrivileged)
+func printACL(conn *ldap.Conn, base string, q ldapcli.ACLQuery) error {
+	objs, err := ldapcli.SearchACLQuery(conn, base, q)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("query=acl count=%d privileged=%v\n", len(objs), includePrivileged)
+	fmt.Printf("query=acl count=%d privileged=%v sam=%s trustee=%s\n", len(objs), q.IncludePrivileged, q.SAM, q.Trustee)
 	if len(objs) == 0 {
 		fmt.Println("no interesting DACL rights (or SD not readable)")
 		fmt.Println("next: ark ldap enum --type interesting")
@@ -297,6 +313,46 @@ func ldapSet(args []string) error {
 		return err
 	}
 	fmt.Printf("OK ldap set %s on %s\n", attr, target)
+	return nil
+}
+
+func ldapEnableDisable(args []string, disable bool) error {
+	f, _ := ParseFlags(args)
+	target := first(f, "target", "sam")
+	if target == "" {
+		op := "enable"
+		if disable {
+			op = "disable"
+		}
+		return fmt.Errorf("usage: ark ldap %s --dc H --domain D --user U --pass-file P --target SAM --yes", op)
+	}
+	if !flagBool(f, "yes") {
+		return fmt.Errorf("refusing to change account state on %q without --yes", target)
+	}
+	opts, err := ldapOpts(f)
+	if err != nil {
+		return err
+	}
+	opts.RequireTLS = true
+	printProxyHint()
+	conn, err := ldapcli.Bind(opts)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	base := ldapcli.BaseDN(opts.Domain)
+	if base == "" {
+		return fmt.Errorf("--domain required")
+	}
+	oldUAC, newUAC, err := ldapcli.SetAccountDisabled(conn, base, target, disable)
+	if err != nil {
+		return err
+	}
+	op := "enable"
+	if disable {
+		op = "disable"
+	}
+	fmt.Printf("OK ldap %s %s uac %d -> %d\n", op, target, oldUAC, newUAC)
 	return nil
 }
 

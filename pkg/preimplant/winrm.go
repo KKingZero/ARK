@@ -29,15 +29,25 @@ func RunWinRM(args []string) error {
 		fmt.Print(winrmUsage)
 		return nil
 	}
+	argv, err := winrmArgv(args)
+	if err != nil {
+		return err
+	}
+	printProxyHint()
+	return runPython(argv)
+}
+
+// winrmArgv builds the python argv. Extracted so tests do not dial.
+func winrmArgv(args []string) ([]string, error) {
 	f, bare := ParseFlags(args)
 	host := first(f, "host", "target")
 	user := first(f, "user", "username")
 	if host == "" || user == "" {
-		return fmt.Errorf("%s", winrmUsage)
+		return nil, fmt.Errorf("%s", winrmUsage)
 	}
 	script, err := findRepoScript("scripts/host_winrm.py")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	argv := []string{script, "--host", host, "--user", user}
 	if d := first(f, "domain"); d != "" {
@@ -69,7 +79,7 @@ func RunWinRM(args []string) error {
 			remote = bare[0]
 		}
 		if remote == "" {
-			return fmt.Errorf("--copy LOCAL requires --remote PATH")
+			return nil, fmt.Errorf("--copy LOCAL requires --remote PATH")
 		}
 		argv = append(argv, "--copy", local, remote)
 	} else if remote := first(f, "fetch"); remote != "" {
@@ -78,18 +88,17 @@ func RunWinRM(args []string) error {
 			local = bare[0]
 		}
 		if local == "" {
-			return fmt.Errorf("--fetch REMOTE requires --out PATH")
+			return nil, fmt.Errorf("--fetch REMOTE requires --out PATH")
 		}
 		argv = append(argv, "--fetch", remote, local)
 	} else {
 		cmd := strings.Join(bare, " ")
 		if cmd == "" {
-			return fmt.Errorf("command required")
+			return nil, fmt.Errorf("command required")
 		}
 		argv = append(argv, cmd)
 	}
-	printProxyHint()
-	return runPython(argv)
+	return argv, nil
 }
 
 func runPython(scriptAndArgs []string) error {

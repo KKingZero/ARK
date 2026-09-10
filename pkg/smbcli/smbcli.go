@@ -27,6 +27,12 @@ type Options struct {
 	Password  string
 	Hash      string
 	Anonymous bool
+	// Hostname is the CIFS SPN host (dc.lab.htb) when Host is an IP.
+	Hostname string
+	// SPN overrides cifs/<hostname>. Example: cifs/dc.lab.htb
+	SPN string
+	// KDC is the Kerberos DC (usually the same IP as Host).
+	KDC string
 	// Ticket is a ticket-store id or ccache/kirbi path.
 	// Kerberos SMB is native (DialKerberos). Impacket smbclient.py -k
 	// remains behind ARK_SMB_IMPACKET=1.
@@ -61,7 +67,7 @@ func Dial(opts Options) (*Session, error) {
 		conn.Close()
 		return nil, err
 	}
-	s, err := (&smb2.Dialer{Initiator: init}).Dial(conn)
+	s, err := ntlmDialer(init).Dial(conn)
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("smb auth: %w", err)
@@ -186,7 +192,7 @@ func initiator(opts Options) (*smb2.NTLMInitiator, error) {
 		return nil, fmt.Errorf("smb Dial is NTLM-only; Kerberos uses DialKerberos")
 	}
 	if opts.Anonymous || (opts.Username == "" && opts.Password == "" && opts.Hash == "") {
-		return &smb2.NTLMInitiator{}, nil
+		return &smb2.NTLMInitiator{User: "Guest", Password: "", Domain: opts.Domain}, nil
 	}
 	if opts.Username == "" {
 		return nil, fmt.Errorf("username required (or --anon)")
@@ -210,10 +216,18 @@ func initiator(opts Options) (*smb2.NTLMInitiator, error) {
 		}
 		init.Hash = h
 		init.Password = ""
-	} else if opts.Password == "" {
+	} else if opts.Password == "" && !strings.EqualFold(init.User, "Guest") {
 		return nil, fmt.Errorf("password or hash required (or --anon)")
 	}
 	return init, nil
+}
+
+func ntlmDialer(init *smb2.NTLMInitiator) *smb2.Dialer {
+	sign := init != nil && init.User != "" && !strings.EqualFold(init.User, "Guest")
+	return &smb2.Dialer{
+		Initiator:  init,
+		Negotiator: smb2.Negotiator{RequireMessageSigning: sign},
+	}
 }
 
 // ParseNTHash accepts 32-hex NT or LM:NT / 64-hex.

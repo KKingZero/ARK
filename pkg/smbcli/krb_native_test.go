@@ -54,6 +54,26 @@ func TestDialKerberosMissingTicket(t *testing.T) {
 	}
 }
 
+func TestKerberosPlanIPVsHostname(t *testing.T) {
+	p, err := kerberosPlan(Options{Host: "10.1.2.3", Hostname: "dc.a.htb"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.SPN != "cifs/dc.a.htb" {
+		t.Fatalf("spn %s", p.SPN)
+	}
+	if p.KDC != "10.1.2.3" {
+		t.Fatalf("kdc %s", p.KDC)
+	}
+	p, err = kerberosPlan(Options{Host: "10.1.2.3", SPN: "cifs/dc.a.htb", KDC: "10.1.2.3"})
+	if err != nil || p.SPN != "cifs/dc.a.htb" || p.KDC != "10.1.2.3" {
+		t.Fatalf("%+v %v", p, err)
+	}
+	if _, err := kerberosPlan(Options{}); err == nil {
+		t.Fatal("empty host")
+	}
+}
+
 func TestSMB2Sign(t *testing.T) {
 	s := &krbSession{sessionID: 1, sessionKey: []byte("0123456789abcdef0123456789abcdef")}
 	pkt := make([]byte, 80)

