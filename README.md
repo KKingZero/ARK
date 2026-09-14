@@ -12,6 +12,8 @@ Teamserver and operator API are Go. Implants speak the same protobuf over HTTPS 
 
 The product name is **ARK**. The CLI is `ark`. Data lives in `~/.ark/`. Compatibility symlinks (`erebus`, `Erebus`) and a leftover protobuf package name (`erebus.c2`) are not the product name.
 
+New to ARK? Start with the dedicated [operator guide](docs/ARK_OPERATOR_GUIDE.md). It defines the C2 terms first, then walks the build → teamserver → seats → generate → session flow.
+
 > Authorized testing and research only. You need explicit permission (or you own the systems). See [SECURITY.md](SECURITY.md) and [LICENSE](LICENSE).
 
 ---
@@ -175,6 +177,8 @@ Support, Logging, Ghostlink, DanglingTree, FireFlow, DarkZero, Garfield. Skills:
 
 Authorized lab only. Needs Go 1.25 (`go.mod`) and `make`. C PE: mingw or `scripts/setup_c_toolchain.sh`.
 
+If the names are new, read [docs/ARK_OPERATOR_GUIDE.md](docs/ARK_OPERATOR_GUIDE.md) first. Short version:
+
 <table>
 <tr>
 <td width="50%" valign="top">
@@ -269,7 +273,7 @@ High-risk tasks sit in `pending` until the **approver** seat runs `approve <id>`
 
 **Leave clean.** Kill the implant, stop `teamserver`, do not leave listeners or lab artifacts on a reused box.
 
-More: [AD cookbook](docs/AD_ENGAGEMENT.md) · [host tools](docs/OPERATOR_PRE_IMPLANT.md) · [inbound / 404 reasons](docs/OPERATOR_INBOUND.md).
+More: [operator guide](docs/ARK_OPERATOR_GUIDE.md) · [AD cookbook](docs/AD_ENGAGEMENT.md) · [host tools](docs/OPERATOR_PRE_IMPLANT.md) · [inbound / 404 reasons](docs/OPERATOR_INBOUND.md).
 
 ---
 
@@ -335,6 +339,7 @@ go test ./server/e2e/... -v -count=1
 
 | | |
 | --- | --- |
+| Start here | [docs/ARK_OPERATOR_GUIDE.md](docs/ARK_OPERATOR_GUIDE.md) |
 | HTB queue | [docs/HTB_NEXT_RUNBOOK.md](docs/HTB_NEXT_RUNBOOK.md) |
 | AD cookbook | [docs/AD_ENGAGEMENT.md](docs/AD_ENGAGEMENT.md) |
 | Host tools / inbound | [docs/OPERATOR_PRE_IMPLANT.md](docs/OPERATOR_PRE_IMPLANT.md) · [docs/OPERATOR_INBOUND.md](docs/OPERATOR_INBOUND.md) |
