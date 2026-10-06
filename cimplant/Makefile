@@ -113,6 +113,7 @@ SRCS = $(COMMON_SRCS) \
 	src/modules/mod_privesc.c \
 	src/modules/ntlm_parse.c \
 	src/modules/ntlm_pth.c \
+	src/modules/pth_layer.c \
 	src/modules/lateral_winrm.c \
 	src/modules/lateral_psexec.c \
 	src/modules/lateral_wmi_dcom.c \
@@ -135,7 +136,7 @@ SRCS = $(COMMON_SRCS) \
 	$(WIN_ENTRY)
 endif
 
-.PHONY: all config clean test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-socks-pb test-socks-parse test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux test-host linux windows
+.PHONY: all config clean test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-pth-layer test-socks-pb test-socks-parse test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux test-host linux windows
 
 all: config $(OUT)
 
@@ -171,6 +172,13 @@ test-ntlm-parse:
 		tests/ntlm_parse_host_test.c src/modules/ntlm_parse.c \
 		-o $(BUILD_DIR)/ntlm_parse_host_test
 	$(BUILD_DIR)/ntlm_parse_host_test
+
+test-pth-layer:
+	@mkdir -p $(BUILD_DIR)
+	cc -std=c11 -Wall -Wextra -Iinclude \
+		tests/pth_layer_host_test.c src/modules/pth_layer.c \
+		-o $(BUILD_DIR)/pth_layer_host_test
+	$(BUILD_DIR)/pth_layer_host_test
 
 test-socks-pb:
 	@mkdir -p $(BUILD_DIR)
@@ -230,7 +238,7 @@ test-task-typed-linux:
 		-o $(BUILD_DIR)/task_typed_linux_host_test -lssl -lcrypto
 	$(BUILD_DIR)/task_typed_linux_host_test
 
-test-host: test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-socks-pb test-socks-parse test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux
+test-host: test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-pth-layer test-socks-pb test-socks-parse test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux
 
 config:
 	@chmod +x scripts/gen_config.sh
