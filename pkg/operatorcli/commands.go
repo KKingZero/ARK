@@ -242,25 +242,70 @@ func (c *Commands) cmdUpload(args []string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("usage: upload <local-path> <remote-path>")
 	}
-	// Read would need os.ReadFile but we keep it simple for CLI
-	return fmt.Errorf("upload: use the gRPC API directly for file uploads")
+	task, err := readUploadFile(args[0], args[1])
+	if err != nil {
+		return err
+	}
+	data, err := marshalUpload(task)
+	if err != nil {
+		return err
+	}
+	resp, err := c.executeTask(pb.TaskType_TASK_FILE_UPLOAD, data, true)
+	if err != nil {
+		return err
+	}
+	if err := requireTaskSuccess("upload", resp); err != nil {
+		return err
+	}
+	result := &pb.FileUploadResult{}
+	if err := proto.Unmarshal(resp.Result.Data, result); err != nil {
+		return err
+	}
+	if !result.Success {
+		return fmt.Errorf("upload failed")
+	}
+	fmt.Printf("uploaded %s (%d bytes)\n", task.RemotePath, len(task.Data))
+	return nil
 }
 
 func (c *Commands) cmdDownload(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: download <remote-path>")
+	remote, out, err := parseDownloadArgs(args)
+	if err != nil {
+		return err
 	}
-	data, _ := proto.Marshal(&pb.FileDownloadTask{RemotePath: args[0]})
+	data, err := proto.Marshal(&pb.FileDownloadTask{RemotePath: remote})
+	if err != nil {
+		return err
+	}
 	resp, err := c.executeTask(pb.TaskType_TASK_FILE_DOWNLOAD, data, true)
 	if err != nil {
 		return err
 	}
-	if resp.Result != nil && resp.Result.Success {
-		result := &pb.FileDownloadResult{}
-		proto.Unmarshal(resp.Result.Data, result)
-		fmt.Printf("Downloaded %s (%d bytes)\n", result.Filename, len(result.Data))
+	if err := requireTaskSuccess("download", resp); err != nil {
+		return err
 	}
+	result := &pb.FileDownloadResult{}
+	if err := proto.Unmarshal(resp.Result.Data, result); err != nil {
+		return err
+	}
+	if err := saveDownloadFile(out, result.Data); err != nil {
+		return err
+	}
+	fmt.Printf("downloaded %s (%d bytes)\n", result.Filename, len(result.Data))
 	return nil
+}
+
+func requireTaskSuccess(op string, resp *pb.ExecuteTaskResponse) error {
+	if resp == nil || resp.Result == nil {
+		return fmt.Errorf("%s: no result", op)
+	}
+	if resp.Result.Success {
+		return nil
+	}
+	if resp.Result.Error != "" {
+		return fmt.Errorf("%s: %s", op, resp.Result.Error)
+	}
+	return fmt.Errorf("%s failed", op)
 }
 
 func (c *Commands) cmdPS(_ []string) error {

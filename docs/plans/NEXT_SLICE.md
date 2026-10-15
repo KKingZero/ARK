@@ -20,6 +20,12 @@ Sprint G stays the eng track: one Easy or Medium AD lab whose critical path runs
 
 Linux C still has no Kerberos stack. After a C session, host ldap / kerberos / smb / psexec go through `ark inbound through`.
 
+## Operator I/O
+
+`ark http` is anonymous unless `--user` is set, and then it is NTLM. It takes a cookie jar, a form or JSON body, and repeated headers, and it prints the response status and headers like `curl -i`. It does not parse HTML.
+
+`ark op upload <local> <remote>` and `ark op download <remote> --out <file>` use the existing file tasks. The remote path stays in the implant cwd jail. Absolute paths still fail on the implant. The client refuses a body over 4MB. Download writes mode 600 and does not print the body. Upload stays a high-risk task: one-shot `ark op` approves it, and the REPL and Agent Auto stay dual-seat.
+
 ## Out
 
 Zig, sleep mask, ETW/AMSI, malleable C2, ESC2–11, LLM OAuth, more Go Windows modules, per-box web RCE helpers, host DPAPI.

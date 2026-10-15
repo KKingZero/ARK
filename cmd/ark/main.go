@@ -260,7 +260,7 @@ Usage:
   ark inbound       tun0 / drop / httpdrop / through (SOCKS+env)
   ark winrm         Host-side WinRM/PSRP (pypsrp, SOCKS)
   ark psexec        Host-side ADMIN$ + SCMR service start (SOCKS)
-  ark http          Host-side HTTP GET/POST (NTLM, lab TLS)
+  ark http          Host-side HTTP GET/POST (anonymous, cookie jar, NTLM if --user)
   ark dns           Host-side ADIDNS add/delete (LDAP)
   ark mssql         Host-side MSSQL query / xp_cmdshell (impacket, SOCKS)
   ark mqtt          Pre-implant MQTT sub/pub/healthcheck-hijack (no teamserver)

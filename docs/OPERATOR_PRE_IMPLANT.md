@@ -17,7 +17,7 @@ Authorized **HTB / owned lab** helpers that run **without** a C2 session or team
 | `ark ad prp …` | RODC PRP: clear NeverReveal / add RevealOnDemand |
 | `ark ad shadow auto …` | KeyCredentialLink write + PFX |
 | `ark winrm …` | Host-side PSRP (pypsrp; needs repo `scripts/` or `ARK_ROOT`) |
-| `ark http …` | Host-side HTTP GET/POST with NTLM (`--insecure` for lab TLS) |
+| `ark http …` | Host-side HTTP GET/POST. Anonymous unless `--user` (then NTLM). Cookie jar, form body, response headers. `--insecure` for lab TLS |
 | `ark dns …` | Host-side ADIDNS add/delete A records (LDAP; `--forest` for ForestDnsZones) |
 | `ark mssql …` | Host-side MSSQL query / xp_cmdshell (impacket; SOCKS) |
 | `ark mqtt …` | MQTT subscribe / publish / healthcheck URL hijack |
