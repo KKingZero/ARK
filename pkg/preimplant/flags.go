@@ -16,7 +16,7 @@ var boolFlags = map[string]struct{}{
 	"windows": {}, "windows-auth": {},
 	"all": {}, "tls-verify": {}, "verify-tls": {},
 	"insecure": {}, "forest": {}, "ntlm": {}, "no-ntlm": {},
-	"include-default-aces": {}, "noisy": {},
+	"include-default-aces": {}, "noisy": {}, "kerberos": {},
 }
 
 // ParseFlags splits --key value / --bool flags. Bare args returned separately.

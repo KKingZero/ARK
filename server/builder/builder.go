@@ -21,13 +21,34 @@ import (
 // buildTimeout is the maximum duration for a single implant build.
 const buildTimeout = 5 * time.Minute
 
+const (
+	DefaultLanguage  = "c"
+	DefaultOS        = "windows"
+	DefaultArch      = "amd64"
+	DefaultFormat    = FormatEXE
+	DefaultTransport = "https"
+	DefaultCallback  = "https://127.0.0.1:443"
+	DefaultSleepMs   = 500
+	DefaultJitterPct = 10
+	MinSleepMs       = 100
+	MaxSleepMs       = 86400000
+	MinJitterPct     = 0
+	MaxJitterPct     = 100
+)
+
 // validDomainRe matches valid domain names.
 var validDomainRe = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*$`)
 
-// validateLdflagValue rejects values that could break out of -X ldflags quoting.
+// validateLdflagValue rejects values that would break the Makefile recipe or -X ldflags quoting.
+// A newline in a make variable becomes a second recipe line.
 func validateLdflagValue(val, name string) error {
+	for _, r := range val {
+		if r < 0x20 || r == 0x7f || r == '#' || r == ' ' {
+			return fmt.Errorf("%s contains unsafe characters for the build recipe", name)
+		}
+	}
 	if strings.ContainsAny(val, "'\"\\`$") {
-		return fmt.Errorf("%s contains unsafe characters for ldflags", name)
+		return fmt.Errorf("%s contains unsafe characters for the build recipe", name)
 	}
 	return nil
 }
@@ -72,46 +93,73 @@ type BuildResult struct {
 	ImplantSecret string // hex-encoded per-implant PSK (store sealed server-side; not returned to clients)
 }
 
-// Build orchestrates the implant build process.
-func Build(req *BuildRequest) (*BuildResult, error) {
-	lang := req.Language
-	if lang == "" {
-		lang = "c"
+// NormalizeBuildRequest applies build defaults and rejects unsupported shared inputs.
+func NormalizeBuildRequest(req *BuildRequest) error {
+	if req.Language == "" {
+		req.Language = DefaultLanguage
 	}
-	if lang == "c" {
-		// C is primary for Windows PE and Linux. Empty OS/arch/format → Windows engagement defaults.
-		if req.OS == "" {
-			req.OS = "windows"
-		}
-		if req.Arch == "" {
-			req.Arch = "amd64"
-		}
-		if req.Format == "" {
-			req.Format = FormatEXE
-		}
-		return BuildC(req)
+	if req.Language != "c" && req.Language != "go" {
+		return fmt.Errorf("unsupported implant language: %s (available: c, go)", req.Language)
 	}
-	if lang != "go" {
-		return nil, fmt.Errorf("unsupported implant language: %s (available: c, go)", lang)
-	}
-
 	if req.OS == "" {
-		req.OS = "windows"
+		req.OS = DefaultOS
 	}
-	if strings.EqualFold(req.OS, "linux") || strings.EqualFold(req.OS, "darwin") {
-		return nil, fmt.Errorf("go implant on %s is archived; use language=c (make implant-c-linux)", req.OS)
+	if req.OS != "windows" && req.OS != "linux" && req.OS != "darwin" {
+		return fmt.Errorf("unsupported OS: %s (available: windows, linux, darwin)", req.OS)
 	}
 	if req.Arch == "" {
-		req.Arch = "amd64"
+		req.Arch = DefaultArch
+	}
+	if req.Arch != "amd64" && req.Arch != "arm64" {
+		return fmt.Errorf("unsupported arch: %s (available: amd64, arm64)", req.Arch)
+	}
+	if req.Transport == "" {
+		req.Transport = DefaultTransport
+	}
+	if req.Transport != "https" && req.Transport != "dns" {
+		return fmt.Errorf("unsupported transport: %s (available: https, dns)", req.Transport)
 	}
 	if req.Format == "" {
-		req.Format = FormatEXE
+		req.Format = DefaultFormat
 	}
-	if req.SleepMs <= 0 {
-		req.SleepMs = 5000
+	if req.Format != FormatEXE && req.Format != FormatDLL && req.Format != FormatShellcode {
+		return fmt.Errorf("unsupported format: %s (available: exe, dll, shellcode)", req.Format)
 	}
-	if req.JitterPct <= 0 {
-		req.JitterPct = 20
+	if len(req.Callbacks) == 0 {
+		req.Callbacks = []string{DefaultCallback}
+	}
+	for _, cb := range req.Callbacks {
+		parsed, err := url.ParseRequestURI(cb)
+		if err != nil {
+			return fmt.Errorf("invalid callback URL %q: %v", cb, err)
+		}
+		if req.Transport == "https" && parsed.Scheme != "https" {
+			return fmt.Errorf("invalid callback URL %q: https transport requires https callback URL", cb)
+		}
+	}
+	if req.SleepMs == 0 {
+		req.SleepMs = DefaultSleepMs
+	}
+	if req.SleepMs < MinSleepMs || req.SleepMs > MaxSleepMs {
+		return fmt.Errorf("sleep_ms must be %d-%d", MinSleepMs, MaxSleepMs)
+	}
+	if req.JitterPct < MinJitterPct || req.JitterPct > MaxJitterPct {
+		return fmt.Errorf("jitter_pct must be %d-%d", MinJitterPct, MaxJitterPct)
+	}
+	return nil
+}
+
+// Build orchestrates the implant build process.
+func Build(req *BuildRequest) (*BuildResult, error) {
+	if err := NormalizeBuildRequest(req); err != nil {
+		return nil, err
+	}
+	if req.Language == "c" {
+		return BuildC(req)
+	}
+
+	if strings.EqualFold(req.OS, "linux") || strings.EqualFold(req.OS, "darwin") {
+		return nil, fmt.Errorf("go implant on %s is archived; use language=c (make implant-c-linux)", req.OS)
 	}
 
 	implantID, err := zcrypto.RandomID(16)
@@ -127,10 +175,7 @@ func Build(req *BuildRequest) (*BuildResult, error) {
 	secret := hex.EncodeToString(secretBytes)
 	req.ImplantSecret = secret
 
-	callbackURL := "https://127.0.0.1:443"
-	if len(req.Callbacks) > 0 {
-		callbackURL = req.Callbacks[0]
-	}
+	callbackURL := req.Callbacks[0]
 
 	// C1: Validate all inputs before embedding in ldflags
 	if _, err := url.ParseRequestURI(callbackURL); err != nil {

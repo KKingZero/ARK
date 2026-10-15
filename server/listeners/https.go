@@ -52,11 +52,37 @@ type HTTPSListener struct {
 	mu             sync.Mutex
 }
 
-func NewHTTPSListener(config *pb.ListenerConfig, handler *BeaconHandler, ca *zcrypto.CertificateAuthority) (*HTTPSListener, error) {
-	hosts := []string{config.Host}
-	if config.Host == "" || config.Host == "0.0.0.0" {
-		hosts = []string{"localhost", "127.0.0.1"}
+// listenerCertHosts is the TLS SAN list for an implant callback cert.
+// A wildcard bind (empty, 0.0.0.0, ::) must include every non-loopback
+// address the implant will actually dial — tun0 on HTB — or curl
+// VERIFYHOST rejects the documented https://<ip>:<port> callback.
+func listenerCertHosts(bind string) []string {
+	if bind != "" && bind != "0.0.0.0" && bind != "::" {
+		return []string{bind}
 	}
+	hosts := []string{"localhost", "127.0.0.1"}
+	seen := map[string]bool{"localhost": true, "127.0.0.1": true, "::1": true}
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return hosts
+	}
+	for _, a := range addrs {
+		ipnet, ok := a.(*net.IPNet)
+		if !ok || ipnet.IP == nil || ipnet.IP.IsLoopback() || ipnet.IP.IsLinkLocalUnicast() {
+			continue
+		}
+		ip := ipnet.IP.String()
+		if seen[ip] {
+			continue
+		}
+		seen[ip] = true
+		hosts = append(hosts, ip)
+	}
+	return hosts
+}
+
+func NewHTTPSListener(config *pb.ListenerConfig, handler *BeaconHandler, ca *zcrypto.CertificateAuthority) (*HTTPSListener, error) {
+	hosts := listenerCertHosts(config.Host)
 
 	// M14: Do NOT include CDN domain in certificate SANs — it leaks domain
 	// fronting intent. The CDN domain is only used for Host header / TLS SNI

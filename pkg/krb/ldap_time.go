@@ -1,7 +1,6 @@
 package krb
 
 import (
-	"crypto/tls"
 	"fmt"
 	"net"
 	"strings"
@@ -19,23 +18,18 @@ func FetchDCTime(host string, bindDN, password string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("dc host required")
 	}
 	addr, useTLS, serverName := ldapDialTarget(host)
-	raw, err := netproxy.DialTimeout("tcp", addr, 15*time.Second)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("ldap dial %s: %w", addr, err)
-	}
 	var conn *ldap.Conn
 	if useTLS {
-		tlsConn := tls.Client(raw, &tls.Config{
-			InsecureSkipVerify: true, // lab DC certs
-			MinVersion:         tls.VersionTLS12,
-			ServerName:         serverName,
-		})
-		if err := tlsConn.Handshake(); err != nil {
-			raw.Close()
-			return time.Time{}, fmt.Errorf("ldaps handshake %s: %w", addr, err)
+		tlsConn, err := netproxy.DialTLS(addr, serverName, nil, netproxy.TLSVerifyThenFallback)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("ldap dial %s: %w", addr, err)
 		}
 		conn = ldap.NewConn(tlsConn, true)
 	} else {
+		raw, err := netproxy.DialTimeout("tcp", addr, 15*time.Second)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("ldap dial %s: %w", addr, err)
+		}
 		conn = ldap.NewConn(raw, false)
 	}
 	conn.Start()

@@ -137,6 +137,36 @@ func (s *Session) ListDir(share, p string) ([]string, error) {
 	return out, nil
 }
 
+// Upload writes data to share/path, replacing an existing file.
+func (s *Session) Upload(share, p string, data []byte) error {
+	if s == nil {
+		return fmt.Errorf("smb session required")
+	}
+	if share == "" || p == "" {
+		return fmt.Errorf("share and path required")
+	}
+	if s.kerb != nil {
+		return s.kerb.Upload(share, p, data)
+	}
+	if s.inner == nil {
+		return fmt.Errorf("smb session has no transport")
+	}
+	sh, err := s.inner.Mount(uncShare(s.host, share))
+	if err != nil {
+		return fmt.Errorf("mount %s: %w", share, err)
+	}
+	defer sh.Umount()
+	f, err := sh.OpenFile(NormalizePath(p), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", p, err)
+	}
+	defer f.Close()
+	if _, err := f.Write(data); err != nil {
+		return fmt.Errorf("write %s: %w", p, err)
+	}
+	return nil
+}
+
 // Download reads a file (max 10 MiB).
 func (s *Session) Download(share, p string) ([]byte, error) {
 	if share == "" || p == "" {

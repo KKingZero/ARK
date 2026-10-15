@@ -13,32 +13,32 @@ import (
 
 // cmdMQTT runs operator-local MQTT helpers (no implant session required).
 func (c *Commands) cmdMQTT(args []string) error {
-	return preimplant.RunMQTT(args)
+	return preimplant.RunHostCommand("mqtt", args)
 }
 
 func (c *Commands) cmdHostLDAP(args []string) error {
-	return preimplant.RunLDAP(args)
+	return preimplant.RunHostCommand("ldap", args)
 }
 
 func (c *Commands) cmdHostSMB(args []string) error {
-	return preimplant.RunSMB(args)
+	return preimplant.RunHostCommand("smb", args)
 }
 
 func (c *Commands) cmdHostAD(args []string) error {
-	return preimplant.RunAD(args)
+	return preimplant.RunHostCommand("ad", args)
 }
 
 func (c *Commands) cmdInbound(args []string) error {
-	return preimplant.RunInbound(args)
+	return preimplant.RunHostCommand("inbound", args)
 }
 
 func (c *Commands) cmdADCS(args []string) error {
-	return preimplant.RunADCS(args)
+	return preimplant.RunHostCommand("adcs", args)
 }
 
 // cmdRelay runs operator-local HTTP NTLM relay helpers (no implant session required).
 func (c *Commands) cmdRelay(args []string) error {
-	return preimplant.RunRelay(args)
+	return preimplant.RunHostCommand("relay", args)
 }
 
 // cmdKerberos is operator-local Kerberos helpers (no implant session required for skew).
@@ -198,7 +198,8 @@ func (c *Commands) cmdSMB(args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("usage: smb <list_shares|list_dir|download> --host <h> [--share s] [--path p] [--user u] [--pass p] [--hash h] [--domain d] [--anon]")
 	}
-	cfg := &pb.SMBClientConfig{Action: args[0]}
+	action := strings.ToLower(args[0])
+	cfg := &pb.SMBClientConfig{Action: action}
 	// Strip bare boolean --anon before parseKVFlags (which requires values).
 	var flagArgs []string
 	for _, a := range args[1:] {
@@ -226,7 +227,30 @@ func (c *Commands) cmdSMB(args []string) error {
 	if err != nil {
 		return err
 	}
-	return c.runTypedTask(pb.TaskType_TASK_MODULE, &pb.ModuleTask{ModuleName: "smb", Config: inner}, true, printSMBResult)
+	task, err := proto.Marshal(&pb.ModuleTask{ModuleName: "smb", Config: inner})
+	if err != nil {
+		return err
+	}
+	if len(c.activeSessions()) > 1 && action != "list_shares" {
+		return fmt.Errorf("multiple sessions selected; smb fanout supports list_shares only")
+	}
+	if err := c.requireSession(); err != nil {
+		return err
+	}
+	multi := len(c.activeSessions()) > 1
+	for _, sid := range c.activeSessions() {
+		printSessionHeader(sid, multi)
+		resp, err := c.executeTaskOnSession(sid, pb.TaskType_TASK_MODULE, task, true)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+		} else if resp.Result != nil {
+			printSMBResult(pb.TaskType_TASK_MODULE, resp.Result)
+		}
+		if multi {
+			fmt.Println()
+		}
+	}
+	return nil
 }
 
 func printSMBResult(_ pb.TaskType, result *pb.TaskResult) {

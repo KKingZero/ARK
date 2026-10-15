@@ -176,7 +176,10 @@ int ark_beacon_run(void) {
         ark_sleep_ms(ark_jitter_ms(st.sleep_ms * (uint32_t)(i + 1), st.jitter_pct));
     }
     if (!st.session_id[0]) {
-        fprintf(stderr, "ark: register failed after retries (callback/CA/HMAC/skew)\n");
+        if (st.transport && st.transport->last_error[0])
+            fprintf(stderr, "ark: register failed after retries (callback/CA/HMAC/skew): %s\n", st.transport->last_error);
+        else
+            fprintf(stderr, "ark: register failed after retries (callback/CA/HMAC/skew)\n");
         ark_transport_destroy(st.transport);
         return 1;
     }

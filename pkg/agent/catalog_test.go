@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/taskmeta"
 	"github.com/KKingZero/ARK/server/approval"
 	"google.golang.org/protobuf/proto"
 )
@@ -20,6 +21,21 @@ func TestCatalogRiskMatchesPolicy(t *testing.T) {
 		}
 		if tool.Risk != want {
 			t.Fatalf("%s risk %q want %q", tool.Name, tool.Risk, want)
+		}
+	}
+}
+
+func TestCatalogSessionFlagsMatchMetadata(t *testing.T) {
+	for _, tool := range Catalog() {
+		var meta taskmeta.Task
+		var ok bool
+		if tool.ModuleName != "" {
+			meta, ok = taskmeta.ByModule(tool.ModuleName)
+		} else if tool.TaskType != pb.TaskType_TASK_UNKNOWN {
+			meta, ok = taskmeta.ByType(tool.TaskType)
+		}
+		if ok && tool.NeedsSession != meta.NeedsSession {
+			t.Fatalf("%s needs session %v want %v", tool.Name, tool.NeedsSession, meta.NeedsSession)
 		}
 	}
 }

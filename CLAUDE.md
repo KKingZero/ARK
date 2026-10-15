@@ -12,6 +12,7 @@ Custom C2 framework for AI-driven offensive security operations.
 
 ```bash
 make proto              # Generate protobuf code
+make all                # Proto + ark/teamserver/operator/agent (no archived Go Linux implant)
 make ark                # Unified ark CLI (console + operator + host tools)
 make install            # Install ark (+ ARK/erebus compatibility symlinks) to ~/.local/bin
 make teamserver         # Teamserver binary
@@ -24,7 +25,7 @@ make operator           # Operator REPL binary
 make agent              # Standalone AI agent binary
 
 # `make implant` (Go Linux) is archived and fails closed.
-# `make all` still depends on that target — use the explicit list above.
+# Use `make implant-c-linux` for Linux payloads.
 
 bash scripts/smoke_test.sh              # Build + unit smoke checks
 go test ./server/e2e/... -v -count=1    # Live teamserver e2e
@@ -38,9 +39,9 @@ Go 1.25 (`go.mod`). C PE: mingw or `scripts/setup_c_toolchain.sh`.
 - **C implant** (`cimplant/`): **primary** on Windows PE **and** Linux. `make implant-c` / `implant-c-linux`, or `GenerateImplant` with `language: "c"` (empty language defaults to C).
 - **Go implant** (`implant/`): Windows fallback for full modules / DLL / shellcode. **Go Linux is archived** (`generate --language go --os linux` fails).
 - **Operator CLI**: unified `ark` — interactive console, `ark operator` REPL, one-shot `ark op`. Dual seats (`operator` + `approver`) for approve/deny.
-- **Host tools** (no session): `ark inbound` `ldap` `smb` `ad` `adcs` `rbcd` `kerberos` `winrm` `mssql` `mqtt` `relay`
+- **Host tools** (no session): `ark inbound` `ldap` `smb` `ad` `adcs` `rbcd` `kerberos` `winrm` `psexec` `mssql` `mqtt` `relay`
 - **Wire protocol**: protobuf (`c2.proto` implant, `api.proto` operator). Proto package name is still `erebus.c2`.
-- **DB**: SQLite at `~/.ark/ark.db` (legacy `~/.erebus` still used if that tree already exists; `ARK_HOME` overrides)
+- **DB**: SQLite at `~/.ark/ark.db` (`ARK_HOME` overrides). A legacy `~/.erebus` is copied once into `~/.ark` when that directory has no `server.yaml`, `certs/`, or `ark.db`.
 - **Config**: YAML at `~/.ark/server.yaml`
 
 Prefer `ark teamserver` as the C2 daemon. `ark serve` is teamserver + operator REPL; stdin/REPL EOF does **not** stop C2 (SIGINT/SIGTERM does).

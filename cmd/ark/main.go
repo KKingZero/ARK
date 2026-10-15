@@ -48,77 +48,19 @@ func main() {
 		runOp(os.Args[2:])
 	case "certs":
 		runCerts(os.Args[2:])
-	case "mqtt":
-		if err := preimplant.RunMQTT(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark mqtt: %v\n", err)
-			os.Exit(1)
-		}
-	case "relay":
-		if err := preimplant.RunRelay(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark relay: %v\n", err)
-			os.Exit(1)
-		}
-	case "ldap":
-		if err := preimplant.RunLDAP(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark ldap: %v\n", err)
-			os.Exit(1)
-		}
-	case "smb":
-		if err := preimplant.RunSMB(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark smb: %v\n", err)
-			os.Exit(1)
-		}
-	case "ad":
-		if err := preimplant.RunAD(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark ad: %v\n", err)
-			os.Exit(1)
-		}
-	case "kerberos":
-		if err := preimplant.RunKerberos(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark kerberos: %v\n", err)
-			os.Exit(1)
-		}
-	case "rbcd":
-		if err := preimplant.RunRBCD(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark rbcd: %v\n", err)
-			os.Exit(1)
-		}
-	case "inbound":
-		if err := preimplant.RunInbound(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark inbound: %v\n", err)
-			os.Exit(1)
-		}
-	case "adcs":
-		if err := preimplant.RunADCS(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark adcs: %v\n", err)
-			os.Exit(1)
-		}
-	case "winrm":
-		if err := preimplant.RunWinRM(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark winrm: %v\n", err)
-			os.Exit(1)
-		}
-	case "http":
-		if err := preimplant.RunHTTP(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark http: %v\n", err)
-			os.Exit(1)
-		}
-	case "dns":
-		if err := preimplant.RunDNS(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark dns: %v\n", err)
-			os.Exit(1)
-		}
-	case "mssql":
-		if err := preimplant.RunMSSQL(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "ark mssql: %v\n", err)
-			os.Exit(1)
-		}
 	case "console":
 		runConsole(os.Args[2:])
 	case "help", "-h", "--help":
 		printUsage()
 	default:
-		// Support ark -json without subcommand
+		if preimplant.IsHostCommand(os.Args[1]) {
+			if err := preimplant.RunHostCommand(os.Args[1], os.Args[2:]); err != nil {
+				fmt.Fprintf(os.Stderr, "ark %s: %v\n", os.Args[1], err)
+				os.Exit(1)
+			}
+			return
+		}
+		// Support ark -json without subcommand.
 		if os.Args[1] == "-json" {
 			runConsole(os.Args[1:])
 			return
@@ -317,6 +259,7 @@ Usage:
   ark kerberos      Skew, AES asktgt, golden/silver, keylist, pkinit
   ark inbound       tun0 / drop / httpdrop / through (SOCKS+env)
   ark winrm         Host-side WinRM/PSRP (pypsrp, SOCKS)
+  ark psexec        Host-side ADMIN$ + SCMR service start (SOCKS)
   ark http          Host-side HTTP GET/POST (NTLM, lab TLS)
   ark dns           Host-side ADIDNS add/delete (LDAP)
   ark mssql         Host-side MSSQL query / xp_cmdshell (impacket, SOCKS)
@@ -335,6 +278,7 @@ Pre-implant lab helpers (authorized labs only):
   ark kerberos help
   ark inbound help
   ark winrm help
+  ark psexec help
   ark http help
   ark dns help
   ark mssql help

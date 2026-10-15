@@ -32,6 +32,9 @@ const (
 	smb2FlagsSigned              = 0x00000008
 	statusMoreProcessingRequired = 0xC0000016
 	fileOpen                     = 1
+	fileOverwriteIf              = 5
+	fileWriteData                = 0x2
+	fileAppendData               = 0x4
 	fileShareRead                = 0x1
 	fileShareWrite               = 0x2
 	fileShareDelete              = 0x4
@@ -186,6 +189,33 @@ func (s *krbSession) ListDir(share, p string) ([]string, error) {
 	return parseDirInfo(raw), nil
 }
 
+func (s *krbSession) Upload(share, p string, data []byte) error {
+	tid, err := s.tree(share)
+	if err != nil {
+		return err
+	}
+	name := strings.TrimPrefix(strings.ReplaceAll(p, "/", `\`), `\`)
+	access := uint32(fileWriteData | fileAppendData | fileReadAttributes)
+	fid, err := s.createDisp(tid, name, access, fileOverwriteIf, fileNonDirectoryFile)
+	if err != nil {
+		return err
+	}
+	defer s.closeFID(tid, fid)
+	const chunk = 64 * 1024
+	var off uint64
+	for off < uint64(len(data)) {
+		n := chunk
+		if remain := uint64(len(data)) - off; remain < uint64(n) {
+			n = int(remain)
+		}
+		if _, err := s.writeFIDAt(tid, fid, off, data[off:off+uint64(n)]); err != nil {
+			return err
+		}
+		off += uint64(n)
+	}
+	return nil
+}
+
 func (s *krbSession) Download(share, p string) ([]byte, error) {
 	tid, err := s.tree(share)
 	if err != nil {
@@ -232,6 +262,10 @@ func (s *krbSession) ListShares() ([]string, error) {
 }
 
 func (s *krbSession) create(tid uint32, name string, access, options uint32) ([16]byte, error) {
+	return s.createDisp(tid, name, access, fileOpen, options)
+}
+
+func (s *krbSession) createDisp(tid uint32, name string, access, disposition, options uint32) ([16]byte, error) {
 	var zero [16]byte
 	u := utf16le(strings.ReplaceAll(name, "/", `\`))
 	body := make([]byte, 56+len(u))
@@ -239,7 +273,7 @@ func (s *krbSession) create(tid uint32, name string, access, options uint32) ([1
 	body[2] = 0
 	smb2le.PutUint32(body[8:12], access)
 	smb2le.PutUint32(body[24:28], fileShareRead|fileShareWrite|fileShareDelete)
-	smb2le.PutUint32(body[28:32], fileOpen)
+	smb2le.PutUint32(body[28:32], disposition)
 	smb2le.PutUint32(body[32:36], options)
 	smb2le.PutUint32(body[36:40], 0)
 	off := uint16(smb2HeaderSize + 56)
@@ -364,10 +398,15 @@ func (s *krbSession) readFIDAt(tid uint32, fid [16]byte, offset uint64, n uint32
 }
 
 func (s *krbSession) writeFID(tid uint32, fid [16]byte, data []byte) (int, error) {
+	return s.writeFIDAt(tid, fid, 0, data)
+}
+
+func (s *krbSession) writeFIDAt(tid uint32, fid [16]byte, offset uint64, data []byte) (int, error) {
 	body := make([]byte, 48+len(data))
 	smb2le.PutUint16(body[0:2], 49)
 	smb2le.PutUint16(body[2:4], smb2HeaderSize+48)
 	smb2le.PutUint32(body[4:8], uint32(len(data)))
+	smb2le.PutUint64(body[8:16], offset)
 	copy(body[16:32], fid[:])
 	copy(body[48:], data)
 	hdr, payload, err := s.roundtripPayload(smb2Write, s.sessionID, tid, body)

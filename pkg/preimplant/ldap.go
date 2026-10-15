@@ -42,7 +42,7 @@ func RunLDAP(args []string) error {
 
 const ldapUsage = `ark ldap — operator-host LDAP (no implant)
 
-  ark ldap bind --dc H --domain D --user U (--pass-file P | --pass P | --hash H) [--tls-verify]
+  ark ldap bind --dc H --domain D --user U (--pass-file P | --pass P | --hash H) [--tls-verify | --insecure]
   ark ldap enum --dc H --domain D --user U --pass-file P --type interesting
   ark ldap dangling --dc H --domain D --user U --pass-file P
   ark ldap enum --type maq --dc H --domain D --user U --pass-file P
@@ -54,7 +54,7 @@ const ldapUsage = `ark ldap — operator-host LDAP (no implant)
   ark ldap spray --dc H --domain D --user-file users.txt --pass-file P --delay 2s --yes
   ark ldap bind --dc H --domain D --ticket ID   # GSSAPI from imported ccache
 
-Uses LDAPS first (lab self-signed OK). Honors ARK_PROXY / ALL_PROXY (SOCKS5).
+Uses LDAPS first. A self-signed certificate is accepted after a logged fallback. --tls-verify requires a trusted certificate. --insecure skips verification. Honors ARK_PROXY / ALL_PROXY (SOCKS5).
 Types: acl, asrep_roastable (alias asrep), computers, constrained_delegation, dangling,
 dcs, domain_admins, gpos, groups, interesting, kerberoastable (alias spn), maq,
 rbcd, secrets, shadow (alias keycred), trusts, unconstrained_delegation, users, admins.
@@ -83,8 +83,14 @@ func ldapOpts(f map[string]string) (ldapcli.Options, error) {
 		}
 		o.CCache = p
 	}
+	if flagBool(f, "insecure") && flagBool(f, "tls-verify", "verify-tls") {
+		return o, fmt.Errorf("choose one of --insecure or --tls-verify")
+	}
 	if flagBool(f, "tls-verify", "verify-tls") {
-		o.InsecureSkipVerify = false
+		o.StrictTLS = true
+	}
+	if flagBool(f, "insecure") {
+		o.InsecureSkipVerify = true
 	}
 	if o.Host == "" {
 		return o, fmt.Errorf("--dc is required")

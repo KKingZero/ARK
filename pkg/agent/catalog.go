@@ -6,7 +6,7 @@ import (
 	"os"
 
 	pb "github.com/KKingZero/ARK/pkg/pb"
-	"github.com/KKingZero/ARK/server/approval"
+	"github.com/KKingZero/ARK/pkg/taskmeta"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -27,11 +27,9 @@ type ToolDef struct {
 	BuildData    func(args map[string]any) ([]byte, error)
 }
 
-var policy = approval.DefaultPolicy()
-
 // Catalog returns all agent tools.
 func Catalog() []ToolDef {
-	return []ToolDef{
+	return withTaskMetadataDefaults([]ToolDef{
 		{
 			Name:         "list_sessions",
 			Description:  "List all active implant sessions",
@@ -176,13 +174,11 @@ func Catalog() []ToolDef {
 			},
 		},
 		{
-			Name:         "smb",
-			Description:  "Remote SMB client (action: list_shares|list_dir|download; host, share, path; password or ntlm_hash or anonymous)",
-			Risk:         policy.ModuleRiskLevel("smb"),
-			TaskType:     pb.TaskType_TASK_MODULE,
-			ModuleName:   "smb",
-			NeedsSession: true,
-			BuildData:    buildSMB,
+			Name:        "smb",
+			Description: "Remote SMB client (action: list_shares|list_dir|download; host, share, path; password or ntlm_hash or anonymous)",
+			TaskType:    pb.TaskType_TASK_MODULE,
+			ModuleName:  "smb",
+			BuildData:   buildSMB,
 		},
 		{
 			Name:         "screenshot",
@@ -226,35 +222,27 @@ func Catalog() []ToolDef {
 			},
 		},
 		{
-			Name:         "ldap_enum",
-			Description:  "LDAP/AD enumeration (query_type e.g. kerberoastable|asrep|interesting|users|dcs|rbcd|shadow; maq/acl/dangling are host-only via ark ldap enum --type …)",
-			Risk:         policy.RiskLevel(pb.TaskType_TASK_LDAP_ENUM),
-			TaskType:     pb.TaskType_TASK_LDAP_ENUM,
-			NeedsSession: true,
-			BuildData:    buildLDAPEnum,
+			Name:        "ldap_enum",
+			Description: "LDAP/AD enumeration (query_type e.g. kerberoastable|asrep|interesting|users|dcs|rbcd|shadow; maq/acl/dangling are host-only via ark ldap enum --type …)",
+			TaskType:    pb.TaskType_TASK_LDAP_ENUM,
+			BuildData:   buildLDAPEnum,
 		},
 		{
-			Name:         "kerberoast",
-			Description:  "Kerberoast SPNs (domain, target_dc, username, password)",
-			Risk:         policy.RiskLevel(pb.TaskType_TASK_KERBEROAST),
-			TaskType:     pb.TaskType_TASK_KERBEROAST,
-			NeedsSession: true,
-			BuildData:    buildKerberoast,
+			Name:        "kerberoast",
+			Description: "Kerberoast SPNs (domain, target_dc, username, password)",
+			TaskType:    pb.TaskType_TASK_KERBEROAST,
+			BuildData:   buildKerberoast,
 		},
 		{
-			Name:         "asreproast",
-			Description:  "AS-REP roast without preauth (domain, target_dc)",
-			Risk:         policy.RiskLevel(pb.TaskType_TASK_ASREPROAST),
-			TaskType:     pb.TaskType_TASK_ASREPROAST,
-			NeedsSession: true,
-			BuildData:    buildASREPRoast,
+			Name:        "asreproast",
+			Description: "AS-REP roast without preauth (domain, target_dc)",
+			TaskType:    pb.TaskType_TASK_ASREPROAST,
+			BuildData:   buildASREPRoast,
 		},
 		{
-			Name:         "creds_dump",
-			Description:  "Dump credentials (method: lsass, sam, or browser)",
-			Risk:         policy.RiskLevel(pb.TaskType_TASK_CREDS_DUMP),
-			TaskType:     pb.TaskType_TASK_CREDS_DUMP,
-			NeedsSession: true,
+			Name:        "creds_dump",
+			Description: "Dump credentials (method: lsass, sam, or browser)",
+			TaskType:    pb.TaskType_TASK_CREDS_DUMP,
 			BuildData: func(args map[string]any) ([]byte, error) {
 				method, _ := args["method"].(string)
 				if method == "" {
@@ -264,28 +252,22 @@ func Catalog() []ToolDef {
 			},
 		},
 		{
-			Name:         "lateral_move",
-			Description:  "Lateral movement (method: wmi|winrm|psexec, target, command, credentials)",
-			Risk:         policy.RiskLevel(pb.TaskType_TASK_LATERAL_MOVE),
-			TaskType:     pb.TaskType_TASK_LATERAL_MOVE,
-			NeedsSession: true,
-			BuildData:    buildLateral,
+			Name:        "lateral_move",
+			Description: "Lateral movement (method: wmi|winrm|psexec, target, command, credentials)",
+			TaskType:    pb.TaskType_TASK_LATERAL_MOVE,
+			BuildData:   buildLateral,
 		},
 		{
-			Name:         "persist",
-			Description:  "Install persistence (method: schtask|registry|service, name, payload_path)",
-			Risk:         policy.RiskLevel(pb.TaskType_TASK_PERSIST),
-			TaskType:     pb.TaskType_TASK_PERSIST,
-			NeedsSession: true,
-			BuildData:    buildPersist,
+			Name:        "persist",
+			Description: "Install persistence (method: schtask|registry|service, name, payload_path)",
+			TaskType:    pb.TaskType_TASK_PERSIST,
+			BuildData:   buildPersist,
 		},
 		{
-			Name:         "privesc",
-			Description:  "Privilege escalation (method: token|uac_fodhelper|uac_eventvwr)",
-			Risk:         policy.RiskLevel(pb.TaskType_TASK_PRIVESC),
-			TaskType:     pb.TaskType_TASK_PRIVESC,
-			NeedsSession: true,
-			BuildData:    buildPrivesc,
+			Name:        "privesc",
+			Description: "Privilege escalation (method: token|uac_fodhelper|uac_eventvwr)",
+			TaskType:    pb.TaskType_TASK_PRIVESC,
+			BuildData:   buildPrivesc,
 		},
 		hostTool("host_ldap_set", "Host LDAP set allowlisted attr (scriptPath|servicePrincipalName). Args: dc, domain, user, pass_file|hash|ticket_id, target, attr, value", "high"),
 		hostTool("host_ad_password", "Host ForceChangePassword (LDAPS unicodePwd, SAMR fallback). Args: dc, domain, user, pass_file|hash|ticket_id, target, new_pass_file", "critical"),
@@ -302,7 +284,26 @@ func Catalog() []ToolDef {
 		hostTool("host_kerberos_silver", "Host silver ticket from service AES. Args: domain, user, sid, spn, aes_file", "critical"),
 		hostTool("host_ad_prp_clear_never_reveal", "Host clear msDS-NeverRevealGroup on RODC. Args: dc, domain, user, pass_file, rodc", "critical"),
 		hostTool("host_ad_prp_add_reveal", "Host add msDS-RevealOnDemandGroup member. Args: dc, domain, user, pass_file, rodc, group", "critical"),
+	})
+}
+
+func withTaskMetadataDefaults(tools []ToolDef) []ToolDef {
+	for i := range tools {
+		t := &tools[i]
+		var meta taskmeta.Task
+		var ok bool
+		if t.ModuleName != "" {
+			meta, ok = taskmeta.ByModule(t.ModuleName)
+		} else if t.TaskType != pb.TaskType_TASK_UNKNOWN {
+			meta, ok = taskmeta.ByType(t.TaskType)
+		}
+		if !ok {
+			continue
+		}
+		t.Risk = meta.Risk
+		t.NeedsSession = meta.NeedsSession
 	}
+	return tools
 }
 
 // LookupTool finds a tool by name.
@@ -321,9 +322,11 @@ func RequiresApproval(tool ToolDef) bool {
 		return tool.Risk == "high" || tool.Risk == "critical"
 	}
 	if tool.ModuleName != "" {
-		return policy.RequiresModuleApproval(tool.ModuleName)
+		meta, ok := taskmeta.ByModule(tool.ModuleName)
+		return ok && (meta.Risk == taskmeta.RiskHigh || meta.Risk == taskmeta.RiskCritical)
 	}
-	return policy.RequiresApproval(tool.TaskType)
+	meta, ok := taskmeta.ByType(tool.TaskType)
+	return ok && (meta.Risk == taskmeta.RiskHigh || meta.Risk == taskmeta.RiskCritical)
 }
 
 func buildLDAPEnum(args map[string]any) ([]byte, error) {

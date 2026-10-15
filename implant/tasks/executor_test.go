@@ -6,6 +6,7 @@ import (
 
 	pb "github.com/KKingZero/ARK/pkg/pb"
 	"github.com/KKingZero/ARK/pkg/plugin"
+	"github.com/KKingZero/ARK/pkg/taskmeta"
 )
 
 type stubModule struct {
@@ -20,25 +21,13 @@ func (m *stubModule) Execute(_ context.Context, _ []byte) ([]byte, error) {
 
 func TestExecuteTypedModuleTaskTypes(t *testing.T) {
 	reg := plugin.NewRegistry()
-	for _, name := range []string{
-		"creds_dump", "ldap_enum", "kerberoast", "asreproast",
-		"lateral_move", "persist", "privesc",
-	} {
+	routes := taskmeta.TypedModuleRoutes()
+	for _, name := range routes {
 		reg.Register(&stubModule{name: name})
 	}
 
 	e := NewExecutor(reg)
-	types := []pb.TaskType{
-		pb.TaskType_TASK_CREDS_DUMP,
-		pb.TaskType_TASK_LDAP_ENUM,
-		pb.TaskType_TASK_KERBEROAST,
-		pb.TaskType_TASK_ASREPROAST,
-		pb.TaskType_TASK_LATERAL_MOVE,
-		pb.TaskType_TASK_PERSIST,
-		pb.TaskType_TASK_PRIVESC,
-	}
-
-	for _, tt := range types {
+	for tt := range routes {
 		result := e.Execute(&pb.Task{TaskId: "t1", TaskType: tt, Data: []byte{}})
 		if !result.Success {
 			t.Fatalf("%s failed: %s", tt, result.Error)

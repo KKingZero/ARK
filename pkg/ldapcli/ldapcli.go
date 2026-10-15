@@ -3,7 +3,7 @@
 package ldapcli
 
 import (
-	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"strconv"
@@ -35,13 +35,20 @@ type Options struct {
 	PreferLDAPS bool
 	// RequireTLS refuses the plaintext 389 fallback (password set must use this).
 	RequireTLS bool
-	// InsecureSkipVerify is true by default (lab self-signed DC certs).
+	// InsecureSkipVerify skips certificate verification on the first attempt.
+	// The default is false: verify, then fall back for a self-signed lab DC.
 	InsecureSkipVerify bool
+	// StrictTLS returns a certificate error. It does not fall back.
+	// Set by --tls-verify.
+	StrictTLS bool
+	// RootCAs is the trust pool for the verifying handshake. Nil uses the system roots.
+	RootCAs *x509.CertPool
 }
 
-// DefaultOptions returns lab defaults (LDAPS, skip verify).
+// DefaultOptions returns lab defaults. LDAPS verifies first and, on a
+// certificate error, retries once without verification.
 func DefaultOptions() Options {
-	return Options{PreferLDAPS: true, InsecureSkipVerify: true}
+	return Options{PreferLDAPS: true}
 }
 
 // BaseDN converts example.htb → DC=example,DC=htb.
@@ -161,19 +168,15 @@ func dialLDAPS(opts Options) (*ldap.Conn, error) {
 		port = opts.Port
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	tlsCfg := &tls.Config{
-		InsecureSkipVerify: opts.InsecureSkipVerify,
-		MinVersion:         tls.VersionTLS12,
-		ServerName:         host,
+	mode := netproxy.TLSVerifyThenFallback
+	if opts.InsecureSkipVerify {
+		mode = netproxy.TLSInsecure
+	} else if opts.StrictTLS {
+		mode = netproxy.TLSStrict
 	}
-	raw, err := netproxy.DialTimeout("tcp", addr, dialTimeout)
+	tlsConn, err := netproxy.DialTLS(addr, host, opts.RootCAs, mode)
 	if err != nil {
-		return nil, fmt.Errorf("ldaps %s: %w", addr, err)
-	}
-	tlsConn := tls.Client(raw, tlsCfg)
-	if err := tlsConn.Handshake(); err != nil {
-		raw.Close()
-		return nil, fmt.Errorf("ldaps handshake %s: %w", addr, err)
+		return nil, err
 	}
 	conn := ldap.NewConn(tlsConn, true)
 	conn.Start()

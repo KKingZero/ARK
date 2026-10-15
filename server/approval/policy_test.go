@@ -4,16 +4,34 @@ import (
 	"testing"
 
 	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/taskmeta"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestRequiresModuleApproval(t *testing.T) {
 	p := DefaultPolicy()
-	if !p.RequiresModuleApproval("creds_dump") {
-		t.Fatal("creds_dump should require approval")
+	for _, name := range []string{
+		"creds_dump", "inject", "ldap_enum", "kerberoast", "asreproast",
+		"lateral_move", "persist", "privesc", "cloud", "smb", "shell",
+	} {
+		if !p.RequiresModuleApproval(name) {
+			t.Fatalf("%s should require approval", name)
+		}
 	}
-	if !p.RequiresModuleApproval("shell") {
-		t.Fatal("shell module should require approval")
+}
+
+func TestDefaultPolicyMatchesTaskMetadata(t *testing.T) {
+	p := DefaultPolicy()
+	for _, meta := range taskmeta.All() {
+		if meta.Risk != taskmeta.RiskHigh && meta.Risk != taskmeta.RiskCritical {
+			continue
+		}
+		if meta.Type != pb.TaskType_TASK_UNKNOWN && meta.Type != pb.TaskType_TASK_MODULE && p.RiskLevel(meta.Type) != meta.Risk {
+			t.Fatalf("%s risk %q want %q", meta.Type, p.RiskLevel(meta.Type), meta.Risk)
+		}
+		if meta.Module != "" && p.ModuleRiskLevel(meta.Module) != meta.Risk {
+			t.Fatalf("%s module risk %q want %q", meta.Module, p.ModuleRiskLevel(meta.Module), meta.Risk)
+		}
 	}
 }
 

@@ -59,7 +59,9 @@ func (r *REPL) Run() error {
 
 	for {
 		// Update prompt with active session
-		if r.cmds.sessionID != "" {
+		if len(r.cmds.sessionIDs) > 0 {
+			r.rl.SetPrompt(fmt.Sprintf("%sark%s[%d sessions] › %s", theme.ANSIAccent, theme.ANSIDim, len(r.cmds.sessionIDs), theme.ANSIReset))
+		} else if r.cmds.sessionID != "" {
 			sid := r.cmds.sessionID
 			if len(sid) > 8 {
 				sid = sid[:8]

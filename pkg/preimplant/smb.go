@@ -32,11 +32,13 @@ const smbUsage = `ark smb — operator-host SMB (no implant)
   ark smb ls --host H --share IT [--path .]
   ark smb get --host H --share C$ --path Users\\a\\Desktop\\user.txt --out user.txt
   ark smb ls --host 10.1.2.3 --hostname dc.lab.htb --share SYSVOL --ticket ID
+  ark smb shares --host H --user U --domain D --pass-file P --kerberos
 
 Hash: --hash 32hex-NT. Ticket: --ticket ID|path (store via ark kerberos ticket import / s4u).
-Kerberos: --hostname sets cifs/ SPN when --host is an IP; --kdc / --spn optional.
---anon is a Guest session (empty password). Signing-required DCs reject Guest.
-Kerberos SMB is native (cifs/ TGS + SMB2). Impacket wrap: ARK_SMB_IMPACKET=1.
+--kerberos asks a TGT (AES password, or NT overpass with --hash) then native cifs.
+An existing --ticket wins and is not replaced. --hostname sets the cifs/ SPN when
+--host is an IP; --kdc defaults to --host. --anon is a Guest session (empty password).
+Signing-required DCs reject Guest. Impacket wrap: ARK_SMB_IMPACKET=1.
 Honors ARK_PROXY / ALL_PROXY (SOCKS5).
 Lab-only. See docs/OPERATOR_PRE_IMPLANT.md
 `
@@ -64,9 +66,17 @@ func smbOpts(f map[string]string) (smbcli.Options, error) {
 	return o, nil
 }
 
+func smbOptsKerberos(f map[string]string) (smbcli.Options, error) {
+	o, err := smbOpts(f)
+	if err != nil {
+		return o, err
+	}
+	return applyKerberosSMB(o, flagBool(f, "kerberos"))
+}
+
 func smbShares(args []string) error {
 	f, _ := ParseFlags(args)
-	opts, err := smbOpts(f)
+	opts, err := smbOptsKerberos(f)
 	if err != nil {
 		return err
 	}
@@ -98,7 +108,7 @@ func smbShares(args []string) error {
 
 func smbLs(args []string) error {
 	f, _ := ParseFlags(args)
-	opts, err := smbOpts(f)
+	opts, err := smbOptsKerberos(f)
 	if err != nil {
 		return err
 	}
@@ -134,7 +144,7 @@ func smbLs(args []string) error {
 
 func smbGet(args []string) error {
 	f, _ := ParseFlags(args)
-	opts, err := smbOpts(f)
+	opts, err := smbOptsKerberos(f)
 	if err != nil {
 		return err
 	}

@@ -170,7 +170,8 @@ func RunTeamserver(configPath string, passphrase string) error {
 	return nil
 }
 
-// DataDir returns the default ARK data directory (~/.ark, or ~/.erebus if that tree already exists).
+// DataDir returns the ARK data directory. ARK_HOME and EREBUS_HOME win.
+// Otherwise it is ~/.ark, after a one-time copy from a legacy ~/.erebus.
 func DataDir() string {
 	return arkhome.Dir()
 }

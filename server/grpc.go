@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,15 +13,6 @@ import (
 	"github.com/KKingZero/ARK/server/builder"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
-)
-
-// validOS and validArch are whitelists for build targets.
-var (
-	validOS        = map[string]bool{"windows": true, "linux": true, "darwin": true}
-	validArch      = map[string]bool{"amd64": true, "arm64": true}
-	validTransport = map[string]bool{"https": true, "dns": true}
-	validLanguage  = map[string]bool{"go": true, "c": true, "": true}
 )
 
 // resolveProjectRoot finds the ARK repo root (directory containing go.mod).
@@ -185,12 +175,9 @@ func (s *GRPCService) ExecuteTask(ctx context.Context, req *pb.ExecuteTaskReques
 	if s.ts.Socks != nil {
 		switch req.TaskType {
 		case pb.TaskType_TASK_SOCKS_START:
-			port := uint32(1080)
-			if len(req.Data) > 0 {
-				var st pb.SocksStartTask
-				if err := proto.Unmarshal(req.Data, &st); err == nil && st.Port > 0 {
-					port = st.Port
-				}
+			port, err := socksListenPort(req.Data)
+			if err != nil {
+				return nil, status.Errorf(codes.InvalidArgument, "socks start: %v", err)
 			}
 			if _, err := s.ts.Socks.StartForSession(req.SessionId, port); err != nil {
 				return nil, status.Errorf(codes.Internal, "start socks: %v", err)
@@ -274,116 +261,17 @@ func (s *GRPCService) Subscribe(req *pb.SubscribeRequest, stream pb.ErebusC2_Sub
 // --- Builder ---
 
 func (s *GRPCService) GenerateImplant(ctx context.Context, req *pb.GenerateImplantRequest) (*pb.GenerateImplantResponse, error) {
-	// H9: Validate inputs against whitelists
-	targetOS := req.Os
-	if targetOS == "" {
-		targetOS = "windows"
-	}
-	if !validOS[targetOS] {
-		return &pb.GenerateImplantResponse{
-			Success: false,
-			Error:   fmt.Sprintf("unsupported OS: %s (available: windows, linux, darwin)", targetOS),
-		}, nil
-	}
-
-	targetArch := req.Arch
-	if targetArch == "" {
-		targetArch = "amd64"
-	}
-	if !validArch[targetArch] {
-		return &pb.GenerateImplantResponse{
-			Success: false,
-			Error:   fmt.Sprintf("unsupported arch: %s (available: amd64, arm64)", targetArch),
-		}, nil
-	}
-
-	transport := req.Transport
-	if transport == "" {
-		transport = "https"
-	}
-	if !validTransport[transport] {
-		return &pb.GenerateImplantResponse{
-			Success: false,
-			Error:   fmt.Sprintf("unsupported transport: %s (available: https, dns)", transport),
-		}, nil
-	}
-
-	// Validate callback URLs
-	for _, cb := range req.Callbacks {
-		parsed, err := url.ParseRequestURI(cb)
-		if err != nil {
-			return &pb.GenerateImplantResponse{
-				Success: false,
-				Error:   fmt.Sprintf("invalid callback URL %q: %v", cb, err),
-			}, nil
-		}
-		if transport == "https" && parsed.Scheme != "https" {
-			return &pb.GenerateImplantResponse{
-				Success: false,
-				Error:   fmt.Sprintf("invalid callback URL %q: https transport requires https callback URL", cb),
-			}, nil
-		}
-	}
-
-	language := req.Language
-	if language == "" {
-		language = "c"
-	}
-	if !validLanguage[language] {
-		return &pb.GenerateImplantResponse{
-			Success: false,
-			Error:   fmt.Sprintf("unsupported language: %s (available: c, go)", language),
-		}, nil
-	}
-
-	format := builder.FormatEXE
-	switch req.Format {
-	case "shellcode":
-		format = builder.FormatShellcode
-	case "dll":
-		format = builder.FormatDLL
-	case "", "exe":
-		format = builder.FormatEXE
-	default:
-		return &pb.GenerateImplantResponse{
-			Success: false,
-			Error:   fmt.Sprintf("unsupported format: %s (available: exe, dll, shellcode)", req.Format),
-		}, nil
-	}
-
 	// Resolve ProjectRoot: ARK_ROOT, then walk up from cwd / executable for go.mod.
 	projectRoot := resolveProjectRoot()
 
 	// H11: Extract operator identity from mTLS context
 	operator := operatorFromContext(ctx)
 
-	if language == "c" && format != builder.FormatEXE && format != builder.FormatDLL && format != builder.FormatShellcode {
-		return &pb.GenerateImplantResponse{
-			Success: false,
-			Error:   "C implant supports exe, dll, shellcode (Windows amd64); Linux C is exe only",
-		}, nil
-	}
-	if language == "c" && targetArch != "amd64" {
-		return &pb.GenerateImplantResponse{
-			Success: false,
-			Error:   "C implant only supports amd64",
-		}, nil
-	}
-	if language == "c" && targetOS != "windows" && targetOS != "linux" {
-		return &pb.GenerateImplantResponse{
-			Success: false,
-			Error:   "C implant only supports windows or linux",
-		}, nil
-	}
-
-	log.Printf("[audit] op=GenerateImplant operator=%q os=%s arch=%s transport=%s lang=%s",
-		operator, targetOS, targetArch, transport, language)
-
 	buildReq := &builder.BuildRequest{
-		Language:  language,
-		OS:        targetOS,
-		Arch:      targetArch,
-		Transport: transport,
+		Language:  req.Language,
+		OS:        req.Os,
+		Arch:      req.Arch,
+		Transport: req.Transport,
 		Callbacks: req.Callbacks,
 		SleepMs:   req.SleepMs,
 		JitterPct: req.JitterPct,
@@ -391,14 +279,24 @@ func (s *GRPCService) GenerateImplant(ctx context.Context, req *pb.GenerateImpla
 		CDNDomain: req.CdnDomain,
 		DNSDomain: req.DnsDomain,
 		DNSServer: req.DnsServer,
-		Format:    format,
+		Format:    builder.Format(req.Format),
 		Operator:  operator,
 		// Unique per-implant secret is generated inside Build; do not inject fleet PSK.
 		ProjectRoot: projectRoot,
 	}
+	if err := builder.NormalizeBuildRequest(buildReq); err != nil {
+		return &pb.GenerateImplantResponse{
+			Success: false,
+			Error:   err.Error(),
+		}, nil
+	}
+
+	log.Printf("[audit] op=GenerateImplant operator=%q os=%s arch=%s transport=%s lang=%s",
+		operator, buildReq.OS, buildReq.Arch, buildReq.Transport, buildReq.Language)
+
 	// Always embed teamserver CA for HTTPS so implants never fall back to InsecureSkipVerify.
 	// DNS transport does not use TLS to the teamserver listener.
-	if transport == "https" || transport == "" {
+	if buildReq.Transport == "https" {
 		caPath := filepath.Join(s.ts.Config.DataDir, "ca-cert.pem")
 		if _, err := os.Stat(caPath); err != nil {
 			return &pb.GenerateImplantResponse{

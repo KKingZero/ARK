@@ -20,10 +20,10 @@ ark operator        REPL
 ark op              one-shot (sessions / shell / generate / …)
 ark certs seats     operator + approver mTLS certs
 ark inbound …       tun0 / drop / httpdrop / redirector / SOCKS env
-ark ldap / smb / ad / adcs / rbcd / kerberos / winrm / http / dns / mssql / mqtt / relay
+ark ldap / smb / ad / adcs / rbcd / kerberos / winrm / psexec / http / dns / mssql / mqtt / relay
 ```
 
-Data dir: `~/.ark/` (`ARK_HOME` overrides; populated `~/.erebus` is still accepted as a legacy tree).
+Data dir: `~/.ark/` (`ARK_HOME`, then `EREBUS_HOME`, override and skip migration). A legacy `~/.erebus` is copied once into `~/.ark` when that tree has no `server.yaml`, `certs/`, or `ark.db`. The copy is not repeated, and `~/.erebus` is left in place.
 
 Default **fresh** HTTPS listener: **1750**. Existing `server.yaml` is not rewritten.
 
@@ -44,7 +44,10 @@ Bare Makefile C builds do **not** register the HMAC secret. Use `op generate`, `
 - Native PKINIT UnPAC: `ark kerberos pkinit` assembles PA-PK-AS-REQ (CMS AuthPack + DH) and UnPACs the NT hash. Live DC still required; Certipy remains a fallback if the KDC rejects the request.
 - ADCS ESC2–11 / web enroll / golden cert: out of scope. Dangling ESC1 template create/grant/req/auto **is** `ark adcs`.
 - Windows C reverse SOCKS over beacon is implemented (same reverse-agent wire as Linux C / Go). Live Windows proof still open. Linux C reverse SOCKS is implemented.
-- Go PsExec from a non-Windows implant still cannot create the remote service.
+- Host `ark psexec` creates and starts a service over SCMR (NTLM or `--kerberos`). Go PsExec from a non-Windows implant still cannot. Windows C PsExec is password/SCM only (no hash).
+- `ark op` one-shot approves in-process with the approver cert. The operator REPL does not. Agent Auto stays human dual-seat.
+- Linux C must not need glibc newer than 2.35. A register failure includes the curl error.
+- Linux C does not speak Kerberos. After a session, host `ldap` / `kerberos` / `smb` / `psexec` run through SOCKS (`ark inbound through`).
 - No malleable C2 profiles, no sleep mask, no multi-teamserver.
 
 ## Tests

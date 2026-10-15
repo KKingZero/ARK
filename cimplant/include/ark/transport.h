@@ -17,7 +17,12 @@ typedef struct ark_transport_ops {
 struct ark_transport {
     const ark_transport_ops *ops;
     void *ctx;
+    /* Set by the Linux HTTPS transport on a failed POST. Empty otherwise. */
+    char last_error[160];
 };
+
+/* Formats "curl=<err>" or "curl=<err> http=<code>" into dst. */
+void ark_format_https_fail(char *dst, size_t cap, const char *curl_err, long http_code);
 
 int ark_transport_create(const char *type, ark_transport **out);
 void ark_transport_destroy(ark_transport *t);

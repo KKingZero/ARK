@@ -82,16 +82,26 @@ static char *ca_pem_from_config(void) {
     return pem;
 }
 
-static int https_post(https_linux_ctx *ctx, const char *path,
+static void note_https_fail(ark_transport *t, const char *curl_err, long http_code) {
+    if (!t) return;
+    ark_format_https_fail(t->last_error, sizeof(t->last_error), curl_err, http_code);
+}
+
+static int https_post(ark_transport *t, https_linux_ctx *ctx, const char *path,
     const uint8_t *body, size_t body_len, uint8_t **resp, size_t *resp_len) {
-    if (strncmp(ctx->base_url, "https://", 8) == 0 && ARK_CA_CERT_PEM[0] == '\0')
+    if (strncmp(ctx->base_url, "https://", 8) == 0 && ARK_CA_CERT_PEM[0] == '\0') {
+        note_https_fail(t, "CA pin missing", 0);
         return 0;
+    }
 
     char url[640];
     snprintf(url, sizeof(url), "%s%s", ctx->base_url, path);
 
     CURL *curl = curl_easy_init();
-    if (!curl) return 0;
+    if (!curl) {
+        note_https_fail(t, "curl_easy_init", 0);
+        return 0;
+    }
 
     mem_buf mb = {0};
     struct curl_slist *hdrs = NULL;
@@ -113,6 +123,7 @@ static int https_post(https_linux_ctx *ctx, const char *path,
     if (strncmp(ctx->base_url, "https://", 8) == 0) {
         ca_pem = ca_pem_from_config();
         if (!ca_pem) {
+            note_https_fail(t, "CA pin decode", 0);
             curl_slist_free_all(hdrs);
             curl_easy_cleanup(curl);
             return 0;
@@ -127,7 +138,10 @@ static int https_post(https_linux_ctx *ctx, const char *path,
         /* Fallback: write temp PEM file */
         char tmp[] = "/tmp/ark-ca-XXXXXX";
         int fd = mkstemp(tmp);
-        if (fd < 0) { free(ca_pem); curl_slist_free_all(hdrs); curl_easy_cleanup(curl); return 0; }
+        if (fd < 0) {
+            note_https_fail(t, "CA temp file", 0);
+            free(ca_pem); curl_slist_free_all(hdrs); curl_easy_cleanup(curl); return 0;
+        }
         write(fd, ca_pem, strlen(ca_pem));
         close(fd);
         curl_easy_setopt(curl, CURLOPT_CAINFO, tmp);
@@ -157,6 +171,8 @@ static int https_post(https_linux_ctx *ctx, const char *path,
     free(ca_pem);
 
     if (rc != CURLE_OK || code != 200) {
+        const char *why = (rc != CURLE_OK) ? curl_easy_strerror(rc) : "ok";
+        note_https_fail(t, why, code);
         free(mb.data);
         return 0;
     }
@@ -166,11 +182,11 @@ static int https_post(https_linux_ctx *ctx, const char *path,
 }
 
 static int https_register(ark_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
-    return https_post((https_linux_ctx *)t->ctx, "/register", req, req_len, resp, resp_len);
+    return https_post(t, (https_linux_ctx *)t->ctx, "/register", req, req_len, resp, resp_len);
 }
 
 static int https_beacon(ark_transport *t, const uint8_t *req, size_t req_len, uint8_t **resp, size_t *resp_len) {
-    return https_post((https_linux_ctx *)t->ctx, "/beacon", req, req_len, resp, resp_len);
+    return https_post(t, (https_linux_ctx *)t->ctx, "/beacon", req, req_len, resp, resp_len);
 }
 
 static void https_destroy(ark_transport *t) {

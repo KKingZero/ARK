@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/taskmeta"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -15,39 +16,21 @@ type Policy struct {
 
 // DefaultPolicy returns the default approval policy.
 func DefaultPolicy() *Policy {
-	return &Policy{
-		HighRiskTasks: map[pb.TaskType]string{
-			pb.TaskType_TASK_CREDS_DUMP:   "critical",
-			pb.TaskType_TASK_INJECT:       "high",
-			pb.TaskType_TASK_PE_LOAD:      "high",
-			pb.TaskType_TASK_LATERAL_MOVE: "critical",
-			pb.TaskType_TASK_PERSIST:      "critical",
-			pb.TaskType_TASK_PRIVESC:      "high",
-			pb.TaskType_TASK_PE_LOAD_EXEC: "high",
-			pb.TaskType_TASK_LDAP_ENUM:    "high",
-			pb.TaskType_TASK_KERBEROAST:   "high",
-			pb.TaskType_TASK_ASREPROAST:   "high",
-			// Balanced policy expansion
-			pb.TaskType_TASK_SHELL:        "high",
-			pb.TaskType_TASK_FILE_UPLOAD:  "high",
-			pb.TaskType_TASK_KEYLOG_START: "high",
-			pb.TaskType_TASK_KEYLOG_STOP:  "high",
-			pb.TaskType_TASK_KEYLOG_DUMP:  "high",
-		},
-		HighRiskModules: map[string]string{
-			"creds_dump":   "critical",
-			"lateral_move": "critical",
-			"persist":      "critical",
-			"privesc":      "high",
-			"inject":       "high",
-			"ldap_enum":    "high",
-			"kerberoast":   "high",
-			"asreproast":   "high",
-			"cloud":        "high",
-			"smb":          "high",
-			"shell":        "high",
-		},
+	p := &Policy{
+		HighRiskTasks:   map[pb.TaskType]string{},
+		HighRiskModules: map[string]string{},
 	}
+	for _, t := range taskmeta.All() {
+		if t.Risk == taskmeta.RiskHigh || t.Risk == taskmeta.RiskCritical {
+			if t.Type != pb.TaskType_TASK_MODULE && t.Type != pb.TaskType_TASK_UNKNOWN {
+				p.HighRiskTasks[t.Type] = t.Risk
+			}
+			if t.Module != "" {
+				p.HighRiskModules[t.Module] = t.Risk
+			}
+		}
+	}
+	return p
 }
 
 // RequiresApproval returns true if the task type needs operator approval.

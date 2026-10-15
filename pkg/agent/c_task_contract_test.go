@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	pb "github.com/KKingZero/ARK/pkg/pb"
+	"github.com/KKingZero/ARK/pkg/taskmeta"
 )
 
 // TestCTaskTypesMatchProto is the Sprint 0 contract: c2.proto TaskType is the
@@ -63,10 +64,10 @@ func TestCTaskTypesMatchProto(t *testing.T) {
 func TestTypedModuleAdapterParity(t *testing.T) {
 	root := repoRoot(t)
 	cRoutes := parseCTypedRoutes(t, filepath.Join(root, "cimplant", "src", "tasks", "executor.c"))
-	goRoutes := parseGoTypedRoutes(t, filepath.Join(root, "implant", "tasks", "modules.go"))
+	goRoutes := metadataTypedRoutes()
 
 	if len(goRoutes) == 0 {
-		t.Fatal("no taskTypeModules entries in implant/tasks/modules.go")
+		t.Fatal("no typed module routes in task metadata")
 	}
 	if len(cRoutes) != len(goRoutes) {
 		t.Fatalf("C adapter has %d typed routes, Go has %d", len(cRoutes), len(goRoutes))
@@ -94,7 +95,7 @@ func TestCatalogTaskTypesHaveCDisposition(t *testing.T) {
 	root := repoRoot(t)
 	cTypes := parseCTaskTypes(t, filepath.Join(root, "cimplant", "include", "ark", "pb_task_types.h"))
 	cRoutes := parseCTypedRoutes(t, filepath.Join(root, "cimplant", "src", "tasks", "executor.c"))
-	goRoutes := parseGoTypedRoutes(t, filepath.Join(root, "implant", "tasks", "modules.go"))
+	goRoutes := metadataTypedRoutes()
 
 	for _, tool := range Catalog() {
 		if tool.TaskType == pb.TaskType_TASK_UNKNOWN || tool.TaskType == 0 {
@@ -124,6 +125,14 @@ func TestCatalogTaskTypesHaveCDisposition(t *testing.T) {
 			t.Errorf("catalog tool %s: C route %q, Go module %q", tool.Name, got, mod)
 		}
 	}
+}
+
+func metadataTypedRoutes() map[string]string {
+	out := map[string]string{}
+	for typ, mod := range taskmeta.TypedModuleRoutes() {
+		out[typ.String()] = mod
+	}
+	return out
 }
 
 func repoRoot(t *testing.T) string {
